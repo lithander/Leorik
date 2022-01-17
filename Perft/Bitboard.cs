@@ -185,5 +185,29 @@ namespace Perft
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         //identify the lowest set bit and set all bits below while zeroing the rest
         private static ulong MaskLow(ulong bb) => bb ^ (bb - 1);
+
+        //const ulong DIAGONAL = 0x8040201008040201UL;
+        //const ulong ANTIDIAGONAL = 0x0102040810204080UL;
+        //
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        ////sign of 'ranks' decides between left shift or right shift. Then convert signed ranks to a positiver number of bits to shift by. Each rank has 8 bits e.g. 1 << 3 == 8
+        //private static ulong VerticalShift(in ulong bb, in int ranks) => ranks > 0 ? bb >> (ranks << 3) : bb << -(ranks << 3);
+        //
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static ulong GetDiagonalTargets(ulong occupation, int square)
+        //{
+        //    ulong bbPiece = 1UL << square;
+        //    ulong bbBlocker = occupation & ~bbPiece;
+        //    //mask the bits below bbPiece
+        //    ulong bbBelow = bbPiece - 1;
+        //    //compute rank and file of square
+        //    int rank = square >> 3;
+        //    int file = square & 7;
+        //    //diagonal line through square
+        //    ulong bbDiagonal = VerticalShift(DIAGONAL, file - rank);
+        //    //antidiagonal line through square
+        //    ulong bbAntiDiagonal = VerticalShift(ANTIDIAGONAL, 7 - file - rank);
+        //    return GenLines(bbDiagonal, bbAntiDiagonal, bbBlocker, bbBelow);
+        //}
     }
 }
