@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 
-namespace Perft
+namespace Leorik.Core
 {
     public static class Bitboard
     {
@@ -46,7 +46,7 @@ namespace Perft
             0x0044280000000000UL, 0x0088500000000000UL, 0x0010A00000000000UL, 0x0020400000000000UL
         };
 
-        public static readonly ulong[] DiagonalTargets =
+        public static readonly ulong[] DiagonalMask =
         {
             0x8040201008040200UL, 0x0080402010080500UL, 0x0000804020110A00UL, 0x0000008041221400UL,
             0x0000000182442800UL, 0x0000010204885000UL, 0x000102040810A000UL, 0x0102040810204000UL,
@@ -66,7 +66,7 @@ namespace Perft
             0x0028448201000000UL, 0x0050880402010000UL, 0x00A0100804020100UL, 0x0040201008040201UL
         };
 
-        public static readonly ulong[] OrthogonalTargets =
+        public static readonly ulong[] OrthogonalMask =
         {
             0x01010101010101FEUL, 0x02020202020202FDUL, 0x04040404040404FBUL, 0x08080808080808F7UL,
             0x10101010101010EFUL, 0x20202020202020DFUL, 0x40404040404040BFUL, 0x808080808080807FUL,
@@ -103,8 +103,11 @@ namespace Perft
             0x0201000000000000UL, 0x0402010000000000UL, 0x0804020100000000UL, 0x1008040201000000UL,
             0x2010080402010000UL, 0x4020100804020100UL, 0x8040201008040201UL, 0x0080402010080402UL,
             0x0100000000000000UL, 0x0201000000000000UL, 0x0402010000000000UL, 0x0804020100000000UL,
-            0x1008040201000000UL, 0x2010080402010000UL, 0x4020100804020100UL, 0x8040201008040201UL,
-            //Antidiagonals
+            0x1008040201000000UL, 0x2010080402010000UL, 0x4020100804020100UL, 0x8040201008040201UL
+        };
+
+        public static readonly ulong[] AntiDiagonals =
+        {
             0x0000000000000001UL, 0x0000000000000102UL, 0x0000000000010204UL, 0x0000000001020408UL,
             0x0000000102040810UL, 0x0000010204081020UL, 0x0001020408102040UL, 0x0102040810204080UL,
             0x0000000000000102UL, 0x0000000000010204UL, 0x0000000001020408UL, 0x0000000102040810UL,
@@ -136,17 +139,17 @@ namespace Perft
         const ulong VERTICAL = 0x0101010101010101UL;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetDiagonalTargets(ulong occupation, int square)
+        public static ulong GetBishopTargets(ulong occupation, int square)
         {
             ulong bbPiece = 1UL << square;
             ulong bbBlocker = occupation & ~bbPiece;
             //mask the bits below bbPiece
             ulong bbBelow = bbPiece - 1;
-            return GenLines(Diagonals[square], Diagonals[square+64], bbBlocker, bbBelow);
+            return GenLines(Diagonals[square], AntiDiagonals[square], bbBlocker, bbBelow);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetOrthogonalTargets(ulong occupation, int square)
+        public static ulong GetRookTargets(ulong occupation, int square)
         {
             ulong bbPiece = 1UL << square;
             ulong bbBlocker = occupation & ~bbPiece;
@@ -161,8 +164,8 @@ namespace Perft
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong GetQueenTargets(ulong occupation, int square) =>
-            GetDiagonalTargets(occupation, square) | 
-            GetOrthogonalTargets(occupation, square);
+            GetBishopTargets(occupation, square) | 
+            GetRookTargets(occupation, square);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong GenLines(ulong bbLineA, ulong bbLineB, ulong bbBlocker, ulong bbBelow) =>
@@ -186,6 +189,10 @@ namespace Perft
         //identify the lowest set bit and set all bits below while zeroing the rest
         private static ulong MaskLow(ulong bb) => bb ^ (bb - 1);
 
+        //******************************
+        //*** ZERO TABLE ALTERNATIVE ***
+        //******************************
+
         //const ulong DIAGONAL = 0x8040201008040201UL;
         //const ulong ANTIDIAGONAL = 0x0102040810204080UL;
         //
@@ -194,7 +201,7 @@ namespace Perft
         //private static ulong VerticalShift(in ulong bb, in int ranks) => ranks > 0 ? bb >> (ranks << 3) : bb << -(ranks << 3);
         //
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public static ulong GetDiagonalTargets(ulong occupation, int square)
+        //public static ulong GetBishopTargets(ulong occupation, int square)
         //{
         //    ulong bbPiece = 1UL << square;
         //    ulong bbBlocker = occupation & ~bbPiece;

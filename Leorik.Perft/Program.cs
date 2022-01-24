@@ -1,16 +1,14 @@
-﻿using System;
+﻿using Leorik.Core;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.CompilerServices;
 
-namespace Perft
+namespace Leorik.Perft
 {
     class Program
     {
-        const int MAX_PLY = 10;
-        const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
-        static BoardState[] Positions;
-        static Move[] Moves;
+        private const int MAX_PLY = 10;
+        private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
+        private static BoardState[] Positions;
+        private static Move[] Moves;
 
         static Program()
         {
@@ -60,7 +58,7 @@ namespace Perft
         {
             string[] data = file.ReadLine().Split(';');
             string fen = data[0];
-            position = Notation.ToBoardState(fen);
+            position = Notation.GetBoardState(fen);
             depth = int.Parse(data[1]);
             refResult = long.Parse(data[2]);
         }
@@ -68,10 +66,10 @@ namespace Perft
         private static long Perft(BoardState pos, int depth)
         {
             Positions[0].Copy(pos);
-            return Perft(0, depth, new MoveGen(Moves, 0));
+            return Perft(0, depth, new PerftMoveGen(Moves, 0));
         }
 
-        private static long Perft(int depth, int remaining, MoveGen moves)
+        private static long Perft(int depth, int remaining, PerftMoveGen moves)
         {
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
@@ -80,7 +78,7 @@ namespace Perft
             long sum = 0;
             for (; i < moves.Next; i++)
             {
-                if (next.TryPlay(current, ref Moves[i]))
+                if (next.Play(current, ref Moves[i]))
                 {
                     if (remaining > 1)
                         sum += Perft(depth + 1, remaining - 1, moves);

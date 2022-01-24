@@ -1,13 +1,14 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Leorik.Core;
+using System.Runtime.CompilerServices;
 
-namespace Perft
+namespace Leorik.Perft
 {
-    public struct MoveGen
+    public struct PerftMoveGen
     {
         private readonly Move[] _moves;
         public int Next;
 
-        public MoveGen(Move[] moves, int nextIndex)
+        public PerftMoveGen(Move[] moves, int nextIndex)
         {
             _moves = moves;
             Next = nextIndex;
@@ -22,7 +23,7 @@ namespace Perft
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(Piece flags, int from, int to)
         {
-            _moves[Next++] = new Move(flags, from, to);
+            _moves[Next++] = new Move(flags, from, to, Piece.None);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -60,7 +61,7 @@ namespace Perft
             for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
             {
                 square = Bitboard.LSB(bishops);
-                targets = Bitboard.GetDiagonalTargets(occupied, square) & ~board.Black;
+                targets = Bitboard.GetBishopTargets(occupied, square) & ~board.Black;
                 for (; targets != 0; targets = Bitboard.ClearLSB(targets))
                     Add(Piece.BlackBishop, square, Bitboard.LSB(targets));
             }
@@ -69,7 +70,7 @@ namespace Perft
             for (ulong rooks = board.Rooks & board.Black; rooks != 0; rooks = Bitboard.ClearLSB(rooks))
             {
                 square = Bitboard.LSB(rooks);
-                targets = Bitboard.GetOrthogonalTargets(occupied, square) & ~board.Black;
+                targets = Bitboard.GetRookTargets(occupied, square) & ~board.Black;
                 for (; targets != 0; targets = Bitboard.ClearLSB(targets))
                     Add(Piece.BlackRook, square, Bitboard.LSB(targets));
             }
@@ -160,7 +161,7 @@ namespace Perft
             for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
             {
                 square = Bitboard.LSB(bishops);
-                targets = Bitboard.GetDiagonalTargets(occupied, square) & ~board.White;
+                targets = Bitboard.GetBishopTargets(occupied, square) & ~board.White;
                 for (; targets != 0; targets = Bitboard.ClearLSB(targets))
                     Add(Piece.WhiteBishop, square, Bitboard.LSB(targets));
             }
@@ -169,7 +170,7 @@ namespace Perft
             for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = Bitboard.ClearLSB(rooks))
             {
                 square = Bitboard.LSB(rooks);
-                targets = Bitboard.GetOrthogonalTargets(occupied, square) & ~board.White;
+                targets = Bitboard.GetRookTargets(occupied, square) & ~board.White;
                 for (; targets != 0; targets = Bitboard.ClearLSB(targets))
                     Add(Piece.WhiteRook, square, Bitboard.LSB(targets));
             }

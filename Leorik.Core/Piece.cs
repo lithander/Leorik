@@ -1,6 +1,5 @@
-﻿using System;
-
-namespace Perft
+﻿
+namespace Leorik.Core
 {
     public enum Color
     {
@@ -54,5 +53,6 @@ namespace Perft
         //Mask
         ColorMask = 3,
         TypeMask = 28,      //11100
+        PieceMask = 31,
     }
 }

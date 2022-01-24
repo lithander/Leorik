@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Leorik.Core\Leorik.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="qbb.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
