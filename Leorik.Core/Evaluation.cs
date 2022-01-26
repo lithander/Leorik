@@ -103,8 +103,8 @@ namespace Leorik.Core
             _endgameScore -= EndgameTables[tableIndex];
         }
 
-        const int CheckmateBase = 9000;
-        const int CheckmateScore = 9999;
+        public const int CheckmateBase = 9000;
+        public const int CheckmateScore = 9999;
 
         public static int GetMateDistance(int score)
         {
