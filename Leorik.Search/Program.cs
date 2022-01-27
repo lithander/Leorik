@@ -9,24 +9,22 @@ namespace Leorik.Search
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v2");
+            Console.WriteLine("Leorik Search v3");
             Console.WriteLine();
 
-            SearchMinMax(Notation.GetStartingPosition(), DEPTH);
-            Console.WriteLine($"Searching Startpos with MinMax({DEPTH}) => {NodesVisited} nodes visited!");
-            CompareBestMoveMinMax(File.OpenText("wac.epd"), DEPTH);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchQSearch, "QSearch", false);
 
-            SearchAlphaBeta(Notation.GetStartingPosition(), DEPTH);
-            Console.WriteLine($"Searching Startpos with AlphaBeta({DEPTH}) => {NodesVisited} nodes visited!");
-            CompareBestMoveAlphaBeta(File.OpenText("wac.epd"), DEPTH);
-
-            Console.WriteLine();
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
         }
 
-        private static void CompareBestMoveMinMax(StreamReader file, int depth)
+        private delegate Move SearchDelegate(BoardState state, int depth);
+
+        private static void CompareBestMove(StreamReader file, int depth, SearchDelegate search, string label, bool logDetails)
         {
+            Console.WriteLine($"Searching {label}({depth})");
             double freq = Stopwatch.Frequency;
             long totalTime = 0;
             long totalNodes = 0;
@@ -35,7 +33,7 @@ namespace Leorik.Search
             while (!file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
                 long t0 = Stopwatch.GetTimestamp();
-                Move pvMove = SearchMinMax(board, depth);
+                Move pvMove = search(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
@@ -47,19 +45,25 @@ namespace Leorik.Search
                 if (foundBestMove)
                     foundBest++;
 
-                Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
-                Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
+                if (logDetails)
+                {
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
+                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
+                }
+                else 
+                    Console.Write('.');
             }
 
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
-            Console.WriteLine($"Searching {count} positions with MinMax({depth})");
+            Console.WriteLine($"Searched {count} positions with {label}({depth})");
             Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
+            Console.WriteLine();
         }
 
-        private static void CompareBestMoveAlphaBeta(StreamReader file, int depth)
+        private static void CompareBestMoveQSearch(StreamReader file, int depth)
         {
             double freq = Stopwatch.Frequency;
             long totalTime = 0;
@@ -69,7 +73,7 @@ namespace Leorik.Search
             while (!file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
                 long t0 = Stopwatch.GetTimestamp();
-                Move pvMove = SearchAlphaBeta(board, depth);
+                Move pvMove = SearchQSearch(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
@@ -87,7 +91,7 @@ namespace Leorik.Search
 
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
-            Console.WriteLine($"Searching {count} positions with AlphaBeta({depth})");
+            Console.WriteLine($"Searching {count} positions with QSearch({depth})");
             Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
@@ -118,7 +122,7 @@ namespace Leorik.Search
         /***    Search     ***/
         /*********************/
 
-        private const int MAX_PLY = 10;
+        private const int MAX_PLY = 99;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private static BoardState[] Positions;
         private static Move[] Moves;
@@ -240,6 +244,107 @@ namespace Leorik.Search
                         alpha = score;
                 }
             }
+            return alpha;
+        }
+
+        private static Move SearchQSearch(BoardState board, int depth)
+        {
+            NodesVisited = 0;
+            Positions[0].Copy(board);
+            BoardState current = Positions[0];
+            BoardState next = Positions[0 + 1];
+
+            int best = -1;
+            int alpha = -Evaluation.CheckmateScore;
+            int beta = Evaluation.CheckmateScore;
+            int stm = (int)board.SideToMove;
+            MoveGen moveGen = new MoveGen(Moves, 0);
+            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            {
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    NodesVisited++;
+                    int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
+                    //int score = stm * next.Eval.Score;
+                    if (score <= alpha)
+                        continue;
+
+                    best = i;
+                    alpha = score;
+                }
+            }
+            Score = stm * alpha;
+            return Moves[best];
+        }
+
+        private static int QSearch(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
+        {
+            BoardState current = Positions[depth];
+            BoardState next = Positions[depth + 1];
+            int score;
+            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            {
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    NodesVisited++;
+                    if (remaining > 1)
+                        score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    else
+                        score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+            return alpha;
+        }
+
+        private static int EvaluateQuiet(int depth, int alpha, int beta, MoveGen moveGen)
+        {
+            BoardState current = Positions[depth];
+            BoardState next = Positions[depth + 1];
+
+            bool inCheck = current.IsChecked(current.SideToMove);
+
+            //if inCheck we can't use standPat, need to escape check!
+            if (!inCheck)
+            {
+                int standPatScore = (int)current.SideToMove * current.Eval.Score;
+
+                if (standPatScore >= beta)
+                    return beta;
+
+                if (standPatScore > alpha)
+                    alpha = standPatScore;
+            }
+
+            bool movesPlayed = false;
+            for (int i = inCheck ? moveGen.Collect(current) : moveGen.CollectCaptures(current); i < moveGen.Next; i++)
+            {
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    movesPlayed = true;
+                    NodesVisited++;
+                    int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+
+            if (inCheck && !movesPlayed)
+                return Evaluation.Checkmate(current.SideToMove, depth);
+
+            //stalemate?
+            //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
+            //    return 0;
+
             return alpha;
         }
     }
