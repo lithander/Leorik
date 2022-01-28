@@ -1,21 +1,23 @@
 ﻿using Leorik.Core;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
     class Program
     {
-        const int DEPTH = 5;
+        const int DEPTH = 6;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v3");
+            Console.WriteLine("Leorik Search v4");
             Console.WriteLine();
 
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
+            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchQSearch, "QSearch", false);
-
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
+            
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
         }
@@ -136,7 +138,11 @@ namespace Leorik.Search
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Moves = new Move[MAX_PLY * MAX_MOVES];
-        }               
+        }
+
+        /*********************/
+        /***    MinMax     ***/
+        /*********************/
 
         private static Move SearchMinMax(BoardState board, int depth)
         {
@@ -190,6 +196,10 @@ namespace Leorik.Search
             }
             return max;
         }
+
+        /************************/
+        /***    AlphaBeta     ***/
+        /************************/
 
         private static Move SearchAlphaBeta(BoardState board, int depth)
         {
@@ -247,7 +257,11 @@ namespace Leorik.Search
             return alpha;
         }
 
-        private static Move SearchQSearch(BoardState board, int depth)
+        /*********************/
+        /***    MvvLva     ***/
+        /*********************/
+
+        private static Move SearchMvvLva(BoardState board, int depth)
         {
             NodesVisited = 0;
             Positions[0].Copy(board);
@@ -264,7 +278,7 @@ namespace Leorik.Search
                 if (next.PlayAndUpdate(current, ref Moves[i]))
                 {
                     NodesVisited++;
-                    int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
+                    int score = -NegaMvvLva(1, depth - 1, -beta, -alpha, moveGen);
                     //int score = stm * next.Eval.Score;
                     if (score <= alpha)
                         continue;
@@ -277,20 +291,138 @@ namespace Leorik.Search
             return Moves[best];
         }
 
-        private static int QSearch(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void PickBestMove(int first, int end)
+        {
+            //we want to swap the first move with the best move
+            int best = first;
+            int bestScore = Moves[first].MvvLvaScore();
+            for(int i = first+1; i < end; i++)
+            {
+                int score = Moves[i].MvvLvaScore();
+                if(score >= bestScore)
+                {
+                    best = i;
+                    bestScore = score;
+                }
+            }
+            //swap best with first
+            if (best != first)
+            {
+                Move temp = Moves[best];
+                Moves[best] = Moves[first];
+                Moves[first] = temp;
+            }
+        }
+
+        private static int NegaMvvLva(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
         {
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
             int score;
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            int stm = (int)current.SideToMove;
+            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
+            {
+                PickBestMove(i, moveGen.Next);
+
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    NodesVisited++;
+                    if (remaining > 1)
+                        score = -NegaMvvLva(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    else
+                        score = stm * next.Eval.Score;
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
                 if (next.PlayAndUpdate(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     if (remaining > 1)
-                        score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                        score = -NegaMvvLva(depth + 1, remaining - 1, -beta, -alpha, moveGen);
                     else
-                        score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+                        score = stm * next.Eval.Score;
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+            return alpha;
+        }
+
+        /*********************/
+        /***    QSearch    ***/
+        /*********************/
+
+        private static Move SearchQSearch(BoardState board, int depth)
+        {
+            NodesVisited = 0;
+            Positions[0].Copy(board);
+            BoardState current = Positions[0];
+            BoardState next = Positions[0 + 1];
+
+            int best = -1;
+            int alpha = -Evaluation.CheckmateScore;
+            int beta = Evaluation.CheckmateScore;
+            int stm = (int)board.SideToMove;
+            MoveGen moveGen = new MoveGen(Moves, 0);
+            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            {
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
+                    //int score = stm * next.Eval.Score;
+                    if (score > alpha)
+                    {
+                        best = i;
+                        alpha = score;
+                    }
+                }
+            }
+            Score = stm * alpha;
+            return Moves[best];
+        }
+
+
+        private static int QSearch(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
+        {
+            if (remaining == 0)
+                return EvaluateQuiet(depth, alpha, beta, moveGen);
+
+            NodesVisited++;
+            BoardState current = Positions[depth];
+            BoardState next = Positions[depth + 1];
+            int score;
+            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
+            {
+                PickBestMove(i, moveGen.Next);
+
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+            {
+                if (next.PlayAndUpdate(current, ref Moves[i]))
+                {
+                    score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
                         return beta;
@@ -304,6 +436,7 @@ namespace Leorik.Search
 
         private static int EvaluateQuiet(int depth, int alpha, int beta, MoveGen moveGen)
         {
+            NodesVisited++;
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
 
@@ -322,12 +455,12 @@ namespace Leorik.Search
             }
 
             bool movesPlayed = false;
-            for (int i = inCheck ? moveGen.Collect(current) : moveGen.CollectCaptures(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
+                PickBestMove(i, moveGen.Next);
                 if (next.PlayAndUpdate(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    NodesVisited++;
                     int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
@@ -338,8 +471,27 @@ namespace Leorik.Search
                 }
             }
 
-            if (inCheck && !movesPlayed)
-                return Evaluation.Checkmate(current.SideToMove, depth);
+            if(inCheck)
+            {
+                for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+                {
+                    if (next.PlayAndUpdate(current, ref Moves[i]))
+                    {
+                        movesPlayed = true;
+                        int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+
+                        if (score >= beta)
+                            return beta;
+
+                        if (score > alpha)
+                            alpha = score;
+                    }
+                }
+
+                if (!movesPlayed)
+                    return Evaluation.Checkmate(current.SideToMove, depth);
+            }
+
 
             //stalemate?
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))

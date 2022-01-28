@@ -86,8 +86,6 @@ namespace Leorik.Core
             _moves[Next++] = new Move(flags | Piece.KnightPromotion, from, to, target);
         }
 
-
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Collect(BoardState board)
         {
@@ -106,7 +104,31 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CollectBlackCaptures(BoardState board)
+        public int CollectCaptures(BoardState board)
+        {
+            int oldNext = Next;
+            if (board.SideToMove == Color.White)
+                CollectWhiteCaptures(board);
+            else
+                CollectBlackCaptures(board);
+
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int CollectQuiets(BoardState board)
+        {
+            int oldNext = Next;
+            if (board.SideToMove == Color.White)
+                CollectWhiteQuiets(board);
+            else
+                CollectBlackQuiets(board);
+
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CollectBlackCaptures(BoardState board)
         {
             ulong occupied = board.Black | board.White;
 
@@ -176,7 +198,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CollectBlackQuiets(BoardState board)
+        private void CollectBlackQuiets(BoardState board)
         {
             ulong occupied = board.Black | board.White;
 
@@ -239,7 +261,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CollectWhiteCaptures(BoardState board)
+        private void CollectWhiteCaptures(BoardState board)
         {
             ulong occupied = board.Black | board.White;
 
@@ -309,7 +331,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CollectWhiteQuiets(BoardState board)
+        private void CollectWhiteQuiets(BoardState board)
         {
             ulong occupied = board.Black | board.White;
 

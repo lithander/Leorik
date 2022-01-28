@@ -65,5 +65,20 @@ namespace Leorik.Core
         {
             return Flags & Piece.PieceMask;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int MvvLvaScore()
+        {
+            //Most valuable Victim, Least valuable Attacker
+            //EnPassent = -1
+            //King capturing Pawn = 1 * 6 - 6 = 0
+            //Pawn capturing Queen = 6 * 5 - 1 = 29  
+            return 6 * Order(Target) - Order(Flags & Piece.PieceMask);
+        }
+
+        //Pawn = 1, Knight = 2, Bishop = 3; Rook = 4, Queen = 5, King = 6
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Order(Piece piece) => (int)piece >> 2;
+
     }
 }
