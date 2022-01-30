@@ -3,11 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Search", "Leorik.Search\Leorik.Search.csproj", "{DDD3EF5E-CAB3-429F-B1F5-A32B5F893DA8}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leorik.Core", "Leorik.Core\Leorik.Core.csproj", "{6CE4DC6C-B997-470D-816D-71F71D4C06A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Core", "Leorik.Core\Leorik.Core.csproj", "{6CE4DC6C-B997-470D-816D-71F71D4C06A7}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Perft", "Leorik.Perft\Leorik.Perft.csproj", "{0E7D752E-6885-410C-A01E-ABDE0CA02A14}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leorik.Engine", "Leorik.Engine\Leorik.Engine.csproj", "{75EF172E-BB5F-4251-9D5E-593BF7DFCD10}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leorik.Search", "Leorik.Search\Leorik.Search.csproj", "{48EC6B01-9F69-42D8-A229-813780B972DA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leorik.Test", "Leorik.Test\Leorik.Test.csproj", "{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,10 +19,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{DDD3EF5E-CAB3-429F-B1F5-A32B5F893DA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DDD3EF5E-CAB3-429F-B1F5-A32B5F893DA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DDD3EF5E-CAB3-429F-B1F5-A32B5F893DA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DDD3EF5E-CAB3-429F-B1F5-A32B5F893DA8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6CE4DC6C-B997-470D-816D-71F71D4C06A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6CE4DC6C-B997-470D-816D-71F71D4C06A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6CE4DC6C-B997-470D-816D-71F71D4C06A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -27,6 +27,18 @@ Global
 		{0E7D752E-6885-410C-A01E-ABDE0CA02A14}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0E7D752E-6885-410C-A01E-ABDE0CA02A14}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0E7D752E-6885-410C-A01E-ABDE0CA02A14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75EF172E-BB5F-4251-9D5E-593BF7DFCD10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75EF172E-BB5F-4251-9D5E-593BF7DFCD10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75EF172E-BB5F-4251-9D5E-593BF7DFCD10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75EF172E-BB5F-4251-9D5E-593BF7DFCD10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48EC6B01-9F69-42D8-A229-813780B972DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48EC6B01-9F69-42D8-A229-813780B972DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48EC6B01-9F69-42D8-A229-813780B972DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48EC6B01-9F69-42D8-A229-813780B972DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -29,6 +29,16 @@ namespace Leorik.Core
         public const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
         public const ulong WhiteCastlingBits = WhiteQueensideRookBit | WhiteKingsideRookBit;
 
+        public BoardState()
+        {
+        }
+
+        public BoardState(BoardState other) : this()
+        {
+            Copy(other);
+        }
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanWhiteCastleLong()
         {
@@ -133,6 +143,12 @@ namespace Leorik.Core
             UpdateEval(from, ref move);
             //UpdateHash(from, ref move);
             return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Play(ref Move move)
+        {
+            return Play(this, ref move);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

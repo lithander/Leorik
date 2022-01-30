@@ -117,6 +117,9 @@ namespace Leorik.Core
 
         public static int Checkmate(Color color, int ply) => (int)color * (ply - CheckmateScore);
 
+        public static int Checkmate(int ply) => (ply - CheckmateScore);
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Interpolate(short midgameScore, short endgameScore, short phaseValue)
         {

@@ -217,7 +217,7 @@ namespace Leorik.Core
             return result;
         }
 
-        public static Move ToMove(BoardState board, string notation)
+        public static Move GetMove(BoardState board, string notation)
         {
             //trim check and checkmate symbols.
             notation = notation.TrimEnd('+', '#');
@@ -305,6 +305,46 @@ namespace Leorik.Core
                 if (board.GetPiece(move.FromSquare) != moving)
                     continue;
                 if (fileOrRank != null && !GetSquareName(move.FromSquare).Contains(fileOrRank.Value))
+                    continue;
+
+                return move; //this is the move!
+            }
+            throw new ArgumentException("No move meeting all requirements could be found!");
+        }
+
+        public static Move GetMoveUci(BoardState board, string uciMoveNotation)
+        {
+            if (uciMoveNotation.Length < 4)
+                throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too short!");
+            if (uciMoveNotation.Length > 5)
+                throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too long!");
+
+            //expected format is the long algebraic notation without piece names
+            //https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
+            //Examples: e2e4, e7e5, e1g1(white short castling), e7e8q(for promotion)
+            string from = uciMoveNotation.Substring(0, 2);
+            string to = uciMoveNotation.Substring(2, 2);
+            int fromSquare = GetSquare(from);
+            int toSquare = GetSquare(to);
+            //the presence of a 5th character should mean promotion
+            Piece promo = (uciMoveNotation.Length == 5) ? GetPiece(uciMoveNotation[4]).OfColor(board.SideToMove) : default;
+
+            return SelectMove(board, fromSquare, toSquare, promo);
+        }
+
+        private static Move SelectMove(BoardState board, int fromSquare, int toSquare, Piece promo)
+        {
+            Move[] moves = new Move[225];
+            var moveGen = new MoveGen(moves, 0);
+            moveGen.Collect(board);
+            for (int i = 0; i < moveGen.Next; i++)
+            {
+                Move move = moves[i];
+                if (move.ToSquare != toSquare)
+                    continue;
+                if (move.FromSquare != fromSquare)
+                    continue;
+                if (move.MovingPiece() != move.NewPiece() && move.NewPiece() != promo)
                     continue;
 
                 return move; //this is the move!

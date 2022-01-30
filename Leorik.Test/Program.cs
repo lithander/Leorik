@@ -2,21 +2,21 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Leorik.Search
+namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 6;
+        const int DEPTH = 7;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v4");
+            Console.WriteLine("Leorik Search v5");
             Console.WriteLine();
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchQSearch, "QSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
+            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
+            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
             
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
@@ -113,7 +113,7 @@ namespace Leorik.Search
             bestMoves = new List<Move>();
             foreach (var token in bmString.Split())
             {
-                Move bestMove = Notation.ToMove(board, token);
+                Move bestMove = Notation.GetMove(board, token);
                 //Console.WriteLine($"{bmString} => {bestMove}");
                 bestMoves.Add(bestMove);
             }
@@ -403,12 +403,15 @@ namespace Leorik.Search
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
             int score;
+            bool movesPlayed = true;
+
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
 
                 if (next.PlayAndUpdate(current, ref Moves[i]))
                 {
+                    movesPlayed = true;
                     score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
@@ -422,6 +425,7 @@ namespace Leorik.Search
             {
                 if (next.PlayAndUpdate(current, ref Moves[i]))
                 {
+                    movesPlayed = true;
                     score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
@@ -431,6 +435,11 @@ namespace Leorik.Search
                         alpha = score;
                 }
             }
+
+            //checkmate or draw?
+            if (!movesPlayed)
+                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(current.SideToMove, depth) : 0;
+
             return alpha;
         }
 

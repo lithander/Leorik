@@ -4,6 +4,11 @@ namespace Leorik.Core
 {
     public readonly struct Move
     {
+        public readonly static Move BlackCastlingShort = new(Piece.BlackKing | Piece.CastleShort, 60, 62, Piece.None);//e8g8
+        public readonly static Move BlackCastlingLong = new(Piece.BlackKing | Piece.CastleLong, 60, 58, Piece.None);//e8c8
+        public readonly static Move WhiteCastlingShort = new(Piece.WhiteKing | Piece.CastleShort, 4, 6, Piece.None);//e1g1
+        public readonly static Move WhiteCastlingLong = new(Piece.WhiteKing | Piece.CastleLong, 4, 2, Piece.None);//e1c1
+
         public readonly Piece Flags;
         public readonly Piece Target;
         public readonly byte FromSquare;
@@ -17,37 +22,8 @@ namespace Leorik.Core
             Target = target;
         }
 
-        public Move(string uciMoveNotation, Piece flags = Piece.None)
-        {
-            Target = Piece.None;
-            Flags = flags;
-            if (uciMoveNotation.Length < 4)
-                throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too short!");
-            if (uciMoveNotation.Length > 5)
-                throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too long!");
-
-            //expected format is the long algebraic notation without piece names
-            //https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
-            //Examples: e2e4, e7e5, e1g1(white short castling), e7e8q(for promotion)
-            string fromSquare = uciMoveNotation.Substring(0, 2);
-            string toSquare = uciMoveNotation.Substring(2, 2);
-            FromSquare = (byte)Notation.GetSquare(fromSquare);
-            ToSquare = (byte)Notation.GetSquare(toSquare);
-            //the presence of a 5th character should mean promotion
-            if (uciMoveNotation.Length == 5)
-            {
-                Piece promo = Notation.GetPiece(uciMoveNotation[4]) & ~Piece.ColorMask;
-                Flags |= (Piece)((int)promo << 3) | Piece.Pawn;
-            }
-        }
-
-        public readonly static Move BlackCastlingShort = new("e8g8", Piece.Black | Piece.CastleShort);
-        public readonly static Move BlackCastlingLong = new("e8c8", Piece.Black | Piece.CastleLong);
-        public readonly static Move WhiteCastlingShort = new("e1g1", Piece.White | Piece.CastleShort);
-        public readonly static Move WhiteCastlingLong = new("e1c1", Piece.White | Piece.CastleLong);
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Piece NewPiece()
+        public Piece NewPiece()
         {
             return Flags < Piece.KnightPromotion || Flags >= Piece.CastleShort
                 ? Flags & Piece.PieceMask
@@ -55,13 +31,13 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Piece CapturedPiece()
+        public Piece CapturedPiece()
         {
             return Target;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Piece MovingPiece()
+        public Piece MovingPiece()
         {
             return Flags & Piece.PieceMask;
         }
@@ -80,5 +56,16 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Order(Piece piece) => (int)piece >> 2;
 
+        public override string ToString()
+        {
+            //result represents the move in the long algebraic notation (without piece names)
+            string result = Notation.GetSquareName(FromSquare);
+            result += Notation.GetSquareName(ToSquare);
+            //the presence of a 5th character should mean promotion
+            if (NewPiece() != MovingPiece())
+                result += Notation.GetChar(NewPiece());
+
+            return result;
+        }
     }
 }
