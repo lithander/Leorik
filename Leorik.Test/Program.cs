@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using Leorik.Search;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -7,6 +8,7 @@ namespace Leorik.Test
     class Program
     {
         const int DEPTH = 7;
+        const int COUNT = 10;
 
         static void Main()
         {
@@ -14,17 +16,19 @@ namespace Leorik.Test
             Console.WriteLine();
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchQSearch, "QSearch", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
-            
+
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
         }
 
         private delegate Move SearchDelegate(BoardState state, int depth);
 
-        private static void CompareBestMove(StreamReader file, int depth, SearchDelegate search, string label, bool logDetails)
+        private static void CompareBestMove(StreamReader file, int depth, int maxCount, SearchDelegate search, string label, bool logDetails)
         {
             Console.WriteLine($"Searching {label}({depth})");
             double freq = Stopwatch.Frequency;
@@ -32,7 +36,7 @@ namespace Leorik.Test
             long totalNodes = 0;
             int count = 0;
             int foundBest = 0;
-            while (!file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
+            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
                 long t0 = Stopwatch.GetTimestamp();
                 Move pvMove = search(board, depth);
@@ -138,6 +142,34 @@ namespace Leorik.Test
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Moves = new Move[MAX_PLY * MAX_MOVES];
+        }
+
+
+        /*****************************/
+        /***    Search Instance    ***/
+        /*****************************/
+
+        private static Move IterativeSearchNext(BoardState board, int depth)
+        {
+            var search = new IterativeSearchNext(board);
+            search.Search(depth);
+            Score = search.Score;
+            NodesVisited = search.NodesVisited;
+            return search.PrincipalVariation[0];
+        }
+
+
+        /*****************************/
+        /***    Search Instance    ***/
+        /*****************************/
+
+        private static Move IterativeSearch(BoardState board, int depth)
+        {
+            var search = new IterativeSearch(board);
+            search.Search(depth);
+            Score = search.Score;
+            NodesVisited = search.NodesVisited;
+            return search.PrincipalVariation[0];
         }
 
         /*********************/
