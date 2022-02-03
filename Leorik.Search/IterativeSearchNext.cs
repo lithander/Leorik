@@ -48,6 +48,8 @@ namespace Leorik.Search
 
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
+            Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
+
             Depth++;
             _killSwitch = new KillSwitch(killSwitch);
 
@@ -60,9 +62,9 @@ namespace Leorik.Search
             MoveGen moveGen = new MoveGen(Moves, 0);
             for (int i = moveGen.Collect(root); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(root, ref Moves[i]))
+                if (next.PlayAndFullUpdate(root, ref Moves[i]))
                 {
-                    int score = -Evaluate(1, Depth - 1, -beta, -alpha, moveGen);
+                    int score = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
                     //int score = stm * next.Eval.Score;
                     if (score > alpha)
                     {
@@ -108,11 +110,36 @@ namespace Leorik.Search
             }
         }
 
-        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int EvaluateTT(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
         {
             if (remaining == 0)
                 return EvaluateQuiet(depth, alpha, beta, moveGen);
 
+            ulong hash = Positions[depth].ZobristHash;
+            if (Transpositions.GetScore(hash, remaining, depth, alpha, beta, out int ttScore))
+            {
+                int ttClamped = Clamp(ttScore, alpha, beta);
+                //int refScore = Evaluate(depth, remaining, alpha, beta, moveGen, out Move bmRef);
+                //if (refScore != ttClamped)
+                //    throw new Exception($"{refScore} vs {ttScore}");
+                return ttClamped;
+            }
+
+            int score = Evaluate(depth, remaining, alpha, beta, moveGen, out Move bm);
+            Transpositions.Store(hash, remaining, depth, alpha, beta, score, bm);
+            return score;
+        }
+
+
+        private static int Clamp(int score, int alpha, int beta)
+        {
+            return Math.Max(alpha, Math.Min(beta, score));
+        }
+
+        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, out Move bm)
+        {
+            bm = default;
             NodesVisited++;
             if (Aborted)
                 return 0;
@@ -122,15 +149,17 @@ namespace Leorik.Search
             int score;
             bool movesPlayed = false;
 
-
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
 
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayAndFullUpdate(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    score = -Evaluate(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+
+                    if (score > alpha)
+                        bm = Moves[i];
 
                     if (score >= beta)
                         return beta;
@@ -141,10 +170,13 @@ namespace Leorik.Search
             }
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayAndFullUpdate(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    score = -Evaluate(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+
+                    if (score > alpha)
+                        bm = Moves[i];
 
                     if (score >= beta)
                         return beta;
@@ -156,7 +188,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (!movesPlayed)
-                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(depth) : 0;
+                return Clamp(current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(depth) : 0, alpha, beta);
 
             return alpha;
         }
@@ -219,7 +251,7 @@ namespace Leorik.Search
                 }
 
                 if (!movesPlayed)
-                    return Evaluation.Checkmate(depth);
+                    return Clamp(Evaluation.Checkmate(depth), alpha, beta);
             }
 
 

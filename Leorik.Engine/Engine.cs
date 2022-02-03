@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     class Engine
     {
-        IterativeSearch? _search = null;
+        IterativeSearchNext? _search = null;
         Thread? _searching = null;
         Move _best = default;
         int _maxSearchDepth;
@@ -44,7 +44,7 @@ namespace Leorik.Engine
         {
             Stop();
             Move move = Notation.GetMoveUci(_board, moveNotation);
-            _board.Play(ref move);
+            _board.Play(move);
             _history.Add(new BoardState(_board));
             Console.WriteLine(moveNotation);
             Console.WriteLine(Notation.GetFEN(_board));
@@ -89,11 +89,10 @@ namespace Leorik.Engine
             Uci.Log($"Search scheduled to take {_time.TimePerMoveWithMargin}ms!");
 
             //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
-            //TODO:
-            //foreach (var position in _history)
-            //    Transpositions.Store(position.ZobristHash, Transpositions.HISTORY, 0, SearchWindow.Infinite, 0, default);
+            foreach (var position in _history)
+                Transpositions.StoreHistory(position);
             
-            _search = new IterativeSearch(_board, maxNodes);
+            _search = new IterativeSearchNext(_board, maxNodes);
             _time.StartInterval();
             _search.SearchDeeper();
             Collect();
@@ -155,23 +154,21 @@ namespace Leorik.Engine
 
         private Move[] GetPrintablePV(Move[] pv, int depth)
         {
-            return pv;
-            //TODO:
-            //List<Move> result = new(pv);
-            ////Try to extend from TT to reach the desired depth?
-            //if (result.Count < depth)
-            //{
-            //    Board position = new Board(_board);
-            //    foreach (Move move in pv)
-            //        position.Play(move);
-            //
-            //    while (result.Count < depth && Transpositions.GetBestMove(position, out Move move))
-            //    {
-            //        position.Play(move);
-            //        result.Add(move);
-            //    }
-            //}
-            //return result.ToArray();
+            List<Move> result = new(pv);
+            //Try to extend from TT to reach the desired depth?
+            if (result.Count < depth)
+            {
+                BoardState position = new BoardState(_board);
+                foreach (Move move in pv)
+                    position.Play(move);
+            
+                while (result.Count < depth && Transpositions.GetBestMove(position, out Move move))
+                {
+                    position.Play(move);
+                    result.Add(move);
+                }
+            }
+            return result.ToArray();
         }
     }
 }

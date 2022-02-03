@@ -5,7 +5,6 @@ namespace Leorik.Core
 {
     public class BoardState
     {
-        //TODO: Occupied & SideToMove instead of White/Black?
         public ulong White;
         public ulong Black;
         public ulong Pawns;
@@ -146,9 +145,29 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Play(ref Move move)
+        public bool PlayAndFullUpdate(BoardState from, ref Move move)
         {
-            return Play(this, ref move);
+            if (from.SideToMove == Color.White)
+            {
+                PlayWhite(from, ref move);
+                if (IsAttackedByBlack(LSB(Kings & White)))
+                    return false;
+            }
+            else
+            {
+                PlayBlack(from, ref move);
+                if (IsAttackedByWhite(LSB(Kings & Black)))
+                    return false;
+            }
+            UpdateEval(from, ref move);
+            UpdateHash(from, ref move);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Play(Move move)
+        {
+            return PlayAndFullUpdate(this, ref move);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

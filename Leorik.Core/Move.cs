@@ -67,5 +67,11 @@ namespace Leorik.Core
 
             return result;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Move lhs, Move rhs) => lhs.Equals(rhs);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Move lhs, Move rhs) => !lhs.Equals(rhs);
     }
 }

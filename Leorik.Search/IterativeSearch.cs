@@ -87,7 +87,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PickBestMove(int first, int end)
         {
-            //we want to swap the first move with the best move
+            //we need to find the best move...
             int best = first;
             int bestScore = Moves[first].MvvLvaScore();
             for (int i = first + 1; i < end; i++)
@@ -99,7 +99,7 @@ namespace Leorik.Search
                     bestScore = score;
                 }
             }
-            //swap best with first
+            //... and swap it with the first
             if (best != first)
             {
                 Move temp = Moves[best];
