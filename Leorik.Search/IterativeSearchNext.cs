@@ -12,17 +12,18 @@ namespace Leorik.Search
     {
         private const int MAX_PLY = 99;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
+
         private BoardState[] Positions;
         private Move[] Moves;
 
-        const int QUERY_TC_FREQUENCY = 100;
-
+        public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
         public int Score { get; private set; }
         public Move[] PrincipalVariation { get; private set; } = Array.Empty<Move>();
+        public Move BestMove => PrincipalVariation.Length > 0 ? PrincipalVariation[0] : default;
 
-        public bool Aborted => NodesVisited >= _maxNodes || _killSwitch.Get(NodesVisited % QUERY_TC_FREQUENCY == 0);
+        public bool Aborted => NodesVisited >= _maxNodes || _killSwitch.Get();
         public bool GameOver => Evaluation.IsCheckmate(Score);
 
         private KillSwitch _killSwitch;
@@ -44,6 +45,12 @@ namespace Leorik.Search
         {
             while (Depth < maxDepth)
                 SearchDeeper();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ForcedCut(int depth)
+        {
+            return depth >= MAX_PLY - 1 || NodesVisited >= _maxNodes || _killSwitch.Get();
         }
 
         public void SearchDeeper(Func<bool>? killSwitch = null)
@@ -116,39 +123,26 @@ namespace Leorik.Search
             if (remaining == 0)
                 return EvaluateQuiet(depth, alpha, beta, moveGen);
 
+            if (ForcedCut(depth))
+                return Positions[depth].SignedScore();
+
             ulong hash = Positions[depth].ZobristHash;
             if (Transpositions.GetScore(hash, remaining, depth, alpha, beta, out int ttScore))
-            {
-                int ttClamped = Clamp(ttScore, alpha, beta);
-                //int refScore = Evaluate(depth, remaining, alpha, beta, moveGen, out Move bmRef);
-                //if (refScore != ttClamped)
-                //    throw new Exception($"{refScore} vs {ttScore}");
-                return ttClamped;
-            }
+                return ttScore;
 
             int score = Evaluate(depth, remaining, alpha, beta, moveGen, out Move bm);
             Transpositions.Store(hash, remaining, depth, alpha, beta, score, bm);
             return score;
         }
 
-
-        private static int Clamp(int score, int alpha, int beta)
-        {
-            return Math.Max(alpha, Math.Min(beta, score));
-        }
-
         private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, out Move bm)
         {
             bm = default;
             NodesVisited++;
-            if (Aborted)
-                return 0;
-
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
             int score;
             bool movesPlayed = false;
-
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
@@ -159,13 +153,13 @@ namespace Leorik.Search
                     score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score > alpha)
+                    {
                         bm = Moves[i];
+                        alpha = score;
+                    }
 
                     if (score >= beta)
                         return beta;
-
-                    if (score > alpha)
-                        alpha = score;
                 }
             }
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
@@ -176,19 +170,19 @@ namespace Leorik.Search
                     score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score > alpha)
+                    {
                         bm = Moves[i];
+                        alpha = score;
+                    }
 
                     if (score >= beta)
                         return beta;
-
-                    if (score > alpha)
-                        alpha = score;
                 }
             }
 
             //checkmate or draw?
             if (!movesPlayed)
-                return Clamp(current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(depth) : 0, alpha, beta);
+                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(depth) : 0;
 
             return alpha;
         }
@@ -196,18 +190,13 @@ namespace Leorik.Search
         private int EvaluateQuiet(int depth, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;
-            if (Aborted)
-                return 0;
 
             BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-
             bool inCheck = current.IsChecked(current.SideToMove);
-
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = (int)current.SideToMove * current.Eval.Score;
+                int standPatScore = current.SignedScore();
 
                 if (standPatScore >= beta)
                     return beta;
@@ -216,6 +205,10 @@ namespace Leorik.Search
                     alpha = standPatScore;
             }
 
+            if (ForcedCut(depth))
+                return current.SignedScore();
+
+            BoardState next = Positions[depth + 1];
             bool movesPlayed = false;
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
@@ -251,9 +244,8 @@ namespace Leorik.Search
                 }
 
                 if (!movesPlayed)
-                    return Clamp(Evaluation.Checkmate(depth), alpha, beta);
+                    return Evaluation.Checkmate(depth);
             }
-
 
             //stalemate?
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))

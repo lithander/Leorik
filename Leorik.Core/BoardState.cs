@@ -125,6 +125,12 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int SignedScore()
+        {
+            return (int)SideToMove * Eval.Score;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool PlayAndUpdate(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)

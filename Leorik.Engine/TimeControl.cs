@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     class TimeControl
     {
-        const int TIME_MARGIN = 20;
+        const int TIME_MARGIN = 25;
         const int BRANCHING_FACTOR_ESTIMATE = 3;
         const int MAX_TIME_REMAINING = int.MaxValue / 3; //large but not too large to cause overflow issues
 

@@ -8,17 +8,17 @@ namespace Leorik.Test
     class Program
     {
         const int DEPTH = 8;
-        const int COUNT = 300;
+        const int COUNT = 30;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v5");
+            Console.WriteLine("Leorik Search v6");
             Console.WriteLine();
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", true);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", true);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", true);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
 
@@ -155,7 +155,7 @@ namespace Leorik.Test
             search.Search(depth);
             Score = search.Score;
             NodesVisited = search.NodesVisited;
-            return search.PrincipalVariation[0];
+            return search.BestMove;
         }
 
 
@@ -169,7 +169,7 @@ namespace Leorik.Test
             search.Search(depth);
             Score = search.Score;
             NodesVisited = search.NodesVisited;
-            return search.PrincipalVariation[0];
+            return search.BestMove;
         }
 
         /*********************/

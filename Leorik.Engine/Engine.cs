@@ -46,8 +46,8 @@ namespace Leorik.Engine
             Move move = Notation.GetMoveUci(_board, moveNotation);
             _board.Play(move);
             _history.Add(new BoardState(_board));
-            Console.WriteLine(moveNotation);
-            Console.WriteLine(Notation.GetFEN(_board));
+            //Console.WriteLine(moveNotation);
+            //Console.WriteLine(Notation.GetFEN(_board));
         }
 
         //**************
