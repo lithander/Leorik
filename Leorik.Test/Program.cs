@@ -7,18 +7,19 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 8;
-        const int COUNT = 30;
+        const int DEPTH = 9;
+        const int COUNT = 300;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v6");
+            Console.WriteLine("Leorik Search v7");
             Console.WriteLine();
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", true);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", true);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
 
@@ -30,6 +31,7 @@ namespace Leorik.Test
 
         private static void CompareBestMove(StreamReader file, int depth, int maxCount, SearchDelegate search, string label, bool logDetails)
         {
+            Transpositions.Clear();
             Console.WriteLine($"Searching {label}({depth})");
             double freq = Stopwatch.Frequency;
             long totalTime = 0;

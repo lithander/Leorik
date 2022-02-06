@@ -63,10 +63,22 @@ namespace Leorik.Search
             BoardState root = Positions[0];
             BoardState next = Positions[0 + 1];
 
-            int best = -1;
+
+
+            Move best = default;
             int alpha = -Evaluation.CheckmateScore;
             int beta = Evaluation.CheckmateScore;
             MoveGen moveGen = new MoveGen(Moves, 0);
+
+            if (Transpositions.GetBestMove(root, out Move bestMove))
+            {
+                if (next.PlayAndFullUpdate(root, ref bestMove))
+                {
+                    best = bestMove;
+                    alpha = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
+                }
+            }
+
             for (int i = moveGen.Collect(root); i < moveGen.Next; i++)
             {
                 if (next.PlayAndFullUpdate(root, ref Moves[i]))
@@ -75,13 +87,13 @@ namespace Leorik.Search
                     //int score = stm * next.Eval.Score;
                     if (score > alpha)
                     {
-                        best = i;
+                        best = Moves[i];
                         alpha = score;
                     }
                 }
             }
             //checkmate or draw?
-            if (best == -1)
+            if (best == default)
             {
                 Score = root.IsChecked(root.SideToMove) ? Evaluation.Checkmate(root.SideToMove, 0) : 0;
                 PrincipalVariation = Array.Empty<Move>();
@@ -89,7 +101,7 @@ namespace Leorik.Search
             else
             {
                 Score = (int)root.SideToMove * alpha;
-                PrincipalVariation = new Move[1] { Moves[best] };
+                PrincipalVariation = new Move[1] { best };
             }
         }
 
@@ -127,22 +139,37 @@ namespace Leorik.Search
                 return Positions[depth].SignedScore();
 
             ulong hash = Positions[depth].ZobristHash;
-            if (Transpositions.GetScore(hash, remaining, depth, alpha, beta, out int ttScore))
+            if (Transpositions.GetScore(hash, remaining, depth, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
-            int score = Evaluate(depth, remaining, alpha, beta, moveGen, out Move bm);
+            int score = Evaluate(depth, remaining, alpha, beta, moveGen, ref bm);
             Transpositions.Store(hash, remaining, depth, alpha, beta, score, bm);
             return score;
         }
 
-        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, out Move bm)
+        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
         {
-            bm = default;
             NodesVisited++;
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
             int score;
             bool movesPlayed = false;
+
+            if (bm != default)
+            {
+                if (next.PlayAndFullUpdate(current, ref bm))
+                {
+                    movesPlayed = true;
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+
+                    if (score > alpha)
+                        alpha = score;
+
+                    if (score >= beta)
+                        return beta;
+                }
+            }
+
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
