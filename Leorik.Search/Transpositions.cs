@@ -123,10 +123,10 @@ namespace Leorik.Search
             Store(position.ZobristHash, HISTORY_DEPTH, 0, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, 0, default);
         }
 
+        //TODO: pass an array of positions
         internal static void StorePV(BoardState root, Move[] pv, int depth, int score)
         {
-            BoardState position = new BoardState(root);
-            
+            BoardState position = root.Clone();            
             int len = pv?.Length ?? 0;
             for (int ply = 0; ply < len; ply++)
             {
@@ -135,7 +135,6 @@ namespace Leorik.Search
                 position.Play(move);
             }
         }
-
 
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
@@ -156,44 +155,7 @@ namespace Leorik.Search
             if (entry.Depth < depth)
                 return false;
 
-            score = entry.Score;
-
-            //a checkmate score is reduced by the number of plies from the root so that shorter mates are preferred
-            //but when we store it in the TT the score is made relative to the current position. So when we want to 
-            //retrieve the score we have to subtract the current ply to make it relative to the root again.
-            if (Evaluation.IsCheckmate(score))
-                score -= Math.Sign(score) * ply;
-
-            //1.) score is exact and within window
-            if (entry.Type == ScoreType.Exact)
-                return true;
-            //2.) score is below floor
-            if (entry.Type == ScoreType.LessOrEqual && score <= alpha)
-                return true; //failLow
-            //3.) score is above ceiling
-            if (entry.Type == ScoreType.GreaterOrEqual && score >= beta)
-                return true; //failHigh
-
-            return false;
-        }
-
-        public static bool GetScore(ulong zobristHash, int depth, int ply, int alpha, int beta, out int score)
-        {
-            score = 0;
-            if (!Index(zobristHash, out int index))
-                return false;
-
-            ref HashEntry entry = ref _table[index];
-            if (entry.Depth < depth)
-                return false;
-
-            score = entry.Score;
-
-            //a checkmate score is reduced by the number of plies from the root so that shorter mates are preferred
-            //but when we store it in the TT the score is made relative to the current position. So when we want to 
-            //retrieve the score we have to subtract the current ply to make it relative to the root again.
-            if (Evaluation.IsCheckmate(score))
-                score -= Math.Sign(score) * ply;
+            score = AdjustMateDistance(entry.Score, -ply);
 
             //1.) score is exact and within window
             if (entry.Type == ScoreType.Exact)

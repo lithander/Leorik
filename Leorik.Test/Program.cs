@@ -7,24 +7,48 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 9;
+        const int DEPTH = 8;
         const int COUNT = 300;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v7");
+            Console.WriteLine("Leorik Search v8");
             Console.WriteLine();
+
+            TestIllegalMove();
+            //return;
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
+            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
 
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
+        }
+
+        private static void TestIllegalMove()
+        {
+            //rn4k1/pp1b1p1p/5pp1/8/1q6/6P1/P1P1Q1BP/3RK2R w - - 10 22
+            Transpositions.Clear();
+            BoardState bs = Notation.GetBoardState("rn4k1/pp1b1p1p/5pp1/8/1q6/6P1/P1P1Q1BP/3RK2R w K - 6 20");
+            ulong preHash = bs.ZobristHash;
+            Console.WriteLine(bs.ZobristHash);
+            Console.WriteLine("CanWhiteCastleShort? " + bs.CanWhiteCastleShort());
+            bs.Play(Notation.GetMove(bs, "Kf2"));
+            Console.WriteLine(bs.ZobristHash);
+            bs.Play(Notation.GetMove(bs, "Qc5"));
+            Console.WriteLine(bs.ZobristHash);
+            bs.Play(Notation.GetMove(bs, "Ke1"));
+            Console.WriteLine(bs.ZobristHash);
+            bs.Play(Notation.GetMove(bs, "Qb4"));
+            Console.WriteLine(bs.ZobristHash);
+            Console.WriteLine("CanWhiteCastleShort? " + bs.CanWhiteCastleShort());
+            ulong postHash = bs.ZobristHash;
+            Console.WriteLine("PreHash == PostHash? " + (preHash == postHash));
         }
 
         private delegate Move SearchDelegate(BoardState state, int depth);
@@ -191,7 +215,7 @@ namespace Leorik.Test
             MoveGen moveGen = new MoveGen(Moves, 0);
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     int score = -NegaMax(1, depth - 1, moveGen);
@@ -216,7 +240,7 @@ namespace Leorik.Test
             int stm = (int)current.SideToMove;
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     if (remaining > 1)
@@ -249,7 +273,7 @@ namespace Leorik.Test
             MoveGen moveGen = new MoveGen(Moves, 0);
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     int score = -NegaAlphaBeta(1, depth - 1, -beta, -alpha, moveGen);
@@ -273,7 +297,7 @@ namespace Leorik.Test
             int stm = (int)current.SideToMove;
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     if (remaining > 1)
@@ -309,7 +333,7 @@ namespace Leorik.Test
             MoveGen moveGen = new MoveGen(Moves, 0);
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     int score = -NegaMvvLva(1, depth - 1, -beta, -alpha, moveGen);
@@ -359,7 +383,7 @@ namespace Leorik.Test
             {
                 PickBestMove(i, moveGen.Next);
 
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     if (remaining > 1)
@@ -376,7 +400,7 @@ namespace Leorik.Test
             }
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     NodesVisited++;
                     if (remaining > 1)
@@ -412,7 +436,7 @@ namespace Leorik.Test
             MoveGen moveGen = new MoveGen(Moves, 0);
             for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
                     //int score = stm * next.Eval.Score;
@@ -443,7 +467,7 @@ namespace Leorik.Test
             {
                 PickBestMove(i, moveGen.Next);
 
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
@@ -457,7 +481,7 @@ namespace Leorik.Test
             }
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
@@ -501,7 +525,7 @@ namespace Leorik.Test
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
@@ -518,7 +542,7 @@ namespace Leorik.Test
             {
                 for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
                 {
-                    if (next.PlayAndUpdate(current, ref Moves[i]))
+                    if (next.PlayWithoutHash(current, ref Moves[i]))
                     {
                         movesPlayed = true;
                         int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);

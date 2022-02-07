@@ -6,26 +6,22 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 0.2.3";
+        const string NAME_VERSION = "Leorik 0.2.4";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
 
         private static async Task Main()
         {
+            //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine(NAME_VERSION);
-            Start();
+            _engine.Init();
+
             while (_engine.Running)
             {
                 string? input = await Task.Run(Console.ReadLine);
                 ParseUciCommand(input);
             }
-        }
-
-        private static void Start()
-        {
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            _engine.Start();
         }
 
         private static void ParseUciCommand(string? input)
@@ -53,7 +49,7 @@ namespace Leorik.Engine
                     UciGo(tokens);
                     break;
                 case "ucinewgame":
-                    Transpositions.Clear();
+                    _engine.Reset();
                     break;
                 case "stop":
                     _engine.Stop();

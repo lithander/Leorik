@@ -28,15 +28,11 @@ namespace Leorik.Core
         public const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
         public const ulong WhiteCastlingBits = WhiteQueensideRookBit | WhiteKingsideRookBit;
 
-        public BoardState()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BoardState Clone()
         {
+            return (BoardState)this.MemberwiseClone();
         }
-
-        public BoardState(BoardState other) : this()
-        {
-            Copy(other);
-        }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanWhiteCastleLong()
@@ -44,13 +40,11 @@ namespace Leorik.Core
             return (CastleFlags & WhiteQueensideRookBit) != 0 && ((Black | White) & 0x000000000000000EUL) == 0;
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanWhiteCastleShort()
         {
             return (CastleFlags & WhiteKingsideRookBit) != 0 && ((Black | White) & 0x0000000000000060UL) == 0;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanBlackCastleLong()
@@ -131,7 +125,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool PlayAndUpdate(BoardState from, ref Move move)
+        public bool PlayWithoutHash(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
             {
@@ -151,7 +145,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool PlayAndFullUpdate(BoardState from, ref Move move)
+        public bool Play(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
             {
@@ -170,14 +164,15 @@ namespace Leorik.Core
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Play(Move move)
         {
-            return PlayAndFullUpdate(this, ref move);
+            //To play a move and update the hash we need a copy of the previous position
+            //if this isn't provided we have to temporarily create one
+            return Play(Clone(), ref move);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Play(BoardState from, ref Move move)
+        public bool PlayWithoutHashAndEval(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
             {

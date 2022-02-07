@@ -6,9 +6,9 @@ namespace Leorik.Engine
 {
     class TimeControl
     {
-        const int TIME_MARGIN = 25;
-        const int BRANCHING_FACTOR_ESTIMATE = 3;
-        const int MAX_TIME_REMAINING = int.MaxValue / 3; //large but not too large to cause overflow issues
+        public const int TIME_MARGIN = 25;
+        public const int BRANCHING_FACTOR_ESTIMATE = 3;
+        public const int MAX_TIME_REMAINING = int.MaxValue / 3; //large but not too large to cause overflow issues
 
         private int _movesToGo;
         private int _increment;
@@ -91,10 +91,11 @@ namespace Leorik.Engine
 
         public bool CheckTimeBudget()
         {
-            if (_increment == 0)
-                return Elapsed > TimePerMoveWithMargin;
-            else
+            //if there's an increment we can survive on this and never abort an ongoing iteration unless we're in serious trouble
+            if (_increment > 0) 
                 return Elapsed > TimeRemainingWithMargin;
+            else
+                return Elapsed > TimePerMoveWithMargin;
         }
     }
 }

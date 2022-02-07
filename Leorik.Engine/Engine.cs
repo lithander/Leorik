@@ -16,10 +16,15 @@ namespace Leorik.Engine
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
 
-        public void Start()
+        public void Init()
         {
-            Stop();
             Running = true;
+            //perform warmup sequence (especially useful if JIT-compiled)
+            Uci.Silent = true;
+            SetupPosition(Notation.GetStartingPosition());
+            Go(3, 50, 30000);
+            Reset();
+            Uci.Silent = false;
         }
 
         internal void Quit()
@@ -32,12 +37,17 @@ namespace Leorik.Engine
         //*** SETUP ***
         //*************
 
+        internal void Reset()
+        {
+            Transpositions.Clear();
+        }
+
         internal void SetupPosition(BoardState board)
         {
             Stop();
-            _board = new BoardState(board);//make a copy
+            _board = board.Clone();
             _history.Clear();
-            _history.Add(new BoardState(_board));
+            _history.Add(_board.Clone());
         }
 
         internal void Play(string moveNotation)
@@ -45,7 +55,7 @@ namespace Leorik.Engine
             Stop();
             Move move = Notation.GetMoveUci(_board, moveNotation);
             _board.Play(move);
-            _history.Add(new BoardState(_board));
+            _history.Add(_board.Clone());
             //Console.WriteLine(moveNotation);
             //Console.WriteLine(Notation.GetFEN(_board));
         }
@@ -86,7 +96,7 @@ namespace Leorik.Engine
         private void StartSearch(int maxDepth, long maxNodes)
         {
             //do the first iteration. it's cheap, no time check, no thread
-            Uci.Log($"Search scheduled to take {_time.TimePerMoveWithMargin}ms!");
+            Uci.StartSearch(_time);
 
             //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
             foreach (var position in _history)
@@ -158,7 +168,7 @@ namespace Leorik.Engine
             //Try to extend from TT to reach the desired depth?
             if (result.Count < depth)
             {
-                BoardState position = new BoardState(_board);
+                BoardState position = _board.Clone();
                 foreach (Move move in pv)
                     position.Play(move);
             

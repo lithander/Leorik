@@ -63,8 +63,6 @@ namespace Leorik.Search
             BoardState root = Positions[0];
             BoardState next = Positions[0 + 1];
 
-
-
             Move best = default;
             int alpha = -Evaluation.CheckmateScore;
             int beta = Evaluation.CheckmateScore;
@@ -72,7 +70,7 @@ namespace Leorik.Search
 
             if (Transpositions.GetBestMove(root, out Move bestMove))
             {
-                if (next.PlayAndFullUpdate(root, ref bestMove))
+                if (next.Play(root, ref bestMove))
                 {
                     best = bestMove;
                     alpha = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
@@ -81,7 +79,7 @@ namespace Leorik.Search
 
             for (int i = moveGen.Collect(root); i < moveGen.Next; i++)
             {
-                if (next.PlayAndFullUpdate(root, ref Moves[i]))
+                if (next.Play(root, ref Moves[i]))
                 {
                     int score = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
                     //int score = stm * next.Eval.Score;
@@ -157,7 +155,7 @@ namespace Leorik.Search
 
             if (bm != default)
             {
-                if (next.PlayAndFullUpdate(current, ref bm))
+                if (next.Play(current, ref bm))
                 {
                     movesPlayed = true;
                     score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
@@ -172,9 +170,8 @@ namespace Leorik.Search
 
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
-                PickBestMove(i, moveGen.Next);
-
-                if (next.PlayAndFullUpdate(current, ref Moves[i]))
+                PickBestMove(i, moveGen.Next);               
+                if (next.Play(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
@@ -191,7 +188,7 @@ namespace Leorik.Search
             }
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                if (next.PlayAndFullUpdate(current, ref Moves[i]))
+                if (next.Play(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
@@ -240,7 +237,7 @@ namespace Leorik.Search
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestMove(i, moveGen.Next);
-                if (next.PlayAndUpdate(current, ref Moves[i]))
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
@@ -257,7 +254,7 @@ namespace Leorik.Search
             {
                 for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
                 {
-                    if (next.PlayAndUpdate(current, ref Moves[i]))
+                    if (next.PlayWithoutHash(current, ref Moves[i]))
                     {
                         movesPlayed = true;
                         int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
