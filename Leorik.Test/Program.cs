@@ -15,14 +15,14 @@ namespace Leorik.Test
             Console.WriteLine("Leorik Search v8");
             Console.WriteLine();
 
-            TestIllegalMove();
+            //TestIllegalMove();
             //return;
 
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", true);
+            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", true);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
             //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
 
@@ -51,11 +51,10 @@ namespace Leorik.Test
             Console.WriteLine("PreHash == PostHash? " + (preHash == postHash));
         }
 
-        private delegate Move SearchDelegate(BoardState state, int depth);
+        private delegate Span<Move> SearchDelegate(BoardState state, int depth);
 
         private static void CompareBestMove(StreamReader file, int depth, int maxCount, SearchDelegate search, string label, bool logDetails)
         {
-            Transpositions.Clear();
             Console.WriteLine($"Searching {label}({depth})");
             double freq = Stopwatch.Frequency;
             long totalTime = 0;
@@ -64,16 +63,17 @@ namespace Leorik.Test
             int foundBest = 0;
             while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
+                Transpositions.Clear();
                 long t0 = Stopwatch.GetTimestamp();
-                Move pvMove = search(board, depth);
+                Span<Move> pv = search(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
                 count++;
                 totalTime += dt;
                 totalNodes += NodesVisited;
-                string pvString = Notation.GetMoveName(pvMove);
-                bool foundBestMove = bestMoves.Contains(pvMove);
+                string pvString = string.Join(' ', pv.ToArray());
+                bool foundBestMove = bestMoves.Contains(pv[0]);
                 if (foundBestMove)
                     foundBest++;
 
@@ -175,13 +175,13 @@ namespace Leorik.Test
         /***    Search Instance    ***/
         /*****************************/
 
-        private static Move IterativeSearchNext(BoardState board, int depth)
+        private static Span<Move> IterativeSearchNext(BoardState board, int depth)
         {
             var search = new IterativeSearchNext(board);
             search.Search(depth);
             Score = search.Score;
             NodesVisited = search.NodesVisited;
-            return search.BestMove;
+            return search.PrincipalVariation;
         }
 
 
@@ -189,13 +189,13 @@ namespace Leorik.Test
         /***    Search Instance    ***/
         /*****************************/
 
-        private static Move IterativeSearch(BoardState board, int depth)
+        private static Span<Move> IterativeSearch(BoardState board, int depth)
         {
             var search = new IterativeSearch(board);
             search.Search(depth);
             Score = search.Score;
             NodesVisited = search.NodesVisited;
-            return search.BestMove;
+            return search.PrincipalVariation;
         }
 
         /*********************/

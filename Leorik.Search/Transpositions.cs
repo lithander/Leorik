@@ -123,15 +123,14 @@ namespace Leorik.Search
             Store(position.ZobristHash, HISTORY_DEPTH, 0, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, 0, default);
         }
 
-        //TODO: pass an array of positions
-        internal static void StorePV(BoardState root, Move[] pv, int depth, int score)
+        internal static void StorePV(BoardState root, Span<Move> pv, int depth, int score)
         {
-            BoardState position = root.Clone();            
-            int len = pv?.Length ?? 0;
-            for (int ply = 0; ply < len; ply++)
+            BoardState position = root.Clone();
+           
+            for (int ply = 0; ply < pv.Length; ply++)
             {
                 Move move = pv[ply];
-                Store(position.ZobristHash, --depth, ply, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, score, move);
+                Store(position.ZobristHash, depth--, ply, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, score, move);
                 position.Play(move);
             }
         }

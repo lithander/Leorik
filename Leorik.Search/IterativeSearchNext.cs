@@ -10,34 +10,40 @@ namespace Leorik.Search
 {
     public class IterativeSearchNext
     {
+        private const int MIN_ALPHA = -Evaluation.CheckmateScore;
+        private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_PLY = 99;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
 
         private BoardState[] Positions;
         private Move[] Moves;
+        private Move[] PrincipalVariations;
+        private KillSwitch _killSwitch;
+        private long _maxNodes;
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
         public int Score { get; private set; }
-        public Move[] PrincipalVariation { get; private set; } = Array.Empty<Move>();
-        public Move BestMove => PrincipalVariation.Length > 0 ? PrincipalVariation[0] : default;
-
+        public Move BestMove => PrincipalVariations[0];
         public bool Aborted => NodesVisited >= _maxNodes || _killSwitch.Get();
         public bool GameOver => Evaluation.IsCheckmate(Score);
+        public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        private KillSwitch _killSwitch;
-        private long _maxNodes;
 
         public IterativeSearchNext(BoardState board, long maxNodes = long.MaxValue)
         {
             _maxNodes = maxNodes;
 
+            Moves = new Move[MAX_PLY * MAX_MOVES];
+
+            //PV-length = depth + (depth - 1) + (depth - 2) + ... + 1
+            const int d = MAX_PLY + 1;
+            PrincipalVariations = new Move[(d*d+d)/2];
+
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
-            Moves = new Move[MAX_PLY * MAX_MOVES];
-
             Positions[0].Copy(board);
         }
 
@@ -53,54 +59,23 @@ namespace Leorik.Search
             return depth >= MAX_PLY - 1 || NodesVisited >= _maxNodes || _killSwitch.Get();
         }
 
+        private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
+        {
+            //return moves until the first is 'default' move but not more than 'depth' number of moves
+            int end = Array.IndexOf(pv, default, 0, depth);
+            return new Span<Move>(pv, 0, end >= 0 ? end : depth);
+        }
+
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
-
             Depth++;
             _killSwitch = new KillSwitch(killSwitch);
-
-            BoardState root = Positions[0];
-            BoardState next = Positions[0 + 1];
-
-            Move best = default;
-            int alpha = -Evaluation.CheckmateScore;
-            int beta = Evaluation.CheckmateScore;
+            Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
-
-            if (Transpositions.GetBestMove(root, out Move bestMove))
-            {
-                if (next.Play(root, ref bestMove))
-                {
-                    best = bestMove;
-                    alpha = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
-                }
-            }
-
-            for (int i = moveGen.Collect(root); i < moveGen.Next; i++)
-            {
-                if (next.Play(root, ref Moves[i]))
-                {
-                    int score = -EvaluateTT(1, Depth - 1, -beta, -alpha, moveGen);
-                    //int score = stm * next.Eval.Score;
-                    if (score > alpha)
-                    {
-                        best = Moves[i];
-                        alpha = score;
-                    }
-                }
-            }
-            //checkmate or draw?
-            if (best == default)
-            {
-                Score = root.IsChecked(root.SideToMove) ? Evaluation.Checkmate(root.SideToMove, 0) : 0;
-                PrincipalVariation = Array.Empty<Move>();
-            }
-            else
-            {
-                Score = (int)root.SideToMove * alpha;
-                PrincipalVariation = new Move[1] { best };
-            }
+            PVHead pv = new PVHead(PrincipalVariations, Depth);
+            Score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, pv, ref bestMove);
+            Transpositions.Store(Positions[0].ZobristHash, Depth, 0, MIN_ALPHA, MAX_BETA, Score, bestMove);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -128,24 +103,25 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvaluateTT(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
+        private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv)
         {
             if (remaining == 0)
-                return EvaluateQuiet(depth, alpha, beta, moveGen);
+                return EvaluateQuiet(ply, alpha, beta, moveGen);
 
-            if (ForcedCut(depth))
-                return Positions[depth].SignedScore();
+            if (ForcedCut(ply))
+                return Positions[ply].SignedScore();
 
-            ulong hash = Positions[depth].ZobristHash;
-            if (Transpositions.GetScore(hash, remaining, depth, alpha, beta, out Move bm, out int ttScore))
+            pv.Truncate();
+            ulong hash = Positions[ply].ZobristHash;
+            if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
-            int score = Evaluate(depth, remaining, alpha, beta, moveGen, ref bm);
-            Transpositions.Store(hash, remaining, depth, alpha, beta, score, bm);
+            int score = Evaluate(ply, remaining, alpha, beta, moveGen, pv, ref bm);
+            Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
             return score;
         }
 
-        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
+        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv, ref Move bm)
         {
             NodesVisited++;
             BoardState current = Positions[depth];
@@ -158,10 +134,13 @@ namespace Leorik.Search
                 if (next.Play(current, ref bm))
                 {
                     movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
+                    {
                         alpha = score;
+                        pv.Extend(bm);
+                    }
 
                     if (score >= beta)
                         return beta;
@@ -174,11 +153,12 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
                     {
                         bm = Moves[i];
+                        pv.Extend(bm);
                         alpha = score;
                     }
 
@@ -191,11 +171,12 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen);
+                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
                     {
                         bm = Moves[i];
+                        pv.Extend(bm);
                         alpha = score;
                     }
 
