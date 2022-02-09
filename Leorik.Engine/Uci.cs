@@ -18,7 +18,7 @@ namespace Leorik.Engine
             Write($"bestmove {move}");
         }
 
-        public static void Info(int depth, int score, long nodes, int timeMs, Move[] pv)
+        public static void Info(int depth, int score, long nodes, int timeMs, List<Move> pv)
         {
             double tS = Math.Max(1, timeMs) / 1000.0;
             int nps = (int)(nodes / tS);
@@ -41,17 +41,6 @@ namespace Leorik.Engine
         public static void Log(string message)
         {
             Write($"info string {message}");
-        }
-
-        internal static void StartSearch(TimeControl time)
-        {
-            if(time.TimePerMoveWithMargin < TimeControl.MAX_TIME_REMAINING - TimeControl.TIME_MARGIN)
-            {
-                int searchTime = Math.Max(0, time.TimePerMoveWithMargin);
-                Log($"Searching for {searchTime}ms plus {TimeControl.TIME_MARGIN}ms margin.");
-            }
-            else
-                Log($"Searching with no time limit...");
         }
     }
 }

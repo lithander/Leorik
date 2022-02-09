@@ -5,10 +5,9 @@ namespace Leorik.Engine
 {
     class Engine
     {
-        IterativeSearchNext? _search = null;
-        Thread? _searching = null;
+        IterativeSearchNext _search = null;
+        Thread _searching = null;
         Move _best = default;
-        int _maxSearchDepth;
         TimeControl _time = new TimeControl();
         BoardState _board = Notation.GetStartingPosition();
         List<BoardState> _history = new List<BoardState>();
@@ -67,15 +66,15 @@ namespace Leorik.Engine
         internal void Go(int maxDepth, int maxTime, long maxNodes)
         {
             Stop();
-            _time.Go(maxTime);
-            StartSearch(maxDepth, maxNodes);
+            _time.Go(maxDepth, maxTime);
+            StartSearch(maxNodes);
         }
 
         internal void Go(int maxTime, int increment, int movesToGo, int maxDepth, long maxNodes)
         {
             Stop();
-            _time.Go(maxTime, increment, movesToGo);
-            StartSearch(maxDepth, maxNodes);
+            _time.Go(maxDepth, maxTime, increment, movesToGo);
+            StartSearch(maxNodes);
         }
 
         public void Stop()
@@ -93,11 +92,8 @@ namespace Leorik.Engine
         //*** INTERNALS ***
         //*****************
 
-        private void StartSearch(int maxDepth, long maxNodes)
+        private void StartSearch(long maxNodes)
         {
-            //do the first iteration. it's cheap, no time check, no thread
-            Uci.StartSearch(_time);
-
             //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
             foreach (var position in _history)
                 Transpositions.StoreHistory(position);
@@ -108,7 +104,6 @@ namespace Leorik.Engine
             Collect();
 
             //start the search thread
-            _maxSearchDepth = maxDepth;
             _searching = new Thread(Search) {Priority = ThreadPriority.Highest};
             _searching.Start();
         }
@@ -138,11 +133,11 @@ namespace Leorik.Engine
         private bool CanSearchDeeper()
         {
             //max depth reached or game over?
-            if (_search == null || _search.Depth >= _maxSearchDepth)
+            if (_search == null)
                 return false;
 
             //otherwise it's only time that can stop us!
-            return _time.CanSearchDeeper();
+            return _time.CanSearchDeeper(_search.Depth);
         }
 
         private void Collect()
@@ -158,27 +153,28 @@ namespace Leorik.Engine
                 score:  (int)SideToMove * _search.Score, 
                 nodes:  _search.NodesVisited, 
                 timeMs: _time.Elapsed, 
-                pv:     GetPrintablePV(_search.PrincipalVariation, _search.Depth)
+                pv:     GetExtendedPV()
             );
         }
 
-        private Move[] GetPrintablePV(Move[] pv, int depth)
+        private List<Move> GetExtendedPV()
         {
+            var pv = _search.PrincipalVariation.ToArray();
             List<Move> result = new(pv);
-            //Try to extend from TT to reach the desired depth?
-            if (result.Count < depth)
-            {
-                BoardState position = _board.Clone();
-                foreach (Move move in pv)
-                    position.Play(move);
             
-                while (result.Count < depth && Transpositions.GetBestMove(position, out Move move))
-                {
-                    position.Play(move);
-                    result.Add(move);
-                }
+            //1.) play the PV as far as available
+            BoardState position = _board.Clone();
+            foreach(Move move in pv)
+                position.Play(move);
+
+            //2. try to extract the remaining depth from the TT
+            while (result.Count < _search.Depth && Transpositions.GetBestMove(position, out Move move))
+            {
+                position.Play(move);
+                result.Add(move);
             }
-            return result.ToArray();
+
+            return result;
         }
     }
 }

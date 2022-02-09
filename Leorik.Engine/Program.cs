@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 0.2.4";
+        const string NAME_VERSION = "Leorik 0.2.5";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -106,7 +106,7 @@ namespace Leorik.Engine
             TryParse(tokens, "depth", out int maxDepth, IterativeSearchNext.MaxDepth);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
-            TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 30 e.g. spend 1/30th of total budget on the move
+            TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 40 e.g. spend 1/40th of total budget on the move
 
             if (_engine.SideToMove == Color.White && TryParse(tokens, "wtime", out int whiteTime))
             {
