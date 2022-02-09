@@ -1,6 +1,7 @@
 ﻿using Leorik.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -103,6 +104,12 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool FailLow(int ply, int remaining, int alpha, MoveGen moveGen, PVHead pv)
+        {
+            return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen, pv) <= alpha;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv)
         {
             if (remaining == 0)
@@ -121,11 +128,11 @@ namespace Leorik.Search
             return score;
         }
 
-        private int Evaluate(int depth, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv, ref Move bm)
+        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv, ref Move bm)
         {
             NodesVisited++;
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
+            BoardState current = Positions[ply];
+            BoardState next = Positions[ply + 1];
             int score;
             bool movesPlayed = false;
 
@@ -134,7 +141,7 @@ namespace Leorik.Search
                 if (next.Play(current, ref bm))
                 {
                     movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
                     {
@@ -152,9 +159,14 @@ namespace Leorik.Search
                 PickBestMove(i, moveGen.Next);               
                 if (next.Play(current, ref Moves[i]))
                 {
-                    movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                        continue;
 
+                    //...but if it does not we have to research it!
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+
+                    movesPlayed = true;
                     if (score > alpha)
                     {
                         bm = Moves[i];
@@ -170,9 +182,14 @@ namespace Leorik.Search
             {
                 if (next.Play(current, ref Moves[i]))
                 {
-                    movesPlayed = true;
-                    score = -EvaluateTT(depth + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                        continue;
 
+                    //...but if it does not we have to research it!
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+
+                    movesPlayed = true;
                     if (score > alpha)
                     {
                         bm = Moves[i];
@@ -187,7 +204,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (!movesPlayed)
-                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(depth) : 0;
+                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
         }
