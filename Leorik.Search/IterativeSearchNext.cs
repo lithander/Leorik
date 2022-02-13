@@ -134,13 +134,13 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             int score;
-            bool movesPlayed = false;
+            int movesPlayed = 0;
 
             if (bm != default)
             {
                 if (next.Play(current, ref bm))
                 {
-                    movesPlayed = true;
+                    movesPlayed++;
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
@@ -160,20 +160,20 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
                         continue;
 
                     //...but if it does not we have to research it!
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
-                    movesPlayed = true;
+                    movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
                         pv.Extend(bm);
                         alpha = score;
                     }
-
+                    
                     if (score >= beta)
                         return beta;
                 }
@@ -183,13 +183,13 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
                         continue;
 
                     //...but if it does not we have to research it!
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
-                    movesPlayed = true;
+                    movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
@@ -203,7 +203,7 @@ namespace Leorik.Search
             }
 
             //checkmate or draw?
-            if (!movesPlayed)
+            if (movesPlayed == 0)
                 return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
