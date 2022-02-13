@@ -182,7 +182,7 @@ namespace Leorik.Search
                 }
             }
 
-            for (int i = moveGen.CollectKillers2(current, _killers.Get(ply)); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectKillers3(current, _killers.GetSpan(ply)); i < moveGen.Next; i++)
             {
                 if (next.Play(current, ref Moves[i]))
                 {

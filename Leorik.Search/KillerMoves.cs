@@ -23,8 +23,6 @@ namespace Leorik.Search
 
         public void Add(int ply, Move move)
         {
-            if(move.Flags > Piece.WhiteKing) return;
-
             int index0 = _width * ply;
             //We shift all moves by one slot to make room but overwrite a potential dublicate of 'move' then store the new 'move' at [0] 
             int last = index0;
@@ -44,6 +42,12 @@ namespace Leorik.Search
             int index0 = _width * ply;
             Array.Copy(_moves, index0, line, 0, _width);
             return line;
+        }
+
+        public Span<Move> GetSpan(int ply)
+        {
+            int index0 = _width * ply;
+            return new Span<Move>(_moves, index0, _width);
         }
 
         public bool Contains(int ply, Move move)
