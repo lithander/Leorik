@@ -472,7 +472,7 @@ namespace Leorik.Core
         public void UpdateHash(BoardState from, ref Move move)
         {
             ZobristHash = from.ZobristHash;
-            
+
             ZobristHash ^= Zobrist.SideToMove;
             ZobristHash ^= Zobrist.PieceSquare(move.MovingPiece(), move.FromSquare);
             ZobristHash ^= Zobrist.PieceSquare(move.CapturedPiece(), move.ToSquare);

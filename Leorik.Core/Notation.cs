@@ -51,7 +51,7 @@ namespace Leorik.Core
         public static Piece OfColor(this Piece piece, Color color) => (piece & Piece.TypeMask) | (Piece)(color + 2);
 
         public static BoardState GetStartingPosition() => GetBoardState(STARTING_POS_FEN);
-     
+
         public static BoardState GetBoardState(string fen)
         {
             BoardState result = new BoardState();
@@ -87,7 +87,7 @@ namespace Leorik.Core
             result.SideToMove = fields[1].Equals("w", StringComparison.CurrentCultureIgnoreCase) ? Color.White : Color.Black;
 
             //Set castling rights
-            if(fields[2].IndexOf("K", StringComparison.Ordinal) > -1)
+            if (fields[2].IndexOf("K", StringComparison.Ordinal) > -1)
                 result.CastleFlags |= BoardState.WhiteKingsideRookBit;
 
             if (fields[2].IndexOf("Q", StringComparison.Ordinal) > -1)
@@ -151,9 +151,9 @@ namespace Leorik.Core
                 fen.Append(" b ");
 
             //Castling rights
-            if(board.CastleFlags == 0)
+            if (board.CastleFlags == 0)
                 fen.Append('-');
-            if((board.CastleFlags & BoardState.WhiteKingsideRookBit) > 0)
+            if ((board.CastleFlags & BoardState.WhiteKingsideRookBit) > 0)
                 fen.Append('K');
             if ((board.CastleFlags & BoardState.WhiteQueensideRookBit) > 0)
                 fen.Append('Q');
@@ -163,7 +163,7 @@ namespace Leorik.Core
                 fen.Append('q');
             fen.Append(' ');
 
-            if(board.EnPassant == 0)
+            if (board.EnPassant == 0)
                 fen.Append('-');
             else
             {
@@ -296,7 +296,7 @@ namespace Leorik.Core
             var moveGen = new MoveGen(moves, 0);
             moveGen.Collect(board);
             for (int i = 0; i < moveGen.Next; i++)
-            {                
+            {
                 Move move = moves[i];
                 if (move.ToSquare != toSquare)
                     continue;

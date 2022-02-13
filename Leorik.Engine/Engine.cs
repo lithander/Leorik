@@ -97,14 +97,14 @@ namespace Leorik.Engine
             //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
             foreach (var position in _history)
                 Transpositions.StoreHistory(position);
-            
+
             _search = new IterativeSearchNext(_board, maxNodes);
             _time.StartInterval();
             _search.SearchDeeper();
             Collect();
 
             //start the search thread
-            _searching = new Thread(Search) {Priority = ThreadPriority.Highest};
+            _searching = new Thread(Search) { Priority = ThreadPriority.Highest };
             _searching.Start();
         }
 
@@ -145,15 +145,15 @@ namespace Leorik.Engine
             if (_search == null)
                 return;
 
-            if(_search.PrincipalVariation.Length > 0)
+            if (_search.PrincipalVariation.Length > 0)
                 _best = _search.PrincipalVariation[0];
 
             Uci.Info(
-                depth:  _search.Depth, 
-                score:  _search.Score, 
-                nodes:  _search.NodesVisited, 
-                timeMs: _time.Elapsed, 
-                pv:     GetExtendedPV()
+                depth: _search.Depth,
+                score: _search.Score,
+                nodes: _search.NodesVisited,
+                timeMs: _time.Elapsed,
+                pv: GetExtendedPV()
             );
         }
 
@@ -161,10 +161,10 @@ namespace Leorik.Engine
         {
             var pv = _search.PrincipalVariation.ToArray();
             List<Move> result = new(pv);
-            
+
             //1.) play the PV as far as available
             BoardState position = _board.Clone();
-            foreach(Move move in pv)
+            foreach (Move move in pv)
                 position.Play(move);
 
             //2. try to extract the remaining depth from the TT

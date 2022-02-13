@@ -36,14 +36,6 @@ namespace Leorik.Search
             _moves[index0] = move;
         }
 
-        public Move[] Get(int ply)
-        {
-            Move[] line = new Move[_width];
-            int index0 = _width * ply;
-            Array.Copy(_moves, index0, line, 0, _width);
-            return line;
-        }
-
         public Span<Move> GetSpan(int ply)
         {
             int index0 = _width * ply;

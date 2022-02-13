@@ -1,11 +1,5 @@
 ﻿using Leorik.Core;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Leorik.Search
 {
@@ -42,7 +36,7 @@ namespace Leorik.Search
 
             //PV-length = depth + (depth - 1) + (depth - 2) + ... + 1
             const int d = MAX_PLY + 1;
-            PrincipalVariations = new Move[(d*d+d)/2];
+            PrincipalVariations = new Move[(d * d + d) / 2];
 
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
@@ -159,7 +153,7 @@ namespace Leorik.Search
 
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
-                PickBestMove(i, moveGen.Next);               
+                PickBestMove(i, moveGen.Next);
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
@@ -176,23 +170,23 @@ namespace Leorik.Search
                         pv.Extend(bm);
                         alpha = score;
                     }
-                    
+
                     if (score >= beta)
                         return beta;
                 }
             }
 
-            for (int i = moveGen.CollectKillers3(current, _killers.GetSpan(ply)); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply)); i < moveGen.Next; i++)
             {
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                     if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
                         continue;
-            
+
                     //...but if it does not we have to research it!
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
-            
+
                     movesPlayed++;
                     if (score > alpha)
                     {
@@ -201,7 +195,7 @@ namespace Leorik.Search
                         _killers.Add(ply, bm);
                         alpha = score;
                     }
-            
+
                     if (score >= beta)
                         return beta;
                 }

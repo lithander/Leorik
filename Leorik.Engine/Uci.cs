@@ -1,5 +1,4 @@
 ﻿using Leorik.Core;
-using Leorik.Search;
 
 namespace Leorik.Engine
 {
@@ -9,7 +8,7 @@ namespace Leorik.Engine
 
         public static void Write(string message)
         {
-            if(!Silent)
+            if (!Silent)
                 Console.WriteLine(message);
         }
 
@@ -28,10 +27,10 @@ namespace Leorik.Engine
 
         private static string ScoreToString(int score)
         {
-            if(Evaluation.IsCheckmate(score))
+            if (Evaluation.IsCheckmate(score))
             {
                 int sign = Math.Sign(score);
-                int moves = Evaluation.GetMateDistance(score);               
+                int moves = Evaluation.GetMateDistance(score);
                 return $"mate {sign * moves}";
             }
 

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace Leorik.Core
 {
@@ -22,7 +21,7 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(Piece flags, int from, int to)
-        {            
+        {
             _moves[Next++] = new Move(flags, from, to, Piece.None);
         }
 
@@ -251,7 +250,7 @@ namespace Leorik.Core
             //move two squares down
             ulong twoStep = (oneStep >> 8) & ~occupied;
             for (targets = twoStep & 0x000000FF00000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnMove(Piece.BlackPawn, targets, +16);                       
+                PawnMove(Piece.BlackPawn, targets, +16);
 
             //Castling
             if (board.CanBlackCastleLong() && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(59) /*&& !board.IsAttackedByWhite(58)*/)
@@ -384,7 +383,7 @@ namespace Leorik.Core
             //move two squares up
             ulong twoStep = (oneStep << 8) & ~occupied;
             for (targets = twoStep & 0x00000000FF000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnMove(Piece.WhitePawn, targets, -16);                       
+                PawnMove(Piece.WhitePawn, targets, -16);
 
             //Castling
             if (board.CanWhiteCastleLong() && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(3) /*&& !board.IsAttackedByBlack(2)*/)
@@ -394,185 +393,34 @@ namespace Leorik.Core
                 Add(Move.WhiteCastlingShort);
         }
 
-        public int CollectKillers(BoardState current, Move[] killers)
-        {
-            int oldNext = Next;
-            CollectQuiets(current);
-
-            int head = oldNext;
-            for (int j = 0; j < killers.Length; j++)
-            {
-                bool available = MoveGen.IsPlayableKiller(current, ref killers[j]);
-                for (int i = head; i < Next; i++)
-                {
-                    Move move = _moves[i];
-                    if (move == killers[j])
-                    {
-                        _moves[i] = _moves[head];
-                        _moves[head++] = move;
-                        if(!available)
-                            Console.WriteLine($"Error! {move} was available. But IsPlayableKiller() returned False!");
-                        break;
-                    }
-                    if (i == Next - 1 && available)
-                        Console.WriteLine($"Error! {move} was not available. But IsPlayableKiller() returned True!");
-                }
-            }
-            Next = head;
-            return oldNext;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CollectKillers2(BoardState current, Move[] killers)
+        public int CollectPlayableKillers(BoardState current, Span<Move> killers)
         {
             int oldNext = Next;
             for (int j = 0; j < killers.Length; j++)
             {
-                if (IsPlayableKiller(current, ref killers[j]))
+                if (IsPlayableQuiet(current, ref killers[j]))
                     _moves[Next++] = killers[j];
             }
             return oldNext;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CollectKillers3(BoardState current, Span<Move> killers)
-        {
-            int oldNext = Next;
-            for (int j = 0; j < killers.Length; j++)
-            {
-                //bool k1 = IsPlayableKiller(current, ref killers[j]);
-                //bool k2 = IsPlayableKiller2(current, ref killers[j]);
-                //
-                //if (k1 != k2)
-                //    Console.WriteLine("KAPUTT!");
-                //
-                //if (k1)
-                //    _moves[Next++] = killers[j];
-                //
-                if (IsPlayableKiller2(current, ref killers[j]))
-                    _moves[Next++] = killers[j];
-            }
-            return oldNext;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPlayableKiller(BoardState board, ref Move move)
+        public static bool IsPlayableQuiet(BoardState board, ref Move move)
         {
             if (board.SideToMove == Color.White)
-                return IsPlayableWhiteKiller(board, ref move);
+                return IsPlayableWhiteQuiet(board, ref move);
             else
-                return IsPlayableBlackKiller(board, ref move);
+                return IsPlayableBlackQuiet(board, ref move);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPlayableKiller2(BoardState board, ref Move move)
-        {
-            if (board.SideToMove == Color.White)
-                return IsPlayableWhiteKiller2(board, ref move);
-            else
-                return IsPlayableBlackKiller2(board, ref move);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsPlayableBlackKiller(BoardState board, ref Move move)
+        private static bool IsPlayableBlackQuiet(BoardState board, ref Move move)
         {
             ulong occupied = board.Black | board.White;
             ulong bbTo = 1UL << move.ToSquare;
             ulong bbFrom = 1UL << move.FromSquare;
-            //Kings
-            int square = Bitboard.LSB(board.Kings & board.Black & bbFrom);
-            if (square < 64 && move.Flags == Piece.BlackKing && (Bitboard.KingTargets[square] & ~occupied & bbTo) != 0)
-                return true;
-
-            //Knights
-            square = Bitboard.LSB(board.Knights & board.Black & bbFrom);
-            if (square < 64 && move.Flags == Piece.BlackKnight && (Bitboard.KnightTargets[square] & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Bishops & board.Black & bbFrom);
-            if (square < 64 && move.Flags == Piece.BlackBishop && (Bitboard.GetBishopTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Rooks & board.Black & bbFrom);
-            if (square < 64 && move.Flags == Piece.BlackRook && (Bitboard.GetRookTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Queens & board.Black & bbFrom);
-            if (square < 64 && move.Flags == Piece.BlackQueen && (Bitboard.GetQueenTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;
-
-            //Pawns                
-            ulong blackPawns = board.Pawns & board.Black & bbFrom;
-            if (move.Flags != Piece.BlackPawn || blackPawns == 0)
-                return false;
-
-            ulong oneStep = (blackPawns >> 8) & ~occupied;
-            //move one square up
-            if ((oneStep & bbTo) != 0)
-                return true;
-
-            //move two squares up
-            ulong twoStep = (oneStep >> 8) & ~occupied;
-            if ((twoStep & bbTo & 0x000000FF00000000UL) != 0)
-                return true;
-
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsPlayableWhiteKiller(BoardState board, ref Move move)
-        {
-            ulong occupied = board.Black | board.White;
-            ulong bbTo = 1UL << move.ToSquare;
-            ulong bbFrom = 1UL << move.FromSquare;
-            //Kings
-            int square = Bitboard.LSB(board.Kings & board.White & bbFrom);
-            if (square < 64 && move.Flags == Piece.WhiteKing && (Bitboard.KingTargets[square] & ~occupied & bbTo) != 0)
-                return true;
-
-            //Knights
-            square = Bitboard.LSB(board.Knights & board.White & bbFrom);
-            if (square < 64 && move.Flags == Piece.WhiteKnight && (Bitboard.KnightTargets[square] & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Bishops & board.White & bbFrom);
-            if (square < 64 && move.Flags == Piece.WhiteBishop && (Bitboard.GetBishopTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Rooks & board.White & bbFrom);
-            if (square < 64 && move.Flags == Piece.WhiteRook && (Bitboard.GetRookTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;
-
-            square = Bitboard.LSB(board.Queens & board.White & bbFrom);
-            if (square < 64 && move.Flags == Piece.WhiteQueen && (Bitboard.GetQueenTargets(occupied, square) & ~occupied & bbTo) != 0)
-                return true;                     
-
-            //Pawns                
-            ulong whitePawns = board.Pawns & board.White & bbFrom;
-            if (move.Flags != Piece.WhitePawn || whitePawns == 0)
-                return false;
-
-            ulong oneStep = (whitePawns << 8) & ~occupied;
-            //move one square up
-            if ((oneStep & bbTo) != 0)
-                return true;
-
-            //move two squares up
-            ulong twoStep = (oneStep << 8) & ~occupied;
-            if ((twoStep & bbTo & 0x00000000FF000000UL) != 0)
-                return true;
-
-            return false;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsPlayableBlackKiller2(BoardState board, ref Move move)
-        {
-            ulong occupied = board.Black | board.White;
-            ulong bbTo = 1UL << move.ToSquare;
-            ulong bbFrom = 1UL << move.FromSquare;
-            switch(move.Flags)
+            switch (move.Flags)
             {
                 case Piece.BlackKing:
                     int square = Bitboard.LSB(board.Kings & board.Black & bbFrom);
@@ -609,7 +457,7 @@ namespace Leorik.Core
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsPlayableWhiteKiller2(BoardState board, ref Move move)
+        private static bool IsPlayableWhiteQuiet(BoardState board, ref Move move)
         {
             ulong occupied = board.Black | board.White;
             ulong bbTo = 1UL << move.ToSquare;
@@ -644,7 +492,7 @@ namespace Leorik.Core
                     ulong oneStep = ((board.Pawns & board.White & bbFrom) << 8) & ~occupied;
                     //bbTo square must be either oneStep or twoStep up from bbFrom and each step is unoccupied
                     return (bbTo & (oneStep | ((oneStep << 8) & ~occupied))) != 0;
-                default: 
+                default:
                     return false;
             }
         }

@@ -164,7 +164,7 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong GetQueenTargets(ulong occupation, int square) =>
-            GetBishopTargets(occupation, square) | 
+            GetBishopTargets(occupation, square) |
             GetRookTargets(occupation, square);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

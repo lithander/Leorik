@@ -1,6 +1,4 @@
-﻿using Leorik.Core;
-using Leorik.Search;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Engine
@@ -21,7 +19,7 @@ namespace Leorik.Engine
         private long _tN = -1;
 
         public int TimePerMove() => (_remaining + (_movesToGo - 1) * _increment) / _movesToGo;
-        
+
         private long Now => Stopwatch.GetTimestamp();
         public int Elapsed => MilliSeconds(Now - _t0);
         public int ElapsedInterval => MilliSeconds(Now - _tN);
@@ -36,7 +34,7 @@ namespace Leorik.Engine
         {
             _movesToGo = 1;
             _increment = 0;
-            _remaining = MAX_TIME_REMAINING; 
+            _remaining = MAX_TIME_REMAINING;
             _t0 = Now;
             _tN = _t0;
             _margin = BASE_MARGIN;

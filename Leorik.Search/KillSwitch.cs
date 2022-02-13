@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
@@ -24,7 +19,7 @@ namespace Leorik.Search
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Get()
-        {            
+        {
             if (!_aborted && ++_query >= QUERY_INTERVAL && _killSwitch != null)
             {
                 _query = 0;

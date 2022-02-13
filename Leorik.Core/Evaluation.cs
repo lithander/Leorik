@@ -26,7 +26,7 @@ namespace Leorik.Core
                 AddPiece(piece, square);
             }
         }
-            
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(ref Move move)
         {
@@ -71,7 +71,7 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue += PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                AddScore(pieceIndex, squareIndex^56);
+                AddScore(pieceIndex, squareIndex ^ 56);
             else
                 SubtractScore(pieceIndex, squareIndex);
         }
@@ -82,7 +82,7 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue -= PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                SubtractScore(pieceIndex, squareIndex^56);
+                SubtractScore(pieceIndex, squareIndex ^ 56);
             else
                 AddScore(pieceIndex, squareIndex);
         }
@@ -127,7 +127,7 @@ namespace Leorik.Core
             return midgameScore + Math.Clamp(phase, 0, 1) * (endgameScore - midgameScore);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int PieceIndex(Piece piece) => ((int)piece >> 2) - 1;
 
         /*

@@ -82,7 +82,7 @@ namespace Leorik.Test
                     Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
                 }
-                else 
+                else
                     Console.Write('.');
             }
 
@@ -355,10 +355,10 @@ namespace Leorik.Test
             //we want to swap the first move with the best move
             int best = first;
             int bestScore = Moves[first].MvvLvaScore();
-            for(int i = first+1; i < end; i++)
+            for (int i = first + 1; i < end; i++)
             {
                 int score = Moves[i].MvvLvaScore();
-                if(score >= bestScore)
+                if (score >= bestScore)
                 {
                     best = i;
                     bestScore = score;
@@ -538,7 +538,7 @@ namespace Leorik.Test
                 }
             }
 
-            if(inCheck)
+            if (inCheck)
             {
                 for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
                 {

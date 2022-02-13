@@ -126,7 +126,7 @@ namespace Leorik.Search
         internal static void StorePV(BoardState root, Span<Move> pv, int depth, int score)
         {
             BoardState position = root.Clone();
-           
+
             for (int ply = 0; ply < pv.Length; ply++)
             {
                 Move move = pv[ply];
