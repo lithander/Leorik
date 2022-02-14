@@ -15,6 +15,7 @@ namespace Leorik.Search
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
         private long _maxNodes;
+        private KillerMoves _killers;
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
@@ -29,6 +30,7 @@ namespace Leorik.Search
         public IterativeSearch(BoardState board, long maxNodes = long.MaxValue)
         {
             _maxNodes = maxNodes;
+            _killers = new KillerMoves(2);
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -65,6 +67,7 @@ namespace Leorik.Search
         {
             Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
             Depth++;
+            _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -128,13 +131,13 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             int score;
-            bool movesPlayed = false;
+            int movesPlayed = 0;
 
             if (bm != default)
             {
                 if (next.Play(current, ref bm))
                 {
-                    movesPlayed = true;
+                    movesPlayed++;
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
                     if (score > alpha)
@@ -154,13 +157,13 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
                         continue;
 
                     //...but if it does not we have to research it!
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
-                    movesPlayed = true;
+                    movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
@@ -172,22 +175,49 @@ namespace Leorik.Search
                         return beta;
                 }
             }
-            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+
+            for (int i = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply)); i < moveGen.Next; i++)
             {
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed && remaining > 1 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
                         continue;
 
                     //...but if it does not we have to research it!
                     score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
 
-                    movesPlayed = true;
+                    movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
                         pv.Extend(bm);
+                        _killers.Add(ply, bm);
+                        alpha = score;
+                    }
+
+                    if (score >= beta)
+                        return beta;
+                }
+            }
+
+            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+            {
+                if (next.Play(current, ref Moves[i]))
+                {
+                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                        continue;
+
+                    //...but if it does not we have to research it!
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+
+                    movesPlayed++;
+                    if (score > alpha)
+                    {
+                        bm = Moves[i];
+                        pv.Extend(bm);
+                        _killers.Add(ply, bm);
                         alpha = score;
                     }
 
@@ -197,7 +227,7 @@ namespace Leorik.Search
             }
 
             //checkmate or draw?
-            if (!movesPlayed)
+            if (movesPlayed == 0)
                 return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;

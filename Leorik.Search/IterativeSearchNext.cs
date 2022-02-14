@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
@@ -63,6 +64,59 @@ namespace Leorik.Search
             return new Span<Move>(pv, 0, end >= 0 ? end : depth);
         }
 
+        int _IndexPV(int ply)
+        {
+            int result = 0;
+            for (int i = 0; i < ply; i++)
+                result += Depth - i;
+
+            Debug.Assert(IndexPV(ply) == result);
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        int IndexPV(int ply)
+        {
+            //NAIVE SOLUTION
+
+            //int result = 0;
+            //for (int i = 0; i < ply; i++)
+            //    result += Depth - i;
+            //
+            //return result;
+
+            //...is equivalent to:
+
+            //return Length(Depth) - Length(Depth - ply) where Length(d) => (d * d + d) / 2;
+            //int a = Depth;
+            //int b = a - ply;
+            //return (a * a + a) / 2 - (b * b + b) / 2;
+            //return (a * a + a - b * b - b) / 2;
+            //because - b * b - b = - (a - ply) * (a - ply) - (a - ply) == - a * a + 2 * a * ply - ply * ply - a + ply
+            //return (a * a + a - a * a + 2 * a * ply - ply * ply - a + ply) / 2;
+            //return (2 * a * ply - ply * ply + ply) / 2;
+            //return a * ply - (ply * ply - ply) / 2;
+            return Depth * ply - (ply * ply - ply) / 2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ExtendPV(int ply, Move move)
+        {
+            int index = IndexPV(ply);
+            PrincipalVariations[index] = move;
+            int stride = Depth - ply;
+            int from = index + stride - 1;
+            for (int i = 1; i < stride; i++)
+                PrincipalVariations[index + i] = PrincipalVariations[from + i];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void TruncatePV(int ply)
+        {
+            PrincipalVariations[IndexPV(ply)] = default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
@@ -71,8 +125,7 @@ namespace Leorik.Search
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
-            PVHead pv = new PVHead(PrincipalVariations, Depth);
-            Score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, pv, ref bestMove);
+            Score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, ref bestMove);
             Transpositions.Store(Positions[0].ZobristHash, Depth, 0, MIN_ALPHA, MAX_BETA, Score, bestMove);
         }
 
@@ -101,13 +154,13 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool FailLow(int ply, int remaining, int alpha, MoveGen moveGen, PVHead pv)
+        private bool FailLow(int ply, int remaining, int alpha, MoveGen moveGen)
         {
-            return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen, pv) <= alpha;
+            return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen) <= alpha;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv)
+        private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
         {
             if (remaining == 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
@@ -115,17 +168,17 @@ namespace Leorik.Search
             if (ForcedCut(ply))
                 return Positions[ply].SignedScore();
 
-            pv.Truncate();
+            TruncatePV(ply);
             ulong hash = Positions[ply].ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
-            int score = Evaluate(ply, remaining, alpha, beta, moveGen, pv, ref bm);
+            int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
             Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
             return score;
         }
 
-        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, PVHead pv, ref Move bm)
+        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
         {
             NodesVisited++;
             BoardState current = Positions[ply];
@@ -138,12 +191,12 @@ namespace Leorik.Search
                 if (next.Play(current, ref bm))
                 {
                     movesPlayed++;
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     if (score > alpha)
                     {
                         alpha = score;
-                        pv.Extend(bm);
+                        ExtendPV(ply, bm);
                     }
 
                     if (score >= beta)
@@ -157,17 +210,17 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
                         continue;
 
                     //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
-                        pv.Extend(bm);
+                        ExtendPV(ply, bm);
                         alpha = score;
                     }
 
@@ -181,17 +234,17 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
                         continue;
 
                     //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
-                        pv.Extend(bm);
+                        ExtendPV(ply, bm);
                         _killers.Add(ply, bm);
                         alpha = score;
                     }
@@ -206,17 +259,17 @@ namespace Leorik.Search
                 if (next.Play(current, ref Moves[i]))
                 {
                     //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen, pv.NextDepth))
+                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
                         continue;
 
                     //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen, pv.NextDepth);
+                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                     movesPlayed++;
                     if (score > alpha)
                     {
                         bm = Moves[i];
-                        pv.Extend(bm);
+                        ExtendPV(ply, bm);
                         _killers.Add(ply, bm);
                         alpha = score;
                     }
