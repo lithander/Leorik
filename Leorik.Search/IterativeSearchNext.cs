@@ -64,38 +64,11 @@ namespace Leorik.Search
             return new Span<Move>(pv, 0, end >= 0 ? end : depth);
         }
 
-        int _IndexPV(int ply)
-        {
-            int result = 0;
-            for (int i = 0; i < ply; i++)
-                result += Depth - i;
-
-            Debug.Assert(IndexPV(ply) == result);
-            return result;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int IndexPV(int ply)
         {
-            //NAIVE SOLUTION
-
-            //int result = 0;
-            //for (int i = 0; i < ply; i++)
-            //    result += Depth - i;
-            //
-            //return result;
-
-            //...is equivalent to:
-
-            //return Length(Depth) - Length(Depth - ply) where Length(d) => (d * d + d) / 2;
-            //int a = Depth;
-            //int b = a - ply;
-            //return (a * a + a) / 2 - (b * b + b) / 2;
-            //return (a * a + a - b * b - b) / 2;
-            //because - b * b - b = - (a - ply) * (a - ply) - (a - ply) == - a * a + 2 * a * ply - ply * ply - a + ply
-            //return (a * a + a - a * a + 2 * a * ply - ply * ply - a + ply) / 2;
-            //return (2 * a * ply - ply * ply + ply) / 2;
-            //return a * ply - (ply * ply - ply) / 2;
+            //Detailed Description:
+            //https://github.com/lithander/Leorik/blob/b3236087fbc87e1915725c23ff349e46dfedd0f2/Leorik.Search/IterativeSearchNext.cs
             return Depth * ply - (ply * ply - ply) / 2;
         }
 
@@ -346,7 +319,7 @@ namespace Leorik.Search
                     return Evaluation.Checkmate(depth);
             }
 
-            //stalemate?
+            //TODO: stalemate?
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
             //    return 0;
 

@@ -7,7 +7,7 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 8;
+        const int DEPTH = 6;
         const int COUNT = 300;
 
         static void Main()
