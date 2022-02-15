@@ -151,110 +151,95 @@ namespace Leorik.Search
             return score;
         }
 
+        enum Stage { New, Captures, Killers, Quiets }
+
+        struct PlayState
+        {
+            public Stage Stage;
+            public int Next;
+            public byte PlayedMoves;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private PlayState InitPlay(ref MoveGen moveGen, ref Move pvMove)
+        {
+            return new PlayState { Stage = Stage.New, Next = moveGen.Collect(pvMove) };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool Play(int ply, ref PlayState state, ref MoveGen moveGen)
+        {
+            BoardState current = Positions[ply];
+            BoardState next = Positions[ply + 1];
+            
+            while(true)
+            {
+                if (state.Next == moveGen.Next)
+                {
+                    switch (state.Stage)
+                    {
+                        case Stage.New:
+                            state.Next = moveGen.CollectCaptures(current);
+                            state.Stage = Stage.Captures;
+                            continue;
+                        case Stage.Captures:
+                            state.Next = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply));
+                            state.Stage = Stage.Killers;
+                            continue;
+                        case Stage.Killers:
+                            state.Next = moveGen.CollectQuiets(current);
+                            state.Stage = Stage.Quiets;
+                            continue;
+                        case Stage.Quiets:
+                            return false;
+                    }
+                }
+
+                if (state.Stage == Stage.Captures)
+                    PickBestMove(state.Next, moveGen.Next);
+
+                if (next.Play(current, ref Moves[state.Next++]))
+                {
+                    state.PlayedMoves++;
+                    return true;
+                }
+            }
+        }
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
         {
             NodesVisited++;
-            BoardState current = Positions[ply];
-            BoardState next = Positions[ply + 1];
             int score;
-            int movesPlayed = 0;
 
-            if (bm != default)
+            PlayState playState = InitPlay(ref moveGen, ref bm);
+            while (Play(ply, ref playState, ref moveGen))
             {
-                if (next.Play(current, ref bm))
+                //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                if (playState.PlayedMoves > 1 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
+                    continue;
+
+                //...but if it does not we have to research it!
+                score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
+
+                if (score > alpha)
                 {
-                    movesPlayed++;
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
+                    bm = Moves[playState.Next-1];
+                    ExtendPV(ply, bm);
 
-                    if (score > alpha)
-                    {
-                        alpha = score;
-                        ExtendPV(ply, bm);
-                    }
-
-                    if (score >= beta)
-                        return beta;
-                }
-            }
-
-            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
-            {
-                PickBestMove(i, moveGen.Next);
-                if (next.Play(current, ref Moves[i]))
-                {
-                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
-                        continue;
-
-                    //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
-
-                    movesPlayed++;
-                    if (score > alpha)
-                    {
-                        bm = Moves[i];
-                        ExtendPV(ply, bm);
-                        alpha = score;
-                    }
-
-                    if (score >= beta)
-                        return beta;
-                }
-            }
-
-            for (int i = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply)); i < moveGen.Next; i++)
-            {
-                if (next.Play(current, ref Moves[i]))
-                {
-                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
-                        continue;
-
-                    //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
-
-                    movesPlayed++;
-                    if (score > alpha)
-                    {
-                        bm = Moves[i];
-                        ExtendPV(ply, bm);
+                    if(playState.Stage >= Stage.Killers)
                         _killers.Add(ply, bm);
-                        alpha = score;
-                    }
-
-                    if (score >= beta)
-                        return beta;
+                    
+                    alpha = score;
                 }
-            }
 
-            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
-            {
-                if (next.Play(current, ref Moves[i]))
-                {
-                    //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                    if (movesPlayed > 0 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
-                        continue;
-
-                    //...but if it does not we have to research it!
-                    score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
-
-                    movesPlayed++;
-                    if (score > alpha)
-                    {
-                        bm = Moves[i];
-                        ExtendPV(ply, bm);
-                        _killers.Add(ply, bm);
-                        alpha = score;
-                    }
-
-                    if (score >= beta)
-                        return beta;
-                }
+                if (score >= beta)
+                    return beta;
             }
 
             //checkmate or draw?
-            if (movesPlayed == 0)
-                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
+            if (playState.PlayedMoves == 0)
+                return Positions[ply].IsChecked(Positions[ply].SideToMove) ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
         }

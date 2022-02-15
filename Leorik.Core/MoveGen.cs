@@ -14,13 +14,23 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(Move move)
+        public int Collect(Move move)
+        {
+            int oldNext = Next;
+            if (move != default)
+                Add(move);
+
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void Add(Move move)
         {
             _moves[Next++] = move;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(Piece flags, int from, int to)
+        private void Add(Piece flags, int from, int to)
         {
             _moves[Next++] = new Move(flags, from, to, Piece.None);
         }
