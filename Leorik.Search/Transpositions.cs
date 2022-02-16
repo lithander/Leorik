@@ -43,6 +43,7 @@ namespace Leorik.Search
             return true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static int Index(in ulong hash)
         {
             int index = (int)(hash % (ulong)_table.Length);
@@ -121,18 +122,6 @@ namespace Leorik.Search
         public static void StoreHistory(BoardState position)
         {
             Store(position.ZobristHash, HISTORY_DEPTH, 0, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, 0, default);
-        }
-
-        internal static void StorePV(BoardState root, Span<Move> pv, int depth, int score)
-        {
-            BoardState position = root.Clone();
-
-            for (int ply = 0; ply < pv.Length; ply++)
-            {
-                Move move = pv[ply];
-                Store(position.ZobristHash, depth--, ply, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, score, move);
-                position.Play(move);
-            }
         }
 
         public static bool GetBestMove(BoardState position, out Move bestMove)

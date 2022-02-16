@@ -64,6 +64,19 @@ namespace Leorik.Search
             return new Span<Move>(pv, 0, end >= 0 ? end : depth);
         }
 
+        internal void StorePVinTT()
+        {
+            var position = Positions[0].Clone();
+            var pv = PrincipalVariation;
+            for (int ply = 0; ply < pv.Length; ply++)
+            {
+                int sideToMoveScore = (int)position.SideToMove * Score;
+                if(!Transpositions.GetScore(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, out _, out _))
+                    Transpositions.Store(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, sideToMoveScore, pv[ply]);
+                position.Play(pv[ply]);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int IndexPV(int ply)
         {
@@ -92,20 +105,22 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
-            Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
+            StorePVinTT();
+
             Depth++;
             _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
-            Score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, ref bestMove);
-            Transpositions.Store(Positions[0].ZobristHash, Depth, 0, MIN_ALPHA, MAX_BETA, Score, bestMove);
+            int score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, ref bestMove);
+
+            Score = (int)Positions[0].SideToMove * score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PickBestMove(int first, int end)
         {
-            //we want to swap the first move with the best move
+            //find the best move...
             int best = first;
             int bestScore = Moves[first].MvvLvaScore();
             for (int i = first + 1; i < end; i++)
@@ -117,7 +132,7 @@ namespace Leorik.Search
                     bestScore = score;
                 }
             }
-            //swap best with first
+            //...swap best with first
             if (best != first)
             {
                 Move temp = Moves[best];

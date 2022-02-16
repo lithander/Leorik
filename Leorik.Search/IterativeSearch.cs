@@ -92,7 +92,6 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
-            Transpositions.StorePV(Positions[0], PrincipalVariation, Depth, Score);
             Depth++;
             _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);

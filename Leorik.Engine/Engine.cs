@@ -150,7 +150,7 @@ namespace Leorik.Engine
 
             Uci.Info(
                 depth: _search.Depth,
-                score: _search.Score,
+                score: (int)SideToMove * _search.Score, //the score from the engine's point of view in centipawns.
                 nodes: _search.NodesVisited,
                 timeMs: _time.Elapsed,
                 pv: GetExtendedPV()

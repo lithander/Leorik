@@ -144,7 +144,7 @@ namespace Leorik.Core
             return true;
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Play(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
