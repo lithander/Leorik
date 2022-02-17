@@ -231,7 +231,7 @@ namespace Leorik.Search
             while (Play(ply, ref playState, ref moveGen))
             {
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (playState.PlayedMoves > 1 && remaining > 4 && FailLow(ply, remaining, alpha, moveGen))
+                if (playState.PlayedMoves > 1 && remaining >= 2 && FailLow(ply, remaining, alpha, moveGen))
                     continue;
 
                 //...but if it does not we have to research it!
