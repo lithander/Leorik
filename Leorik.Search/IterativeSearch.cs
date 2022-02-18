@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
-    public class IterativeSearchNext
+    public class IterativeSearch
     {
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
@@ -28,7 +28,7 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearchNext(BoardState board, long maxNodes = long.MaxValue)
+        public IterativeSearch(BoardState board, long maxNodes = long.MaxValue)
         {
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);

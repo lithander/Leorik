@@ -78,7 +78,7 @@ namespace Leorik.Perft
             long sum = 0;
             for (; i < moves.Next; i++)
             {
-                if (next.Play(current, ref Moves[i]))
+                if (next.PlayWithoutHashAndEval(current, ref Moves[i]))
                 {
                     if (remaining > 1)
                         sum += Perft(depth + 1, remaining - 1, moves);

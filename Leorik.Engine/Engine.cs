@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     class Engine
     {
-        IterativeSearchNext _search = null;
+        IterativeSearch _search = null;
         Thread _searching = null;
         Move _best = default;
         TimeControl _time = new TimeControl();
@@ -98,7 +98,7 @@ namespace Leorik.Engine
             foreach (var position in _history)
                 Transpositions.StoreHistory(position);
 
-            _search = new IterativeSearchNext(_board, maxNodes);
+            _search = new IterativeSearch(_board, maxNodes);
             _time.StartInterval();
             _search.SearchDeeper();
             Collect();

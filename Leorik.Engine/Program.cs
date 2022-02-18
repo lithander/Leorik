@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 0.2.10";
+        const string NAME_VERSION = "Leorik 1.0";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -102,7 +102,7 @@ namespace Leorik.Engine
             //40 Moves in 5 Minutes, 1 second increment per Move =  go wtime 300000 btime 300000 movestogo 40 winc 1000 binc 1000 movestogo 40
             //5 Minutes total, no increment (sudden death) = go wtime 300000 btime 300000
 
-            TryParse(tokens, "depth", out int maxDepth, IterativeSearchNext.MaxDepth);
+            TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MaxDepth);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
             TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 40 e.g. spend 1/40th of total budget on the move

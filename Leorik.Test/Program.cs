@@ -8,48 +8,27 @@ namespace Leorik.Test
     class Program
     {
         const int DEPTH = 6;
-        const int COUNT = 300;
+        const int COUNT = 50;
+        const bool DETAILS = false;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Search v8");
+            Console.WriteLine("Leorik Tests v9");
             Console.WriteLine();
 
-            //TestIllegalMove();
-            //return;
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, COUNT, NegaMaxSearch, "NegaMax", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
+            
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, COUNT, MvvLvaSearch, "MvvLva", DETAILS);
 
-            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMinMax, "MinMax", false);
-            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, SearchQSearch, "QSearch", false);
-            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearchNext, "IterativeSearchNext", false);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", false);
-            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchMvvLva, "MvvLva", false);
-            //CompareBestMove(File.OpenText("wac.epd"), DEPTH, SearchAlphaBeta, "AlphaBeta", false);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, QuiescenceSearch, "QSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", DETAILS);
 
-            Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
-            Console.ReadKey();
+            Console.WriteLine("Press ESC key to quit");
+            while(Console.ReadKey(true).Key != ConsoleKey.Escape) { }
         }
 
-        private static void TestIllegalMove()
-        {
-            //rn4k1/pp1b1p1p/5pp1/8/1q6/6P1/P1P1Q1BP/3RK2R w - - 10 22
-            Transpositions.Clear();
-            BoardState bs = Notation.GetBoardState("rn4k1/pp1b1p1p/5pp1/8/1q6/6P1/P1P1Q1BP/3RK2R w K - 6 20");
-            ulong preHash = bs.ZobristHash;
-            Console.WriteLine(bs.ZobristHash);
-            Console.WriteLine("CanWhiteCastleShort? " + bs.CanWhiteCastleShort());
-            bs.Play(Notation.GetMove(bs, "Kf2"));
-            Console.WriteLine(bs.ZobristHash);
-            bs.Play(Notation.GetMove(bs, "Qc5"));
-            Console.WriteLine(bs.ZobristHash);
-            bs.Play(Notation.GetMove(bs, "Ke1"));
-            Console.WriteLine(bs.ZobristHash);
-            bs.Play(Notation.GetMove(bs, "Qb4"));
-            Console.WriteLine(bs.ZobristHash);
-            Console.WriteLine("CanWhiteCastleShort? " + bs.CanWhiteCastleShort());
-            ulong postHash = bs.ZobristHash;
-            Console.WriteLine("PreHash == PostHash? " + (preHash == postHash));
-        }
 
         private delegate Span<Move> SearchDelegate(BoardState state, int depth);
 
@@ -94,40 +73,6 @@ namespace Leorik.Test
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
             Console.WriteLine();
-        }
-
-        private static void CompareBestMoveQSearch(StreamReader file, int depth)
-        {
-            double freq = Stopwatch.Frequency;
-            long totalTime = 0;
-            long totalNodes = 0;
-            int count = 0;
-            int foundBest = 0;
-            while (!file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
-            {
-                long t0 = Stopwatch.GetTimestamp();
-                Move pvMove = SearchQSearch(board, depth);
-                long t1 = Stopwatch.GetTimestamp();
-                long dt = t1 - t0;
-
-                count++;
-                totalTime += dt;
-                totalNodes += NodesVisited;
-                string pvString = Notation.GetMoveName(pvMove);
-                bool foundBestMove = bestMoves.Contains(pvMove);
-                if (foundBestMove)
-                    foundBest++;
-
-                Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
-                Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
-            }
-
-            double nps = totalNodes / (totalTime / freq);
-            Console.WriteLine();
-            Console.WriteLine($"Searching {count} positions with QSearch({depth})");
-            Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
-            Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
-            Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
         }
 
         private static int ParseEpd(string epd, out BoardState board, out List<Move> bestMoves)
@@ -176,20 +121,6 @@ namespace Leorik.Test
         /***    Search Instance    ***/
         /*****************************/
 
-        private static Span<Move> IterativeSearchNext(BoardState board, int depth)
-        {
-            var search = new IterativeSearchNext(board);
-            search.Search(depth);
-            Score = search.Score;
-            NodesVisited = search.NodesVisited;
-            return search.PrincipalVariation;
-        }
-
-
-        /*****************************/
-        /***    Search Instance    ***/
-        /*****************************/
-
         private static Span<Move> IterativeSearch(BoardState board, int depth)
         {
             var search = new IterativeSearch(board);
@@ -200,10 +131,10 @@ namespace Leorik.Test
         }
 
         /*********************/
-        /***    MinMax     ***/
+        /***    NegaMax     ***/
         /*********************/
 
-        private static Move SearchMinMax(BoardState board, int depth)
+        private static Span<Move> NegaMaxSearch(BoardState board, int depth)
         {
             NodesVisited = 0;
             Positions[0].Copy(board);
@@ -229,7 +160,7 @@ namespace Leorik.Test
                 }
             }
             Score = stm * bestScore;
-            return Moves[best];
+            return new Span<Move>(Moves, best, 1);
         }
 
         private static int NegaMax(int depth, int remaining, MoveGen moveGen)
@@ -260,7 +191,7 @@ namespace Leorik.Test
         /***    AlphaBeta     ***/
         /************************/
 
-        private static Move SearchAlphaBeta(BoardState board, int depth)
+        private static Span<Move> AlphaBetaSearch(BoardState board, int depth)
         {
             NodesVisited = 0;
             Positions[0].Copy(board);
@@ -287,7 +218,7 @@ namespace Leorik.Test
                 }
             }
             Score = stm * alpha;
-            return Moves[best];
+            return new Span<Move>(Moves, best, 1);
         }
 
         private static int NegaAlphaBeta(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
@@ -320,7 +251,7 @@ namespace Leorik.Test
         /***    MvvLva     ***/
         /*********************/
 
-        private static Move SearchMvvLva(BoardState board, int depth)
+        private static Span<Move> MvvLvaSearch(BoardState board, int depth)
         {
             NodesVisited = 0;
             Positions[0].Copy(board);
@@ -347,7 +278,7 @@ namespace Leorik.Test
                 }
             }
             Score = stm * alpha;
-            return Moves[best];
+            return new Span<Move>(Moves, best, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -423,7 +354,7 @@ namespace Leorik.Test
         /***    QSearch    ***/
         /*********************/
 
-        private static Move SearchQSearch(BoardState board, int depth)
+        private static Span<Move> QuiescenceSearch(BoardState board, int depth)
         {
             NodesVisited = 0;
             Positions[0].Copy(board);
@@ -440,7 +371,6 @@ namespace Leorik.Test
                 if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
-                    //int score = stm * next.Eval.Score;
                     if (score > alpha)
                     {
                         best = i;
@@ -449,7 +379,7 @@ namespace Leorik.Test
                 }
             }
             Score = stm * alpha;
-            return Moves[best];
+            return new Span<Move>(Moves, best, 1);
         }
 
 
@@ -559,7 +489,6 @@ namespace Leorik.Test
                 if (!movesPlayed)
                     return Evaluation.Checkmate(current.SideToMove, depth);
             }
-
 
             //stalemate?
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))

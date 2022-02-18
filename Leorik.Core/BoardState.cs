@@ -177,16 +177,13 @@ namespace Leorik.Core
             if (from.SideToMove == Color.White)
             {
                 PlayWhite(from, ref move);
-                if (IsAttackedByBlack(LSB(Kings & White)))
-                    return false;
+                return !IsAttackedByBlack(LSB(Kings & White));
             }
             else
             {
                 PlayBlack(from, ref move);
-                if (IsAttackedByWhite(LSB(Kings & Black)))
-                    return false;
+                return !IsAttackedByWhite(LSB(Kings & Black));
             }
-            return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
