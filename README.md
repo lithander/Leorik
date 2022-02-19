@@ -21,7 +21,7 @@ Version:   1.0
 Size:      910 LOC
 Strength:  2150 ELO 
 ```
-[__Version 1.0__](https://github.com/lithander/Leorik/releases/tag/v1.0) is the first public release. It uses a pretty fast move generator, copy&make and incrementaly updates the zobrist key and the PST based evaluation. This allows it to visit several million nodes per second, but the search does not implement any unsafe pruning techniques or reductions and so the search suffers from a hig branching factor and remains quite shallow even at higher time controls. This lack of sophistication in both it's search and it's evaluation causes it to play rather weak at an estimated 2150 ELO.
+[__Version 1.0__](https://github.com/lithander/Leorik/releases/tag/v1.0) combines a pretty fast move generator, copy&make and incremental updates of the Zobrist key and the PST based evaluation to search several million nodes per second. But the search does not implement any unsafe pruning techniques or reductions and so it suffers from a high branching factor and remains quite shallow even at higher time controls. This lack of sophistication in both it's search and it's evaluation causes this version to play rather weak at an estimated 2150 ELO.
 
 ## How to play
 
