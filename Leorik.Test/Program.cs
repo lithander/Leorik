@@ -7,8 +7,9 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 6;
-        const int COUNT = 50;
+        const int DEPTH = 7;
+        const int WAC_COUNT = 999;
+        const int MATE_COUNT = 999;
         const bool DETAILS = false;
 
         static void Main()
@@ -16,19 +17,24 @@ namespace Leorik.Test
             Console.WriteLine("Leorik Tests v9");
             Console.WriteLine();
 
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, COUNT, NegaMaxSearch, "NegaMax", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
-            
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, COUNT, MvvLvaSearch, "MvvLva", DETAILS);
-
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, QuiescenceSearch, "QSearch", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            RunWacTests();
+            RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
-            while(Console.ReadKey(true).Key != ConsoleKey.Escape) { }
+            while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
         }
 
+        private static void RunWacTests()
+        {
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 3, WAC_COUNT, NegaMaxSearch, "NegaMax", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 3, WAC_COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
+
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 1, WAC_COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 1, WAC_COUNT, MvvLvaSearch, "MvvLva", DETAILS);
+
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, QuiescenceSearch, "QSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+        }
 
         private delegate Span<Move> SearchDelegate(BoardState state, int depth);
 
@@ -94,6 +100,67 @@ namespace Leorik.Test
                 bestMoves.Add(bestMove);
             }
             return bestMoves.Count;
+        }
+
+        private static void RunMateTests()
+        {
+            Console.WriteLine("~======================~");
+            Console.WriteLine("|    Mate in X Tests   |");
+            Console.WriteLine("~======================~");
+            Console.WriteLine();
+
+            FindMate(File.OpenText("mate_in_1.epd"), 1, MATE_COUNT);
+            FindMate(File.OpenText("mate_in_2.epd"), 2, MATE_COUNT);
+            FindMate(File.OpenText("mate_in_3.epd"), 3, MATE_COUNT);
+            FindMate(File.OpenText("mate_in_4.epd"), 4, MATE_COUNT);
+            FindMate(File.OpenText("mate_in_5.epd"), 5, MATE_COUNT);
+            FindMate(File.OpenText("mate_in_6.epd"), 6, MATE_COUNT);
+        }
+
+        private static void FindMate(StreamReader file, int mateDepth, int maxCount)
+        {
+            Console.WriteLine($"Searching mates in {mateDepth} moves");
+            double freq = Stopwatch.Frequency;
+            long totalTime = 0;
+            long totalNodes = 0;
+            int count = 0;
+            int foundMate = 0;
+            while (count < maxCount && !file.EndOfStream)
+            {
+                //The parser expects a fen-string with bm delimited by a ';'
+                //Example: 2q1r1k1/1ppb4/r2p1Pp1/p4n1p/2P1n3/5NPP/PP3Q1K/2BRRB2 w - - bm f7+; id "ECM.001";
+                string epd = file.ReadLine();
+                int bmStart = epd.IndexOf("bm");
+                string fen = epd.Substring(0, bmStart);
+
+                BoardState board = Notation.GetBoardState(fen);
+
+                Transpositions.Clear();
+                long t0 = Stopwatch.GetTimestamp();
+                var search = new IterativeSearch(board);
+                search.Search(mateDepth * 2);
+                long t1 = Stopwatch.GetTimestamp();
+                long dt = t1 - t0;
+
+                if (Evaluation.IsCheckmate(search.Score))
+                {
+                    Console.Write('.');
+                    foundMate++;
+                }
+                else
+                    Console.Write('!');
+
+                count++;
+                totalTime += dt;
+                totalNodes += search.NodesVisited;
+            }
+
+            double nps = totalNodes / (totalTime / freq);
+            Console.WriteLine();
+            Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
+            Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
+            Console.WriteLine($"Mate found in {foundMate} / {count} positions!");
+            Console.WriteLine();
         }
 
         /*********************/

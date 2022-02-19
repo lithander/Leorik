@@ -24,7 +24,6 @@ namespace Leorik.Search
         public int Score { get; private set; }
         public Move BestMove => PrincipalVariations[0];
         public bool Aborted => NodesVisited >= _maxNodes || _killSwitch.Get();
-        public bool GameOver => Evaluation.IsCheckmate(Score);
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
