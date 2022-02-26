@@ -6,6 +6,8 @@ namespace Leorik.Search
 {
     public class IterativeSearch
     {
+        private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
+
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_PLY = 99;
@@ -146,10 +148,17 @@ namespace Leorik.Search
             return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen) <= alpha;
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool FailHigh(int ply, int remaining, int beta, MoveGen moveGen)
+        {
+            return -EvaluateTT(ply + 1, remaining - 1, -beta, -beta + 1, moveGen) >= beta;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
         {
-            if (remaining == 0)
+            if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
 
             if (ForcedCut(ply))
@@ -221,11 +230,33 @@ namespace Leorik.Search
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PlayNullMove(int ply)
+        {
+            BoardState current = Positions[ply];
+            BoardState next = Positions[ply + 1];
+            next.PlayNullMove(current);
+        }
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
         {
             NodesVisited++;
-            int score;
 
+            BoardState current = Positions[ply];
+            bool inCheck = current.IsChecked(current.SideToMove);
+            //if the previous iteration found a mate we check the first few plys without null move to try and find the shortest mate or escape
+            bool allowNullMove = Evaluation.IsCheckmate(Score) ? (ply > Depth / 4) : true;
+
+            //consider null move pruning first           
+            if (allowNullMove && remaining >= 2 && !inCheck && beta < MAX_BETA)
+            {
+                //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
+                PlayNullMove(ply);
+                if (FailHigh(ply, remaining - R_NULL_MOVE, beta, moveGen))
+                    return beta;
+            }
+
+            //init staged move generation and play all moves
             PlayState playState = InitPlay(ref moveGen, ref bm);
             while (Play(ply, ref playState, ref moveGen))
             {
@@ -234,7 +265,7 @@ namespace Leorik.Search
                     continue;
 
                 //...but if it does not we have to research it!
-                score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
+                int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                 if (score > alpha)
                 {
@@ -247,13 +278,14 @@ namespace Leorik.Search
                     alpha = score;
                 }
 
+                //beta cutoff?
                 if (score >= beta)
                     return beta;
             }
 
             //checkmate or draw?
             if (playState.PlayedMoves == 0)
-                return Positions[ply].IsChecked(Positions[ply].SideToMove) ? Evaluation.Checkmate(ply) : 0;
+                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
         }
@@ -279,6 +311,7 @@ namespace Leorik.Search
             if (ForcedCut(depth))
                 return current.SignedScore();
 
+            //To quiesce a position play all the Captures!
             BoardState next = Positions[depth + 1];
             bool movesPlayed = false;
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
@@ -297,32 +330,31 @@ namespace Leorik.Search
                 }
             }
 
-            if (inCheck)
+            //TODO: if (!inCheck || movesPlayed)
+            if (!inCheck)
+                return alpha;
+
+            //Play Quiets only when in check!
+            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+                if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
-                    if (next.PlayWithoutHash(current, ref Moves[i]))
-                    {
-                        movesPlayed = true;
-                        int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+                    movesPlayed = true;
+                    int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
 
-                        if (score >= beta)
-                            return beta;
+                    if (score >= beta)
+                        return beta;
 
-                        if (score > alpha)
-                            alpha = score;
-                    }
+                    if (score > alpha)
+                        alpha = score;
                 }
-
-                if (!movesPlayed)
-                    return Evaluation.Checkmate(depth);
             }
 
-            //TODO: stalemate?
+            return movesPlayed ? alpha : Evaluation.Checkmate(depth);
+
+            //NOTE: this kind of stale-mate detection was a loss for Leorik 1.0!
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
             //    return 0;
-
-            return alpha;
         }
     }
 }

@@ -37,7 +37,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong Castling(int square)
+        public static ulong Flags(int square)
         {
             return FlagsTable[square];
         }

@@ -7,18 +7,23 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 7;
+        const int DEPTH = 8;
         const int WAC_COUNT = 999;
         const int MATE_COUNT = 999;
         const bool DETAILS = false;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Tests v9");
+            Console.WriteLine("Leorik Tests v10");
             Console.WriteLine();
 
-            RunWacTests();
-            RunMateTests();
+            //RunWacTests();
+            //RunMateTests();
+            //RunEvaluationTest();
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-2, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
 
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }

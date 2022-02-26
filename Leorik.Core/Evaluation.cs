@@ -106,6 +106,7 @@ namespace Leorik.Core
         public const int CheckmateBase = 9000;
         public const int CheckmateScore = 9999;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetMateDistance(int score)
         {
             int plies = CheckmateScore - Math.Abs(score);
@@ -113,10 +114,13 @@ namespace Leorik.Core
             return moves;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsCheckmate(int score) => Math.Abs(score) > CheckmateBase;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Checkmate(Color color, int ply) => (int)color * (ply - CheckmateScore);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
 

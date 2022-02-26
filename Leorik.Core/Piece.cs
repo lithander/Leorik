@@ -51,8 +51,8 @@ namespace Leorik.Core
         CastleLong = 224 + King, //111_TM_CM
 
         //Mask
-        ColorMask = 3,
+        ColorMask = 3,      //00011
         TypeMask = 28,      //11100
-        PieceMask = 31,
+        PieceMask = 31,     //11111
     }
 }

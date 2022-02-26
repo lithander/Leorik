@@ -172,6 +172,22 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PlayNullMove(BoardState from)
+        {
+            //Copy & update Boardstate
+            CopyUnmasked(from);
+            SideToMove = (Color)(-(int)from.SideToMove);
+            EnPassant = 0;
+            Eval = from.Eval;
+            ZobristHash = from.ZobristHash;
+
+            //Update Zobrist-Hash
+            ZobristHash ^= Zobrist.SideToMove;
+            if(from.EnPassant > 0)
+                ZobristHash ^= Zobrist.Flags(LSB(from.EnPassant));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool PlayWithoutHashAndEval(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
@@ -462,7 +478,7 @@ namespace Leorik.Core
 
             //En passent & Castling
             for (ulong bits = CastleFlags | EnPassant; bits != 0; bits = ClearLSB(bits))
-                ZobristHash ^= Zobrist.Castling(LSB(bits));
+                ZobristHash ^= Zobrist.Flags(LSB(bits));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -503,7 +519,7 @@ namespace Leorik.Core
 
             //En passent & Castling
             for (ulong bits = (CastleFlags ^ from.CastleFlags) | (EnPassant ^ from.EnPassant); bits != 0; bits = ClearLSB(bits))
-                ZobristHash ^= Zobrist.Castling(LSB(bits));
+                ZobristHash ^= Zobrist.Flags(LSB(bits));
         }
     }
 }
