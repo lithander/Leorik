@@ -119,9 +119,15 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SignedScore()
+        public int RelativeScore()
         {
             return (int)SideToMove * Eval.Score;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int RelativeScore(Color sideToMove)
+        {
+            return (int)sideToMove * Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -377,7 +383,17 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsChecked(Color color)
+        public bool InCheck()
+        {
+            if (SideToMove == Color.White)
+                return IsAttackedByBlack(LSB(Kings & White));
+            else
+                return IsAttackedByWhite(LSB(Kings & Black));
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool InCheck(Color color)
         {
             if (color == Color.White)
                 return IsAttackedByBlack(LSB(Kings & White));

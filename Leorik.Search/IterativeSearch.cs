@@ -7,6 +7,9 @@ namespace Leorik.Search
     public class IterativeSearch
     {
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
+        private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
+        private const int FUTILITY_RANGE = 4;
+
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
@@ -162,7 +165,7 @@ namespace Leorik.Search
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
 
             if (ForcedCut(ply))
-                return Positions[ply].SignedScore();
+                return Positions[ply].RelativeScore();
 
             TruncatePV(ply);
             ulong hash = Positions[ply].ZobristHash;
@@ -238,17 +241,23 @@ namespace Leorik.Search
             next.PlayNullMove(current);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool AllowNullMove(int ply)
+        {
+            //if the previous iteration found a mate we check the first few plys without null move to try and find the shortest mate or escape
+            return Evaluation.IsCheckmate(Score) ? (ply > Depth / 4) : true;
+        }
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
         {
             NodesVisited++;
 
             BoardState current = Positions[ply];
-            bool inCheck = current.IsChecked(current.SideToMove);
-            //if the previous iteration found a mate we check the first few plys without null move to try and find the shortest mate or escape
-            bool allowNullMove = Evaluation.IsCheckmate(Score) ? (ply > Depth / 4) : true;
-
+            BoardState next = Positions[ply + 1];
+            bool inCheck = current.InCheck();
+            
             //consider null move pruning first           
-            if (allowNullMove && remaining >= 2 && !inCheck && beta < MAX_BETA)
+            if (remaining >= 2 && !inCheck && beta < MAX_BETA && AllowNullMove(ply))
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 PlayNullMove(ply);
@@ -260,6 +269,15 @@ namespace Leorik.Search
             PlayState playState = InitPlay(ref moveGen, ref bm);
             while (Play(ply, ref playState, ref moveGen))
             {
+                //some nodes near the leaves that appear hopeless can be skipped without evaluation
+                if (remaining <= FUTILITY_RANGE && !inCheck && playState.Stage >= Stage.Captures)
+                {
+                    //if the static eval looks much worse than alpha also skip it
+                    float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
+                    if (next.RelativeScore(current.SideToMove) < futilityMargin && !next.InCheck())
+                        continue;
+                }
+
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (playState.PlayedMoves > 1 && remaining >= 2 && FailLow(ply, remaining, alpha, moveGen))
                     continue;
@@ -285,7 +303,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (playState.PlayedMoves == 0)
-                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(ply) : 0;
+                return inCheck ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
         }
@@ -295,11 +313,11 @@ namespace Leorik.Search
             NodesVisited++;
 
             BoardState current = Positions[depth];
-            bool inCheck = current.IsChecked(current.SideToMove);
+            bool inCheck = current.InCheck();
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.SignedScore();
+                int standPatScore = current.RelativeScore();
 
                 if (standPatScore >= beta)
                     return beta;
@@ -309,7 +327,7 @@ namespace Leorik.Search
             }
 
             if (ForcedCut(depth))
-                return current.SignedScore();
+                return current.RelativeScore();
 
             //To quiesce a position play all the Captures!
             BoardState next = Positions[depth + 1];

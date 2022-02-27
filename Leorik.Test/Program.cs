@@ -7,7 +7,7 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 8;
+        const int DEPTH = 16;
         const int WAC_COUNT = 999;
         const int MATE_COUNT = 999;
         const bool DETAILS = false;
@@ -499,7 +499,7 @@ namespace Leorik.Test
 
             //checkmate or draw?
             if (!movesPlayed)
-                return current.IsChecked(current.SideToMove) ? Evaluation.Checkmate(current.SideToMove, depth) : 0;
+                return current.InCheck() ? Evaluation.Checkmate(current.SideToMove, depth) : 0;
 
             return alpha;
         }
@@ -510,7 +510,7 @@ namespace Leorik.Test
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
 
-            bool inCheck = current.IsChecked(current.SideToMove);
+            bool inCheck = current.InCheck();
 
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
