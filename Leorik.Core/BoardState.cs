@@ -3,6 +3,24 @@ using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core
 {
+    public struct BoardStateProxy
+    {
+        public ulong White;
+        public ulong Black;
+        public ulong Pawns;
+        public ulong Knights;
+        public ulong Bishops;
+        public ulong Rooks;
+        public ulong Queens;
+        public ulong Kings;
+        public ulong CastleFlags;
+        public ulong EnPassant;
+
+        public ulong ZobristHash;
+        public Color SideToMove;
+        public Evaluation Eval;
+    }
+
     public class BoardState
     {
         public ulong White;

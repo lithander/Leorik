@@ -1,14 +1,8 @@
 ﻿
 namespace Leorik.Core
 {
-    public enum Color
-    {
-        Black = -1,
-        White = +1
-    }
-
     [Flags]
-    public enum Piece
+    public enum Piece : byte
     {
         //1st Bit = Piece or None?
         None = 0,

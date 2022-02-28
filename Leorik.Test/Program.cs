@@ -7,22 +7,30 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 16;
+        const int DEPTH = 14;
         const int WAC_COUNT = 999;
         const int MATE_COUNT = 999;
         const bool DETAILS = false;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Tests v10");
+            Console.WriteLine("Leorik Tests v11");
             Console.WriteLine();
-
+            unsafe
+            {
+                Console.WriteLine("sizeof(Move) = " + sizeof(Move));
+                Console.WriteLine("sizeof(HashEntry) = " + sizeof(Transpositions.HashEntry));
+                Console.WriteLine("sizeof(Evaluation) = " + sizeof(Evaluation));
+                Console.WriteLine("sizeof(BoardState) = " + sizeof(BoardStateProxy));
+                Console.WriteLine();
+            }
             //RunWacTests();
             //RunMateTests();
             //RunEvaluationTest();
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-3, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-2, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH-1, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 4, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 3, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 2, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 1, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
             CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
 
             Console.WriteLine("Press ESC key to quit");

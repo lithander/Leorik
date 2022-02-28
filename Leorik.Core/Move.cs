@@ -72,6 +72,28 @@ namespace Leorik.Core
         public static bool operator ==(Move lhs, Move rhs) => lhs.Equals(rhs);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(Move lhs, Move rhs) => !lhs.Equals(rhs);
+        public static bool operator !=(Move lhs, Move rhs) => !lhs.Equals(rhs);              
+
+        public bool Equals(Move other)
+        {
+            return (Flags == other.Flags) &&
+                   (Target == other.Target) &&
+                   (FromSquare == other.FromSquare) &&
+                   (ToSquare == other.ToSquare);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is Move move)
+                return Equals(move);
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            //int is big enough to represent move fully. maybe use that for optimization at some point
+            return FromSquare + (ToSquare << 8) + ((int)Flags << 16) + ((int)Target << 24);
+        }
     }
 }
