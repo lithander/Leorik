@@ -9,7 +9,8 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-        private const float HISTORY_THRESHOLD = 0.5f;
+        private const float HISTORY_THRESHOLD_BASE = 0.2f;
+        private const float HISTORY_THRESHOLD_INC = 0.02f;
 
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
@@ -220,6 +221,9 @@ namespace Leorik.Search
                         case Stage.Killers:
                             state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.SortedQuiets;
+                            //VerifyNoKillers(state.Next, moveGen.Next, _killers.GetSpan(ply));
+                            StripKillers(state.Next, ref moveGen, _killers.GetSpan(ply));
+                            //VerifyNoKillers(state.Next, moveGen.Next, _killers.GetSpan(ply));
                             continue;
                         case Stage.SortedQuiets:
                         case Stage.Quiets:
@@ -234,7 +238,7 @@ namespace Leorik.Search
                 else if(state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    if (historyValue < HISTORY_THRESHOLD)
+                    if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves)
                         state.Stage = Stage.Quiets;
                 }
 
@@ -243,6 +247,28 @@ namespace Leorik.Search
                     state.PlayedMoves++;
                     return true;
                 }
+            }
+        }
+
+        private void VerifyNoKillers(int first, int end, Span<Move> span)
+        {
+            //find the best move...
+            for (int i = first; i < end; i++)
+            {
+                ref Move move = ref Moves[i];
+                if (span[0] == move || span[1] == move)
+                    Console.Write("!");
+            }
+        }
+
+        private void StripKillers(int first, ref MoveGen moveGen, Span<Move> span)
+        {
+            //find the best move...
+            for (int i = first; i < moveGen.Next; i++)
+            {
+                ref Move move = ref Moves[i];
+                if (span[0] == move || span[1] == move)
+                    Moves[i--] = Moves[--moveGen.Next];
             }
         }
 
@@ -321,7 +347,9 @@ namespace Leorik.Search
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (remaining >= 2 && playState.PlayedMoves > 1)
                 {
-                    if(FailLow(ply, remaining, alpha, moveGen))
+                    //non-tactical, unsorted quiets are searched at a reduced depth to make this test even faster!
+                    //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
+                    if (FailLow(ply, remaining, alpha, moveGen))
                         continue;
                 }
 
