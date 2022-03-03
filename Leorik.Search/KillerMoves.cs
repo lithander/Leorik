@@ -42,7 +42,7 @@ namespace Leorik.Search
             return new Span<Move>(_moves, index0, _width);
         }
 
-        public bool Contains(int ply, Move move)
+        public bool Contains(int ply, ref Move move)
         {
             int index0 = _width * ply;
             return Array.IndexOf(_moves, move, index0, _width) >= 0;

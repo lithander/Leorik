@@ -19,9 +19,9 @@ namespace Leorik.Search
             public byte Depth;       //1 Byte
             public byte Age;         //1 Byte
             public ScoreType Type;   //1 Byte
-            public Move BestMove;    //3 Bytes
-            //==================================
-            //                        16 Bytes
+            public Move BestMove;    //3 Bytes    4 Bytes?
+            //=================================?==========
+            //                        16 Bytes   24 Bytes!
         }
 
         public const short HISTORY_DEPTH = 255;

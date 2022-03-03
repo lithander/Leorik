@@ -9,6 +9,7 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
+        private const float HISTORY_THRESHOLD = 0.5f;
 
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
@@ -21,6 +22,7 @@ namespace Leorik.Search
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
         private long _maxNodes;
+        private History _history;
         private KillerMoves _killers;
 
         public static int MaxDepth => MAX_PLY;
@@ -36,6 +38,7 @@ namespace Leorik.Search
         {
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
+            _history = new History();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -75,7 +78,7 @@ namespace Leorik.Search
             for (int ply = 0; ply < pv.Length; ply++)
             {
                 int sideToMoveScore = (int)position.SideToMove * Score;
-                if(!Transpositions.GetScore(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, out _, out _))
+                if (!Transpositions.GetScore(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, out _, out _))
                     Transpositions.Store(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, sideToMoveScore, pv[ply]);
                 position.Play(pv[ply]);
             }
@@ -113,6 +116,7 @@ namespace Leorik.Search
 
             Depth++;
             _killers.Expand(Depth);
+            _history.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -122,7 +126,7 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void PickBestMove(int first, int end)
+        private void PickBestCapture(int first, int end)
         {
             //find the best move...
             int best = first;
@@ -177,7 +181,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { New, Captures, Killers, Quiets }
+        enum Stage { New, Captures, Killers, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -198,8 +202,8 @@ namespace Leorik.Search
         {
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
-            
-            while(true)
+
+            while (true)
             {
                 if (state.Next == moveGen.Next)
                 {
@@ -215,15 +219,24 @@ namespace Leorik.Search
                             continue;
                         case Stage.Killers:
                             state.Next = moveGen.CollectQuiets(current);
-                            state.Stage = Stage.Quiets;
+                            state.Stage = Stage.SortedQuiets;
                             continue;
+                        case Stage.SortedQuiets:
                         case Stage.Quiets:
                             return false;
                     }
                 }
 
                 if (state.Stage == Stage.Captures)
-                    PickBestMove(state.Next, moveGen.Next);
+                {
+                    PickBestCapture(state.Next, moveGen.Next);
+                }
+                else if(state.Stage == Stage.SortedQuiets)
+                {
+                    float historyValue = PickBestHistory(state.Next, moveGen.Next);
+                    if (historyValue < HISTORY_THRESHOLD)
+                        state.Stage = Stage.Quiets;
+                }
 
                 if (next.Play(current, ref Moves[state.Next++]))
                 {
@@ -231,6 +244,31 @@ namespace Leorik.Search
                     return true;
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private float PickBestHistory(int first, int end)
+        {
+            //find the best move...
+            int best = first;
+            float bestScore = _history.Value(ref Moves[first]);
+            for (int i = first + 1; i < end; i++)
+            {
+                float score = _history.Value(ref Moves[i]);
+                if (score > bestScore)
+                {
+                    best = i;
+                    bestScore = score;
+                }
+            }
+            //...swap best with first
+            if (best != first)
+            {
+                Move temp = Moves[best];
+                Moves[best] = Moves[first];
+                Moves[first] = temp;
+            }
+            return bestScore;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -248,7 +286,7 @@ namespace Leorik.Search
             return Evaluation.IsCheckmate(Score) ? (ply > Depth / 4) : true;
         }
 
-        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bm)
+        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
 
@@ -266,34 +304,44 @@ namespace Leorik.Search
             }
 
             //init staged move generation and play all moves
-            PlayState playState = InitPlay(ref moveGen, ref bm);
+            PlayState playState = InitPlay(ref moveGen, ref bestMove);
             while (Play(ply, ref playState, ref moveGen))
             {
+                bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
+
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
-                if (remaining <= FUTILITY_RANGE && !inCheck && playState.Stage >= Stage.Captures)
+                if (remaining <= FUTILITY_RANGE && !interesting)
                 {
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
-                    if (next.RelativeScore(current.SideToMove) < futilityMargin && !next.InCheck())
+                    if (next.RelativeScore(current.SideToMove) < futilityMargin)
                         continue;
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (playState.PlayedMoves > 1 && remaining >= 2 && FailLow(ply, remaining, alpha, moveGen))
-                    continue;
+                if (remaining >= 2 && playState.PlayedMoves > 1)
+                {
+                    if(FailLow(ply, remaining, alpha, moveGen))
+                        continue;
+                }
 
                 //...but if it does not we have to research it!
                 int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
-                if (score > alpha)
+                if(score <= alpha)
                 {
-                    bm = Moves[playState.Next-1];
-                    ExtendPV(ply, bm);
+                    _history.Bad(remaining, ref Moves[playState.Next - 1]);
+                    continue;
+                }
 
-                    if(playState.Stage >= Stage.Killers)
-                        _killers.Add(ply, bm);
-                    
-                    alpha = score;
+                alpha = score;
+                bestMove = Moves[playState.Next - 1];
+                ExtendPV(ply, bestMove);
+
+                if (playState.Stage >= Stage.Killers)
+                {
+                    _history.Good(remaining, ref bestMove);
+                    _killers.Add(ply, bestMove);
                 }
 
                 //beta cutoff?
@@ -334,7 +382,7 @@ namespace Leorik.Search
             bool movesPlayed = false;
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
-                PickBestMove(i, moveGen.Next);
+                PickBestCapture(i, moveGen.Next);
                 if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
