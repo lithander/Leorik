@@ -221,9 +221,7 @@ namespace Leorik.Search
                         case Stage.Killers:
                             state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.SortedQuiets;
-                            //VerifyNoKillers(state.Next, moveGen.Next, _killers.GetSpan(ply));
                             StripKillers(state.Next, ref moveGen, _killers.GetSpan(ply));
-                            //VerifyNoKillers(state.Next, moveGen.Next, _killers.GetSpan(ply));
                             continue;
                         case Stage.SortedQuiets:
                         case Stage.Quiets:
@@ -247,17 +245,6 @@ namespace Leorik.Search
                     state.PlayedMoves++;
                     return true;
                 }
-            }
-        }
-
-        private void VerifyNoKillers(int first, int end, Span<Move> span)
-        {
-            //find the best move...
-            for (int i = first; i < end; i++)
-            {
-                ref Move move = ref Moves[i];
-                if (span[0] == move || span[1] == move)
-                    Console.Write("!");
             }
         }
 
@@ -347,9 +334,10 @@ namespace Leorik.Search
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (remaining >= 2 && playState.PlayedMoves > 1)
                 {
-                    //non-tactical, unsorted quiets are searched at a reduced depth to make this test even faster!
+                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
-                    if (FailLow(ply, remaining, alpha, moveGen))
+                    int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
+                    if (FailLow(ply, remaining - R, alpha, moveGen))
                         continue;
                 }
 

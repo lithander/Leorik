@@ -18,6 +18,7 @@ namespace Leorik.Engine
         public void Init()
         {
             Running = true;
+
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
             SetupPosition(Notation.GetStartingPosition());
