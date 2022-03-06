@@ -72,19 +72,6 @@ namespace Leorik.Search
             return new Span<Move>(pv, 0, end >= 0 ? end : depth);
         }
 
-        internal void StorePVinTT()
-        {
-            var position = Positions[0].Clone();
-            var pv = PrincipalVariation;
-            for (int ply = 0; ply < pv.Length; ply++)
-            {
-                int sideToMoveScore = (int)position.SideToMove * Score;
-                if (!Transpositions.GetScore(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, out _, out _))
-                    Transpositions.Store(position.ZobristHash, Depth - ply, ply, MIN_ALPHA, MAX_BETA, sideToMoveScore, pv[ply]);
-                position.Play(pv[ply]);
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int IndexPV(int ply)
         {
@@ -113,8 +100,6 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
-            StorePVinTT();
-
             Depth++;
             _killers.Expand(Depth);
             _history.Scale();
