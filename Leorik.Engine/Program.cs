@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 1.5";
+        const string NAME_VERSION = "Leorik 1.6";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -18,12 +18,12 @@ namespace Leorik.Engine
 
             while (_engine.Running)
             {
-                string? input = await Task.Run(Console.ReadLine);
+                string input = await Task.Run(Console.ReadLine);
                 ParseUciCommand(input);
             }
         }
 
-        private static void ParseUciCommand(string? input)
+        private static void ParseUciCommand(string input)
         {
             if (input == null)
                 return;
@@ -142,7 +142,7 @@ namespace Leorik.Engine
             return false;
         }
 
-        private static string? Token(string[] tokens, string name)
+        private static string Token(string[] tokens, string name)
         {
             int iParam = Array.IndexOf(tokens, name);
             if (iParam < 0) return null;

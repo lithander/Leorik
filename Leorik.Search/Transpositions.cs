@@ -29,7 +29,7 @@ namespace Leorik.Search
         const int ENTRY_SIZE = 16; //BYTES
         static HashEntry[] _table;
 
-        static bool Index(in ulong hash, out int index)
+        static bool Find(in ulong hash, out int index)
         {
             index = (int)(hash % (ulong)_table.Length);
             if (_table[index].Hash != hash)
@@ -126,7 +126,7 @@ namespace Leorik.Search
 
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
-            bestMove = Index(position.ZobristHash, out int index) ? _table[index].BestMove : default;
+            bestMove = Find(position.ZobristHash, out int index) ? _table[index].BestMove : default;
             return bestMove != default;
         }
 
@@ -134,7 +134,7 @@ namespace Leorik.Search
         {
             bestMove = default;
             score = 0;
-            if (!Index(zobristHash, out int index))
+            if (!Find(zobristHash, out int index))
                 return false;
 
             ref HashEntry entry = ref _table[index];

@@ -21,6 +21,7 @@ namespace Leorik.Test
                 Console.WriteLine("sizeof(Move) = " + sizeof(Move));
                 Console.WriteLine("sizeof(HashEntry) = " + sizeof(Transpositions.HashEntry));
                 Console.WriteLine("sizeof(Evaluation) = " + sizeof(Evaluation));
+                //Console.WriteLine("sizeof(BoardStateProxy) = " + sizeof(BoardStateProxy));
                 Console.WriteLine();
             }
             //RunWacTests();

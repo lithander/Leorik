@@ -102,6 +102,10 @@ namespace Leorik.Core
             //Set en-passant square
             result.EnPassant = fields[3] == "-" ? 0 : 1UL << GetSquare(fields[3]);
 
+            //Optional: Halfmove clock
+            if(fields.Length >= 5 && byte.TryParse(fields[4], out byte halfmoves))
+                result.HalfmoveClock = halfmoves;
+
             result.UpdateEval();
             result.UpdateHash();
             return result;
@@ -171,7 +175,7 @@ namespace Leorik.Core
                 fen.Append(GetSquareName(square));
             }
             //Halfmove Clock & Fullmove Counter
-            fen.Append(" 0 1");
+            fen.Append($" {board.HalfmoveClock} 1");
 
             return fen.ToString();
         }

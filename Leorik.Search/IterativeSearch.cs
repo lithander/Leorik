@@ -158,11 +158,19 @@ namespace Leorik.Search
                 return Positions[ply].RelativeScore();
 
             TruncatePV(ply);
+
+            if (Positions[ply].HalfmoveClock > 99)
+                return 0; //TODO: checkmate > draw?
+
+            if (IsRepetition(ply))
+                return 0; //TODO: is scoring *any* repetion as zero premature?
+
             ulong hash = Positions[ply].ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
             int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
+            
             Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
             return score;
         }
@@ -233,6 +241,17 @@ namespace Leorik.Search
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsRepetition(int ply)
+        {
+            for (int i = ply - 4; i >= 0; i -= 2)
+                if (Positions[i].ZobristHash == Positions[ply].ZobristHash)
+                    return true;
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void StripKillers(int first, ref MoveGen moveGen, Span<Move> span)
         {
             //find the best move...
@@ -291,7 +310,7 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            
+
             //consider null move pruning first           
             if (remaining >= 2 && !inCheck && beta < MAX_BETA && AllowNullMove(ply))
             {

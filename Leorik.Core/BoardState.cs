@@ -16,9 +16,10 @@ namespace Leorik.Core
         public ulong CastleFlags;
         public ulong EnPassant;
 
+        public ulong ZobristHash;
         public Color SideToMove;
         public Evaluation Eval;
-        public ulong ZobristHash;
+        public byte HalfmoveClock;
 
         public const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
         public const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
@@ -100,9 +101,10 @@ namespace Leorik.Core
         {
             CopyUnmasked(other);
             EnPassant = other.EnPassant;
+            ZobristHash = other.ZobristHash;
             SideToMove = other.SideToMove;
             Eval = other.Eval;
-            ZobristHash = other.ZobristHash;
+            HalfmoveClock = other.HalfmoveClock;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -144,8 +146,9 @@ namespace Leorik.Core
                 PlayBlack(from, ref move);
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
-            }
+            }            
             UpdateEval(from, ref move);
+            //UpdateHalfmoveClock(ref move);
             //UpdateHash(from, ref move);
             return true;
         }
@@ -167,6 +170,7 @@ namespace Leorik.Core
             }
             UpdateEval(from, ref move);
             UpdateHash(from, ref move);
+            UpdateHalfmoveClock(from, ref move);
             return true;
         }
 
@@ -182,6 +186,7 @@ namespace Leorik.Core
         {
             //Copy & update Boardstate
             CopyUnmasked(from);
+            HalfmoveClock++;
             SideToMove = (Color)(-(int)from.SideToMove);
             EnPassant = 0;
             Eval = from.Eval;
@@ -209,7 +214,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlayBlack(BoardState from, ref Move move)
+        private void PlayBlack(BoardState from, ref Move move)
         {
             ulong bbTo = 1UL << move.ToSquare;
             ulong bbFrom = 1UL << move.FromSquare;
@@ -277,7 +282,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlayWhite(BoardState from, ref Move move)
+        private void PlayWhite(BoardState from, ref Move move)
         {
             ulong bbTo = 1UL << move.ToSquare;
             ulong bbFrom = 1UL << move.FromSquare;
@@ -536,6 +541,16 @@ namespace Leorik.Core
             //En passent & Castling
             for (ulong bits = (CastleFlags ^ from.CastleFlags) | (EnPassant ^ from.EnPassant); bits != 0; bits = ClearLSB(bits))
                 ZobristHash ^= Zobrist.Flags(LSB(bits));
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateHalfmoveClock(BoardState from, ref Move move)
+        {
+            if (move.MovingPiece() == Piece.Pawn || move.Target != Piece.None)
+                HalfmoveClock = 0;
+            else
+                HalfmoveClock = (byte)(from.HalfmoveClock + 1);
         }
     }
 }
