@@ -170,7 +170,7 @@ namespace Leorik.Search
                 return ttScore;
 
             int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
-            
+
             Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
             return score;
         }

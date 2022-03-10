@@ -18,10 +18,16 @@ namespace Leorik.Search
             public short Score;      //2 Bytes
             public byte Depth;       //1 Byte
             public byte Age;         //1 Byte
-            public ScoreType Type;   //1 Byte
-            public Move BestMove;    //3 Bytes    4 Bytes?
-            //=================================?==========
-            //                        16 Bytes   24 Bytes!
+            public int MoveAndType;  //4 Byte
+            //=================================
+            //                        16 Bytes 
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ScoreType GetScoreType() => (ScoreType)(MoveAndType >> 29);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Move GetMove() => (Move)(MoveAndType & 0x1FFFFFFF);
+
         }
 
         public const short HISTORY_DEPTH = 255;
@@ -82,8 +88,10 @@ namespace Leorik.Search
             ref HashEntry entry = ref _table[Index(zobristHash)];
 
             //don't overwrite a bestmove with 'default' unless it's a new position
-            if (entry.Hash != zobristHash || bestMove != default)
-                entry.BestMove = bestMove;
+            if (entry.Hash == zobristHash && bestMove == default)
+            {
+                bestMove = entry.GetMove();
+            }
 
             entry.Hash = zobristHash;
             entry.Depth = depth < 0 ? default : (byte)depth;
@@ -91,19 +99,26 @@ namespace Leorik.Search
 
             if (score >= beta)
             {
-                entry.Type = ScoreType.GreaterOrEqual;
+                entry.MoveAndType = Encode(bestMove, ScoreType.GreaterOrEqual);
                 entry.Score = AdjustMateDistance(beta, ply);
             }
             else if (score <= alpha)
             {
-                entry.Type = ScoreType.LessOrEqual;
+                entry.MoveAndType = Encode(bestMove, ScoreType.LessOrEqual);
                 entry.Score = AdjustMateDistance(alpha, ply);
             }
             else
             {
-                entry.Type = ScoreType.Exact;
+                entry.MoveAndType = Encode(bestMove, ScoreType.Exact);
                 entry.Score = AdjustMateDistance(score, ply);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int Encode(Move move, ScoreType scoreType)
+        {
+            //move can be fully can be represented by a 32bit integer. But only 29bits are used. Enough room to also store the scoreType
+            return (int)move | (int)scoreType << 29;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -126,36 +141,42 @@ namespace Leorik.Search
 
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
-            bestMove = Find(position.ZobristHash, out int index) ? _table[index].BestMove : default;
+            bestMove = Find(position.ZobristHash, out int index) ? _table[index].GetMove() : default;
             return bestMove != default;
         }
 
         public static bool GetScore(ulong zobristHash, int depth, int ply, int alpha, int beta, out Move bestMove, out int score)
         {
+            //init out paramters to allow early out
             bestMove = default;
             score = 0;
+
+            //does an entry exist?
             if (!Find(zobristHash, out int index))
                 return false;
 
             ref HashEntry entry = ref _table[index];
-            bestMove = entry.BestMove;
+            //yes! we can at least use the best move
+            bestMove = entry.GetMove();
 
+            //is the quality of the entry good enough?
             if (entry.Depth < depth)
                 return false;
 
+            //is what we know enough to give a definitive answer within the alpha/beta window?
             score = AdjustMateDistance(entry.Score, -ply);
-
-            //1.) score is exact and within window
-            if (entry.Type == ScoreType.Exact)
-                return true;
-            //2.) score is below floor
-            if (entry.Type == ScoreType.LessOrEqual && score <= alpha)
-                return true; //failLow
-            //3.) score is above ceiling
-            if (entry.Type == ScoreType.GreaterOrEqual && score >= beta)
-                return true; //failHigh
-
-            return false;
+            switch (entry.GetScoreType())
+            {
+                //2.) we don't know the score but that's okay if it is >= beta
+                case ScoreType.GreaterOrEqual:
+                    return score >= beta;
+                //3.) we don't know the score but that's okay if it is <= alpha
+                case ScoreType.LessOrEqual:
+                    return score <= alpha;
+                //1.) score is exact and within window
+                default: //ScoreType.Exact
+                    return true;
+            }
         }
     }
 }

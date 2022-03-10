@@ -69,6 +69,25 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static explicit operator int(Move move)
+        {
+            return (int)move.Flags
+                 |      move.FromSquare << 8
+                 |      move.ToSquare << 16
+                 | (int)move.Target << 24;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static explicit operator Move(int moveBits)
+        {
+            return new Move(
+                (Piece) moveBits,           //Flags
+                (byte) (moveBits >> 8),     //From
+                (byte) (moveBits >> 16),    //To
+                (Piece)(moveBits >> 24));   //Target
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(Move lhs, Move rhs) => lhs.Equals(rhs);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,10 +109,6 @@ namespace Leorik.Core
             return false;
         }
 
-        public override int GetHashCode()
-        {
-            //int is big enough to represent move fully. maybe use that for optimization at some point
-            return FromSquare + (ToSquare << 8) + ((int)Flags << 16) + ((int)Target << 24);
-        }
+        public override int GetHashCode() => (int)this;
     }
 }
