@@ -3,25 +3,33 @@ Unshackled from the constraints of minimalism and simplicity **Leorik** is the s
 
 ## Features
 
-* Written from scratch in C#
-* Board representation uses bitboards and Copy/Make
-* Pseudo-legal move generator (with a somewhat novel slider generation approach)
-* Simple evaluation based exclusively on tapered, tuned PSTs
-* Incremental updates of the evaluation and Zobrist hash
-* Two-bucket Transposition Table.
+* Pseudo-legal move generator, bitboards and copy/make
+* Negamax search with Alpha-Beta Pruning and Iterative Deepening
+* Minimal evaluation based on tapered, tuned PSTs only
+* Incrementally updated evaluation and Zobrist hash
+* Transposition Table with two buckets and aging
+* PVS search (null windows)
+* Futility pruning
+* Null-Move pruning
 * Staged move generation
 * MVV-LVA sorted captures
 * Killers
-* PVS search
-* Quiescence search
+* History sorted quiets with LMR
 
 ## Version History
 ```
+Version:   2.0
+Size:      1009 LOC
+Strength:  2600 Elo 
+```
+[__Version 2.0__](https://github.com/lithander/Leorik/releases/tag/2.0) adds null move pruning and futility pruning. Quiet moves are now history sorted and late quiet moves are searched at reduced depth. These search improvements in combination with a significant increase of evaluated positions per second (nps) allow Leorik to look twice as deep as version 1.0 and are making it at least 400 Elo stronger. The evaluation is still minimal, using the same PSTs as version 1.0 and nothing else.
+
+```
 Version:   1.0
 Size:      910 LOC
-Strength:  2150 ELO 
+Strength:  2150 Elo 
 ```
-[__Version 1.0__](https://github.com/lithander/Leorik/releases/tag/1.0) combines a pretty fast move generator, copy&make and incremental updates of the Zobrist key and the PST based evaluation to search several million nodes per second. But the search does not implement any unsafe pruning techniques or reductions and so it suffers from a high branching factor and remains quite shallow even at higher time controls. This lack of sophistication in both it's search and it's evaluation causes this version to play rather weak at an estimated 2150 ELO.
+[__Version 1.0__](https://github.com/lithander/Leorik/releases/tag/1.0) combines a pretty fast move generator, copy&make and incremental updates of the Zobrist key and the PST based evaluation to search several million nodes per second. The search does not implement any unsafe pruning techniques or reductions and so it suffers from a high branching factor and remains quite shallow even at higher time controls. This lack of sophistication in both it's search and it's evaluation causes this version to play rather weak at an estimated 2150 Elo. It's a pretty decent mate-finder though!
 
 ## How to play
 
