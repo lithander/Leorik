@@ -132,8 +132,8 @@ namespace Leorik.Core
 
         //resets the least significant bit of the bitboard
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong ClearLSB(ulong bb) => Bmi1.X64.ResetLowestSetBit(bb);
-        //public static ulong ClearLSB(ulong bb) => bb & (bb - 1);
+        public static ulong ClearLSB(ulong bb) => bb & (bb - 1);
+        //public static ulong ClearLSB(ulong bb) => Bmi1.X64.ResetLowestSetBit(bb);
 
         const ulong HORIZONTAL = 0x00000000000000FFUL;
         const ulong VERTICAL = 0x0101010101010101UL;

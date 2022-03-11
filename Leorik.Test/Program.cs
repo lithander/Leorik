@@ -7,14 +7,13 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int DEPTH = 15;
         const int WAC_COUNT = 999;
         const int MATE_COUNT = 999;
-        const bool DETAILS = false;
+        const bool DETAILS = true;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Tests v11");
+            Console.WriteLine("Leorik Tests v12");
             Console.WriteLine();
             unsafe
             {
@@ -24,26 +23,21 @@ namespace Leorik.Test
                 //Console.WriteLine("sizeof(BoardStateProxy) = " + sizeof(BoardStateProxy));
                 Console.WriteLine();
             }
-            //RunWacTests();
+
+            RunWacTests();
             //RunMateTests();
-            //RunEvaluationTest();
-            for(int depth = 10; depth <= DEPTH; depth++)
-                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
-    
+
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
         }
 
         private static void RunWacTests()
         {
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 3, WAC_COUNT, NegaMaxSearch, "NegaMax", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 3, WAC_COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
-
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 1, WAC_COUNT, AlphaBetaSearch, "AlphaBeta", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH - 1, WAC_COUNT, MvvLvaSearch, "MvvLva", DETAILS);
-
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, QuiescenceSearch, "QSearch", DETAILS);
-            CompareBestMove(File.OpenText("wac.epd"), DEPTH, WAC_COUNT, IterativeSearch, "IterativeSearch", DETAILS);
+            for(int i = 2; i <= 4; i++)
+            {
+                int budget = (int)Math.Pow(10, i);
+                CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
+            }
         }
 
         private delegate Span<Move> SearchDelegate(BoardState state, int depth);
@@ -85,6 +79,58 @@ namespace Leorik.Test
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
             Console.WriteLine($"Searched {count} positions with {label}({depth})");
+            Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
+            Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
+            Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
+            Console.WriteLine();
+        }
+
+        private static void CompareBestMove(StreamReader file, int timeBudgetMs, int maxCount, bool logDetails)
+        {
+            Console.WriteLine($"Searching {timeBudgetMs}ms per position!");
+            double freq = Stopwatch.Frequency;
+            long totalTime = 0;
+            long totalNodes = 0;
+            int count = 0;
+            int foundBest = 0;
+            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
+            {
+                Transpositions.Clear();
+                Move pvMove = default;
+                var search = new IterativeSearch(board);
+                long t0 = Stopwatch.GetTimestamp();
+                long tStop = t0 + (timeBudgetMs * Stopwatch.Frequency) / 1000;
+                //search until running out of time
+                while (true)
+                {
+                    search.SearchDeeper(() => Stopwatch.GetTimestamp() > tStop);
+                    if (search.Aborted)
+                        break;
+                    pvMove = search.PrincipalVariation[0];
+                }
+                long t1 = Stopwatch.GetTimestamp();
+                long dt = t1 - t0;
+
+                count++;
+                totalTime += dt;
+                totalNodes += search.NodesVisited;
+                string pvString = string.Join(' ', search.PrincipalVariation.ToArray());
+                bool foundBestMove = bestMoves.Contains(pvMove);
+                if (foundBestMove)
+                    foundBest++;
+
+                if (logDetails)
+                {
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
+                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
+                }
+                else
+                    Console.Write('.');
+            }
+
+            double nps = totalNodes / (totalTime / freq);
+            Console.WriteLine();
+            Console.WriteLine($"Searched {count} positions for {timeBudgetMs}ms each.");
             Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
