@@ -216,7 +216,7 @@ namespace Leorik.Core
             result += GetSquareName(move.ToSquare);
             //the presence of a 5th character should mean promotion
             if (move.MovingPiece() != move.NewPiece())
-                result += GetChar(move.NewPiece());
+                result += char.ToLower(GetChar(move.NewPiece()));
 
             return result;
         }

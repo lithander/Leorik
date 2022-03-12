@@ -56,17 +56,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Order(Piece piece) => (int)piece >> 2;
 
-        public override string ToString()
-        {
-            //result represents the move in the long algebraic notation (without piece names)
-            string result = Notation.GetSquareName(FromSquare);
-            result += Notation.GetSquareName(ToSquare);
-            //the presence of a 5th character should mean promotion
-            if (NewPiece() != MovingPiece())
-                result += Notation.GetChar(NewPiece());
-
-            return result;
-        }
+        public override string ToString() => Notation.GetMoveName(this);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator int(Move move)
