@@ -21,8 +21,8 @@ namespace Leorik.Engine
 
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
-            SetupPosition(Notation.GetStartingPosition());
-            Go(3, 50, 30000);
+            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition());
+            search.Search(3);
             Reset();
             Uci.Silent = false;
         }

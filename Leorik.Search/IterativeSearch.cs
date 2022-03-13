@@ -30,8 +30,8 @@ namespace Leorik.Search
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
         public int Score { get; private set; }
+        public bool Aborted { get; private set; }
         public Move BestMove => PrincipalVariations[0];
-        public bool Aborted => NodesVisited >= _maxNodes || _killSwitch.Get();
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
@@ -151,11 +151,11 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
         {
+            if (Aborted)
+                return Positions[ply].RelativeScore();
+
             if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
-
-            if (ForcedCut(ply))
-                return Positions[ply].RelativeScore();
 
             TruncatePV(ply);
 
@@ -171,7 +171,9 @@ namespace Leorik.Search
 
             int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
 
-            Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
+            if (!Aborted)
+                Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
+
             return score;
         }
 
@@ -376,11 +378,11 @@ namespace Leorik.Search
             return alpha;
         }
 
-        private int EvaluateQuiet(int depth, int alpha, int beta, MoveGen moveGen)
+        private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;
 
-            BoardState current = Positions[depth];
+            BoardState current = Positions[ply];
             bool inCheck = current.InCheck();
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
@@ -394,11 +396,13 @@ namespace Leorik.Search
                     alpha = standPatScore;
             }
 
-            if (ForcedCut(depth))
+            Aborted |= ForcedCut(ply);
+
+            if (Aborted)
                 return current.RelativeScore();
 
             //To quiesce a position play all the Captures!
-            BoardState next = Positions[depth + 1];
+            BoardState next = Positions[ply + 1];
             bool movesPlayed = false;
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
@@ -406,7 +410,7 @@ namespace Leorik.Search
                 if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
                         return beta;
@@ -426,7 +430,7 @@ namespace Leorik.Search
                 if (next.PlayWithoutHash(current, ref Moves[i]))
                 {
                     movesPlayed = true;
-                    int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
+                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
                         return beta;
@@ -436,7 +440,7 @@ namespace Leorik.Search
                 }
             }
 
-            return movesPlayed ? alpha : Evaluation.Checkmate(depth);
+            return movesPlayed ? alpha : Evaluation.Checkmate(ply);
 
             //NOTE: this kind of stale-mate detection was a loss for Leorik 1.0!
             //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
