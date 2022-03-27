@@ -72,27 +72,26 @@ namespace Leorik.Engine
             if (depth >= _maxDepth)
                 return false;
 
+            int budget = TimePerMove();
+
+            //we use a dynamic margin based on the depth, but at least 10% of the time per move
+            _margin = Math.Max(BASE_MARGIN * depth, budget / 10);
+
             //estimate the branching factor, if only one move to go we yolo with a low estimate
             int elapsed = Elapsed;
             int multi = (_movesToGo == 1) ? 1 : BRANCHING_FACTOR_ESTIMATE;
+            float overdraft = (_increment == 0) ? 1.5f : 2.0f;
             int estimate = multi * ElapsedInterval;
-            int total = elapsed + estimate;
-            int budget = TimePerMove();
+            int total = elapsed + estimate + _margin;
 
-            //we use a dynamic margin based on the depth at least 10% of the time per move
-            _margin = Math.Max(BASE_MARGIN * depth, budget / 10);
-
-            //no increment... we need to stay within the per-move time budget
-            if (_increment == 0 && total + _margin > budget)
-                return false;
             //we have already exceeded the budget for the move
-            if (elapsed + _margin > budget)
+            if (elapsed > budget)
                 return false;
-            //shouldn't spend more then the 2x the average on a move
-            if (total + _margin > 2 * budget)
+            //shouldn't spend more than X% of the per move budget on a single move
+            if (total > overdraft * budget)
                 return false;
             //can't afford the estimate
-            if (total + _margin > _remaining)
+            if (total > _remaining - _margin)
                 return false;
 
             //all conditions fulfilled - let's base the margin on the budget
