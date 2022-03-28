@@ -146,7 +146,7 @@ namespace Leorik.Core
                 PlayBlack(from, ref move);
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
-            }            
+            }
             UpdateEval(from, ref move);
             //UpdateHalfmoveClock(ref move);
             //UpdateHash(from, ref move);
@@ -194,7 +194,7 @@ namespace Leorik.Core
 
             //Update Zobrist-Hash
             ZobristHash ^= Zobrist.SideToMove;
-            if(from.EnPassant > 0)
+            if (from.EnPassant > 0)
                 ZobristHash ^= Zobrist.Flags(LSB(from.EnPassant));
         }
 

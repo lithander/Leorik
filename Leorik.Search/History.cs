@@ -1,5 +1,4 @@
 ﻿using Leorik.Core;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
@@ -10,11 +9,11 @@ namespace Leorik.Search
         private const int Pieces = 12;
         private readonly int[,] Positive = new int[Squares, Pieces];
         private readonly int[,] Negative = new int[Squares, Pieces];
-        
+
         public void Scale()
         {
             for (int square = 0; square < Squares; square++)
-                for(int piece = 0; piece < Pieces; piece++)
+                for (int piece = 0; piece < Pieces; piece++)
                 {
                     Positive[square, piece] /= 2;
                     Negative[square, piece] /= 2;

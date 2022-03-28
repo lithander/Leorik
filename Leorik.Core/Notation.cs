@@ -103,7 +103,7 @@ namespace Leorik.Core
             result.EnPassant = fields[3] == "-" ? 0 : 1UL << GetSquare(fields[3]);
 
             //Optional: Halfmove clock
-            if(fields.Length >= 5 && byte.TryParse(fields[4], out byte halfmoves))
+            if (fields.Length >= 5 && byte.TryParse(fields[4], out byte halfmoves))
                 result.HalfmoveClock = halfmoves;
 
             result.UpdateEval();

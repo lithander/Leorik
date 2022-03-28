@@ -33,7 +33,7 @@ namespace Leorik.Test
 
         private static void RunWacTests()
         {
-            for(int i = 2; i <= 4; i++)
+            for (int i = 2; i <= 4; i++)
             {
                 int budget = (int)Math.Pow(10, i);
                 CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);

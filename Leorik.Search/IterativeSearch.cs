@@ -1,5 +1,4 @@
 ﻿using Leorik.Core;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
@@ -228,7 +227,7 @@ namespace Leorik.Search
                 {
                     PickBestCapture(state.Next, moveGen.Next);
                 }
-                else if(state.Stage == Stage.SortedQuiets)
+                else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
                     if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves)
@@ -350,7 +349,7 @@ namespace Leorik.Search
                 //...but if it does not we have to research it!
                 int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
-                if(score <= alpha)
+                if (score <= alpha)
                 {
                     _history.Bad(remaining, ref Moves[playState.Next - 1]);
                     continue;
