@@ -10,10 +10,15 @@ namespace Leorik.Tuning
         public sbyte Result;
     }
 
-    class Data2
+    struct Feature
     {
-        public float[] Features;
-        public short[] Indices;
+        public short Index;
+        public float Value;
+    }
+
+    class DenseData
+    {
+        public Feature[] Features;
         public sbyte Result;
     }
 
@@ -90,116 +95,143 @@ namespace Leorik.Tuning
                 if (values[i] != 0)
                     indices.Add(i);
 
-            //Console.WriteLine(indices.Count / (float)values.Length);
             return indices.ToArray();
         }
 
-        public static double MeanSquareError(List<Data2> data, float[] coefficients, double scalingCoefficient)
+        public static double MeanSquareError(List<DenseData> data, float[] coefficients, double scalingCoefficient)
         {
             double squaredErrorSum = 0;
-            foreach (Data2 entry in data)
+            foreach (DenseData entry in data)
             {
-                //float eval = EvaluateSIMD(entry.Features, coefficients);
-                float eval = Evaluate(entry.Features, entry.Indices, coefficients);
+                float eval = Evaluate(entry.Features, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
             return result;
         }
 
-        public static void Minimize(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
+        public static void Minimize(List<DenseData> data, float[] coefficients, double scalingCoefficient, float alpha)
         {
             float[] accu = new float[N];
-            foreach (Data2 entry in data)
+            foreach (DenseData entry in data)
             {
-                //float eval = EvaluateSIMD(entry.Features, coefficients);
-                float eval = Evaluate(entry.Features, entry.Indices, coefficients);
-                double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                double error = (sigmoid - entry.Result);
-
-                for (int i = 0; i < N; i++)
-                    accu[i] += (float)error * entry.Features[i];
-            }
-
-            for (int i = 0; i < N; i++)
-                coefficients[i] -= alpha * accu[i] / data.Count;
-        }
-
-        public static void MinimizeSIMD(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
-        {
-            int slots = Vector<float>.Count;
-
-            float[] accu = new float[N];
-            foreach (Data2 entry in data)
-            {
-                //float eval = EvaluateSIMD(entry.Features, coefficients);
-                float eval = Evaluate(entry.Features, entry.Indices, coefficients);
+                float eval = Evaluate(entry.Features, coefficients);
                 double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
                 float error = (float)(sigmoid - entry.Result);
 
-                for (int i = 0; i < N; i += slots)
-                {
-                    Vector<float> vF = new Vector<float>(entry.Features, i);
-                    Vector<float> vA = new Vector<float>(accu, i);
-                    vA = Vector.Add(vA, Vector.Multiply(error, vF));
-                    vA.CopyTo(accu, i);
-                }
-            }
-
-            for (int i = 0; i < N; i++)
-                coefficients[i] -= (alpha * accu[i]) / data.Count;
-        }
-
-        public static void MinimizeSparse(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
-        {
-            float[] accu = new float[N];
-            foreach (Data2 entry in data)
-            {
-                //float eval = EvaluateSIMD(entry.Features, coefficients);
-                float eval = Evaluate(entry.Features, entry.Indices, coefficients);
-                double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                double error = (sigmoid - entry.Result);
-
-                foreach (short i in entry.Indices)
-                    accu[i] += (float)error * entry.Features[i];
+                foreach (Feature f in entry.Features)
+                    accu[f.Index] += error * f.Value;
             }
 
             for (int i = 0; i < N; i++)
                 coefficients[i] -= alpha * accu[i] / data.Count;
         }
 
+        public static void MinimizeParallel(List<DenseData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        {            
+            //each thread maintains a local accu. After the loop is complete the accus are combined
+            Parallel.ForEach(data,
+                //initialize the local variable accu
+                () => new float[N],
+                //invoked by the loop on each iteration in parallel
+                (entry, loop, accu) => 
+                {
+                    float eval = Evaluate(entry.Features, coefficients);
+                    double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
+                    float error = (float)(sigmoid - entry.Result);
+
+                    foreach (Feature f in entry.Features)
+                        accu[f.Index] += error * f.Value;
+
+                    return accu;
+                },
+                //executed when each partition has completed.
+                (accu) =>
+                {
+                    lock(coefficients)
+                    {
+                        for (int i = 0; i < N; i++)
+                            coefficients[i] -= alpha * accu[i] / data.Count;
+                    }
+                }
+            );
+        }
+
+        //public static void MinimizeSIMD(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
+        //{
+        //    int slots = Vector<float>.Count;
+        //
+        //    float[] accu = new float[N];
+        //    foreach (Data2 entry in data)
+        //    {
+        //        //float eval = EvaluateSIMD(entry.Features, coefficients);
+        //        float eval = Evaluate(entry.Features, entry.Indices, coefficients);
+        //        double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
+        //        float error = (float)(sigmoid - entry.Result);
+        //
+        //        for (int i = 0; i < N; i += slots)
+        //        {
+        //            Vector<float> vF = new Vector<float>(entry.Features, i);
+        //            Vector<float> vA = new Vector<float>(accu, i);
+        //            vA = Vector.Add(vA, Vector.Multiply(error, vF));
+        //            vA.CopyTo(accu, i);
+        //        }
+        //    }
+        //
+        //    for (int i = 0; i < N; i++)
+        //        coefficients[i] -= (alpha * accu[i]) / data.Count;
+        //}
+
+        //public static void MinimizeSparse(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
+        //{
+        //    float[] accu = new float[N];
+        //    foreach (Data2 entry in data)
+        //    {
+        //        //float eval = EvaluateSIMD(entry.Features, coefficients);
+        //        float eval = Evaluate(entry.Features, entry.Indices, coefficients);
+        //        double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
+        //        double error = (sigmoid - entry.Result);
+        //
+        //        foreach (short i in entry.Indices)
+        //            accu[i] += (float)error * entry.Features[i];
+        //    }
+        //
+        //    for (int i = 0; i < N; i++)
+        //        coefficients[i] -= alpha * accu[i] / data.Count;
+        //}
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Evaluate(float[] features, short[] indices, float[] coefficients)
+        private static float Evaluate(Feature[] features, float[] coefficients)
         {
             //dot product of a selection (indices) of elements from the features vector with coefficients vector
             float result = 0;
-            foreach (short i in indices)
-                result += features[i] * coefficients[i];
+            foreach (Feature f in features)
+                result += f.Value * coefficients[f.Index];
             return result;
         }
 
-        public static float Evaluate(float[] features, float[] coefficients)
-        {
-            //dot product of features vector with coefficients vector
-            float result = 0;
-            for (int i = 0; i < N; i++)
-                result += features[i] * coefficients[i];
-            return result;
-        }
-
-        public static float EvaluateSIMD(float[] features, float[] coefficients)
-        {
-            //dot product of features vector with coefficients vector
-            float result = 0;
-            int slots = Vector<float>.Count;
-            for (int i = 0; i < N; i += slots)
-            {
-                Vector<float> vF = new Vector<float>(features, i);
-                Vector<float> vC = new Vector<float>(coefficients, i);
-                result += Vector.Dot(vF, vC);
-            }
-            return result;
-        }
+        //public static float Evaluate(float[] features, float[] coefficients)
+        //{
+        //    //dot product of features vector with coefficients vector
+        //    float result = 0;
+        //    for (int i = 0; i < N; i++)
+        //        result += features[i] * coefficients[i];
+        //    return result;
+        //}
+        //
+        //public static float EvaluateSIMD(float[] features, float[] coefficients)
+        //{
+        //    //dot product of features vector with coefficients vector
+        //    float result = 0;
+        //    int slots = Vector<float>.Count;
+        //    for (int i = 0; i < N; i += slots)
+        //    {
+        //        Vector<float> vF = new Vector<float>(features, i);
+        //        Vector<float> vC = new Vector<float>(coefficients, i);
+        //        result += Vector.Dot(vF, vC);
+        //    }
+        //    return result;
+        //}
 
         public static double MeanSquareError(List<Data> data, double scalingCoefficient)
         {

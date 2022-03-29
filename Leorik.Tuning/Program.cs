@@ -2,66 +2,67 @@
 using Leorik.Tuning;
 using System.Diagnostics;
 
-double MSE_SCALING = 102; //found via 'tune_mse2' with PeSTO weights on the full quiet-labeled dataset
-//https://www.desmos.com/calculator/k7qsivwcdc
+double MSE_SCALING = 101;
+float ALPHA = 2000; //learning rate
+int EPOCHS = 5000;
+int BATCH = 20;
 
+//https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v1 ");
+Console.WriteLine(" Leorik Tuning v2 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
-List<Data2> data2 = ConvertData(data);
+List<DenseData> features = ConvertData(data);
 Console.WriteLine();
 
-TestMSE();
-
+TestLeorikMSE();
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
-//mse = Tuner.MeanSquareError(data, MSE_SCALING);
-//Console.WriteLine($"Leorik's MSE with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
-//Console.WriteLine();
+//TestLeorikMSE();
 
 Console.WriteLine("Initializing Coefficientss with Leoriks PSTs");
 float[] Cref = Tuner.GetLeorikCoefficients();
-TestMSE2(Cref);
+TestMSE(Cref);
 
 Console.WriteLine("Initializing Coefficientss with material values");
 float[] C = Tuner.GetMaterialCoefficients();
-TestMSE2(C);
-TestMSE2(C);
-TestMSE2(C);
-TestMSE2(C);
-//float[] C = Tuner.GetLeorikCoefficients();
-//PrintCoefficients(C);
+TestMSE(C);
 
-for (int j = 1; j < 200; j++)
+long t0 = Stopwatch.GetTimestamp();
+for (int j = 1; j < EPOCHS/BATCH; j++)
 {
-    float alpha = 2000;
-    Console.Write($"Iteration #{j}, alpha = {alpha} ");
-    MinimizeBatch(C, alpha);
+    Console.Write($"Iteration {j}/{EPOCHS / BATCH}, alpha = {ALPHA} ");
+    MinimizeBatch(C, ALPHA, BATCH);
 }
+long t1 = Stopwatch.GetTimestamp();
+Console.WriteLine($"Tuning {EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-//PrintCoefficientsDelta(C, C2);
-TestMSE2(C);
+//PrintCoefficientsDelta(Cref, C);
+TestMSE(C);
 PrintCoefficients(C);
-//for (int i = 0; i < C.Length; i++)
-//    Console.WriteLine($"{C[i]} -> {C2[i]} Delta:{C[i] - C2[i]}");
+Console.ReadKey();
 
-void MinimizeBatch(float[] coefficients, float alpha)
+/*
+ * 
+ * FUNCTIONS 
+ * 
+ */
+
+void MinimizeBatch(float[] coefficients, float alpha, int batchSize)
 {
     long t0 = Stopwatch.GetTimestamp();
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < batchSize; i++)
     {
         Console.Write(".");
-        Tuner.MinimizeSIMD(data2, coefficients, MSE_SCALING, alpha);
+        Tuner.MinimizeParallel(features, coefficients, MSE_SCALING, alpha);
     }
-    double mse = Tuner.MeanSquareError(data2, coefficients, MSE_SCALING);
+    double mse = Tuner.MeanSquareError(features, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
     Console.WriteLine($" MSE={mse} - {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 }
 
-
-void TestMSE()
+void TestLeorikMSE()
 {
     long t0 = Stopwatch.GetTimestamp();
     double mse = Tuner.MeanSquareError(data, MSE_SCALING);
@@ -71,25 +72,19 @@ void TestMSE()
     Console.WriteLine();
 }
 
-void TestMSE2(float[] coefficients)
+void TestMSE(float[] coefficients)
 {
     long t0 = Stopwatch.GetTimestamp();
-    double mse = Tuner.MeanSquareError(data2, coefficients, MSE_SCALING);
+    double mse = Tuner.MeanSquareError(features, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
-    Console.WriteLine($"MSE(data2, C) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
+    Console.WriteLine($"MSE(F, C) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
     Console.WriteLine();
 }
 
-/*
- * 
- * FUNCTIONS 
- * 
- */
-
-List<Data2> ConvertData(List<Data> data)
+List<DenseData> ConvertData(List<Data> data)
 {
-    List<Data2> result = new List<Data2>(data.Count);
+    List<DenseData> result = new List<DenseData>(data.Count);
     Console.WriteLine($"Converting {data.Count} DATA entries from Position to Feature vector'");
 
     foreach (Data entry in data)
@@ -98,17 +93,22 @@ List<Data2> ConvertData(List<Data> data)
         double phase = Math.Clamp((double)(eval.Phase - Evaluation.Midgame) / (Evaluation.Endgame - Evaluation.Midgame), 0, 1);
         float[] features = Tuner.GetFeatures(entry.Position, phase);
         short[] indices = Tuner.IndexBuffer(features);
-        result.Add(new Data2
+        Feature[] denseFeatures = new Feature[indices.Length];
+        for(int i = 0; i < indices.Length; i++)
         {
-            Features = features,
-            Indices = indices,
+            short index = indices[i];
+            denseFeatures[i].Index = index;
+            denseFeatures[i].Value = features[index];
+        }
+        result.Add(new DenseData
+        {
+            Features = denseFeatures,
             Result = entry.Result
         });
     }
     Console.WriteLine($"{result.Count} labeled positions converted!");
     return result;
 }
-
 
 List<Data> LoadData(string epdFile)
 {
