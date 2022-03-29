@@ -1,4 +1,8 @@
 # Leorik
+<p align="center">
+<img src="https://github.com/lithander/Leorik/blob/master/Leorik.Logo.png" alt="Leorik Logo" width="600"/>
+</p>
+
 Unshackled from the constraints of minimalism and simplicity **Leorik** is the successor to my bare-bones chess engine [MinimalChess](https://github.com/lithander/MinimalChessEngine).
 
 ## Features
