@@ -38,20 +38,22 @@ float[] cp_leorik = PhaseTuner.GetLeorikPhaseCoefficients();
 Console.WriteLine("Before:");
 TestPhaseMSE(cp_leorik);
 PrintPhaseCoefficients(cp_leorik);
-cp_leorik[0] = 1000;
-cp_leorik[1] = 1000;
-cp_leorik[2] = 1000;
-cp_leorik[3] = 1000;
-Console.WriteLine("After:");
-PrintPhaseCoefficients(cp_leorik);
+//cp_leorik[0] = 0;
+//cp_leorik[1] = 0;
+//cp_leorik[2] = 0;
+//cp_leorik[3] = 0;
+//cp_leorik[4] = 0;
+//Console.WriteLine("After:");
+//PrintPhaseCoefficients(cp_leorik);
 TestPhaseMSE(cp_leorik);
 double best = float.MaxValue;
 int max = 500;
 for (int j = 1; j < max; j++)
 {
-    float alpha = 2000;
+    float alpha = 1000;
     PhaseTuner.Minimize(phaseData, cp_leorik, MSE_SCALING, alpha);
     double mse = PhaseTuner.MeanSquareError(phaseData, cp_leorik, MSE_SCALING);
+    PrintPhaseCoefficients(cp_leorik);
     Console.WriteLine($"Iteration {j}/{max}, alpha = {alpha}, MSE(phase)  = {mse}");
     if (mse > best)
         break;
@@ -89,7 +91,7 @@ Console.ReadKey();
 void PrintPhaseCoefficients(float[] c)
 {
     float R(int i) => (int)Math.Round(c[i]);
-    Console.WriteLine($"N:{R(0),5} B:{R(1),5} R:{R(2),5} Q:{R(3),5} -> [{R(4),5}..{R(5),5}]");
+    Console.WriteLine($"N:{R(0),5} B:{R(1),5} R:{R(2),5} Q:{R(3),5} + {R(4),5}");
 }
 
 void MinimizeBatch(float[] coefficients, float alpha, int batchSize)

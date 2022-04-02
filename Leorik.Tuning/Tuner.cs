@@ -92,7 +92,7 @@ namespace Leorik.Tuning
 
     static class PhaseTuner
     {
-        const int N = 6; //4 pieces (N, B, R, Q) + phase0 + phase1 = 6 coefficients
+        const int N = 5; //[N, B, R, Q, 1] = 5 coefficients
 
         public static float[] GetLeorikPhaseCoefficients()
         {
@@ -102,8 +102,7 @@ namespace Leorik.Tuning
                 Evaluation.PhaseValues[2], //Bishop
                 Evaluation.PhaseValues[3], //Rook
                 Evaluation.PhaseValues[4], //Queen
-                Evaluation.Phase0,
-                Evaluation.Phase1
+                Evaluation.Phase0 - Evaluation.Phase1,
             };
         }
 
@@ -122,7 +121,7 @@ namespace Leorik.Tuning
 
         private static byte[] CountPieces(BoardState pos)
         {
-            byte[] result = new byte[4];
+            byte[] result = new byte[5];
             ulong occupied = pos.Black | pos.White;
             for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
@@ -132,6 +131,8 @@ namespace Leorik.Tuning
                 if (pieceOffset >= 0 && pieceOffset <= 3) //no Pawns or Kings
                     result[pieceOffset]++;
             }
+            //the fifth feature is always 1 to allow for a constant offset
+            result[4] = 1;
             return result;
         }
 
@@ -153,46 +154,46 @@ namespace Leorik.Tuning
         {
             //dot product of a selection (indices) of elements from the features vector with coefficients vector
             float phaseValue = 0;
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
                 phaseValue += features.PieceCounts[i] * coefficients[i];
 
-            float phase = Phase(phaseValue, coefficients[4], coefficients[5]);
+            float phase = Phase(phaseValue);
             return features.MidgameScore + phase * features.EndgameScore;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Phase(float phaseValue, float phase0, float phase1)
+        private static float Phase(float phaseValue)
         {
-            return Math.Clamp((float)(phaseValue - phase0) / (phase1 - phase0), 0, 1);
+            return Math.Clamp((Evaluation.Phase0 - phaseValue) / Evaluation.Phase0, 0, 1);
         }
 
         internal static void Minimize(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
         {
-            float[] accu = new float[4];
+            float[] accu = new float[5];
             foreach (PhaseTuningData entry in data)
             {
                 float phaseValue = 0;
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 5; i++)
                     phaseValue += entry.PieceCounts[i] * coefficients[i];
 
-                float phase = Phase(phaseValue, coefficients[4], coefficients[5]);
+                float phase = Phase(phaseValue);
                 float eval = entry.MidgameScore + phase * entry.EndgameScore;
                               
-                float error = (float)SignedError(entry.Result, eval, scalingCoefficient);              
-                
+                float error = (float)SignedError(entry.Result, eval, scalingCoefficient);    
+
                 float errorMg = (float)SignedError(entry.Result, entry.MidgameScore, scalingCoefficient);
                 float delta = error - errorMg;
 
                 //if error is positive a lower eval would have been better
                 //the more positive the endgameScore is the more increasing the phase would increase eval
                 //the higher the feature value the more increasing the coefficient would help
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     accu[i] += error * delta * entry.PieceCounts[i];
                 }
             }
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
                 coefficients[i] += alpha * accu[i] / data.Count;
         }
     }
@@ -263,7 +264,7 @@ namespace Leorik.Tuning
         internal static MaterialTuningData GetTuningData(BoardState position, sbyte result)
         {
             var eval = new Evaluation(position);
-            float[] features = GetFeatures(position, eval.Phase);
+            float[] features = GetFeatures(position, eval.P);
             Feature[] denseFeatures = Condense(features);
             return new MaterialTuningData
             {
