@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using static Leorik.Tuning.Tuner;
@@ -11,42 +12,17 @@ namespace Leorik.Tuning
         public sbyte Result;
     }
 
-    struct Feature
-    {
-        public short Index;
-        public float Value;
-    }
-
-    class MaterialTuningData
-    {
-        public Feature[] Features;
-        public sbyte Result;
-    }
-
-    class PhaseTuningData
-    {
-        public float MidgameScore;
-        public float EndgameScore;
-        public byte[] PieceCounts;
-        public sbyte Result;
-    }
-
     static class Tuner
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double SignedError(float reference, float value, double scalingCoefficient)
         {
             double sigmoid = 2 / (1 + Math.Exp(-(value / scalingCoefficient))) - 1;
             return sigmoid - reference;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double SquareError(float reference, float value, double scalingCoefficient)
-        {
-            double sigmoid = 2 / (1 + Math.Exp(-(value / scalingCoefficient))) - 1;
-            double error = reference - sigmoid;
-            return (error * error);
-        }
-
-        public static double SquareError(int reference, int value, double scalingCoefficient)
         {
             double sigmoid = 2 / (1 + Math.Exp(-(value / scalingCoefficient))) - 1;
             double error = reference - sigmoid;
@@ -88,347 +64,27 @@ namespace Leorik.Tuning
             double result = squaredErrorSum / data.Count;
             return result;
         }
-    }
 
-    static class PhaseTuner
-    {
-        const int N = 5; //[N, B, R, Q, 1] = 5 coefficients
-
-        public static float[] GetLeorikPhaseCoefficients()
+        public static Data ParseEntry(string line)
         {
-            return new float[]
+            //Expected Format:
+            //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
+            //Labels: "1/2-1/2", "1-0", "0-1"
+
+            const string WHITE = "1-0";
+            const string DRAW = "1/2-1/2";
+            const string BLACK = "0-1";
+
+            int iLabel = line.IndexOf('"');
+            string fen = line.Substring(0, iLabel - 1);
+            string label = line.Substring(iLabel + 1, line.Length - iLabel - 3);
+            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
+            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
+            return new Data
             {
-                Evaluation.PhaseValues[1], //Knight
-                Evaluation.PhaseValues[2], //Bishop
-                Evaluation.PhaseValues[3], //Rook
-                Evaluation.PhaseValues[4], //Queen
-                Evaluation.Phase0 - Evaluation.Phase1,
+                Position = Notation.GetBoardState(fen),
+                Result = (sbyte)result
             };
         }
-
-        internal static PhaseTuningData GetTuningData(BoardState position, sbyte result)
-        {
-            var eval = new Evaluation(position);
-            byte[] pieceCounts = CountPieces(position);
-            return new PhaseTuningData
-            {
-                MidgameScore = eval.MG,
-                EndgameScore = eval.EG,
-                PieceCounts = pieceCounts,
-                Result = result
-            };
-        }
-
-        private static byte[] CountPieces(BoardState pos)
-        {
-            byte[] result = new byte[5];
-            ulong occupied = pos.Black | pos.White;
-            for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits);
-                Piece piece = pos.GetPiece(square);
-                int pieceOffset = ((int)piece >> 2) - 2; //P = -1, N = 0...
-                if (pieceOffset >= 0 && pieceOffset <= 3) //no Pawns or Kings
-                    result[pieceOffset]++;
-            }
-            //the fifth feature is always 1 to allow for a constant offset
-            result[4] = 1;
-            return result;
-        }
-
-        public static double MeanSquareError(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient)
-        {
-            double squaredErrorSum = 0;
-            foreach (PhaseTuningData entry in data)
-            {
-                float eval = Evaluate(entry, coefficients);
-                squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
-            }
-            double result = squaredErrorSum / data.Count;
-            return result;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Evaluate(PhaseTuningData features, float[] coefficients)
-        {
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
-            float phaseValue = 0;
-            for (int i = 0; i < 5; i++)
-                phaseValue += features.PieceCounts[i] * coefficients[i];
-
-            float phase = Phase(phaseValue);
-            return features.MidgameScore + phase * features.EndgameScore;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Phase(float phaseValue)
-        {
-            return Math.Clamp((Evaluation.Phase0 - phaseValue) / Evaluation.Phase0, 0, 1);
-        }
-
-        internal static void Minimize(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
-        {
-            float[] accu = new float[5];
-            foreach (PhaseTuningData entry in data)
-            {
-                float phaseValue = 0;
-                for (int i = 0; i < 5; i++)
-                    phaseValue += entry.PieceCounts[i] * coefficients[i];
-
-                float phase = Phase(phaseValue);
-                float eval = entry.MidgameScore + phase * entry.EndgameScore;
-                              
-                float error = (float)SignedError(entry.Result, eval, scalingCoefficient);    
-
-                float errorMg = (float)SignedError(entry.Result, entry.MidgameScore, scalingCoefficient);
-                float delta = error - errorMg;
-
-                //if error is positive a lower eval would have been better
-                //the more positive the endgameScore is the more increasing the phase would increase eval
-                //the higher the feature value the more increasing the coefficient would help
-                for (int i = 0; i < 5; i++)
-                {
-                    accu[i] += error * delta * entry.PieceCounts[i];
-                }
-            }
-
-            for (int i = 0; i < 5; i++)
-                coefficients[i] += alpha * accu[i] / data.Count;
-        }
-    }
-
-
-    static class MaterialTuner
-    {
-        const int N = 768; //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
-
-        public static float[] GetMaterialCoefficients()
-        {
-            float[] c = new float[N];
-
-            int index = 0;
-            for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 100; //Pawns
-            for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 300; //Knights
-            for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 300; //Bishops
-            for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 500; //Rooks
-            for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 900; //Queens
-
-            return c;
-        }
-
-        public static float[] GetLeorikCoefficients()
-        {
-            float[] result = new float[N];
-            int index = 0;
-            for (int piece = 0; piece < 6; piece++)
-            {
-                for (int sq = 0; sq < 64; sq++)
-                {
-                    result[index++] = Evaluation.MidgameTables[64 * piece + sq];
-                    result[index++] = Evaluation.EndgameTables[64 * piece + sq];
-                }
-            }
-            return result;
-        }
-
-        public static float[] GetFeatures(BoardState pos, float phase)
-        {
-            float[] result = new float[N];
-
-            //phase is used to interpolate between endgame and midgame score but we want to incorporate it into the features vector
-            //score = midgameScore + phase * endgameScore
-
-            ulong occupied = pos.Black | pos.White;
-            for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits);
-                Piece piece = pos.GetPiece(square);
-                int pieceOffset = ((int)piece >> 2) - 1;
-                int squareIndex = (piece & Piece.ColorMask) == Piece.White ? square ^ 56 : square;
-                int sign = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
-
-                int iMg = pieceOffset * 128 + 2 * squareIndex;
-                int iEg = iMg + 1;
-                result[iMg] += sign;
-                result[iEg] += sign * phase;
-            }
-            return result;
-        }
-
-        internal static MaterialTuningData GetTuningData(BoardState position, sbyte result)
-        {
-            var eval = new Evaluation(position);
-            float[] features = GetFeatures(position, eval.P);
-            Feature[] denseFeatures = Condense(features);
-            return new MaterialTuningData
-            {
-                Features = denseFeatures,
-                Result = result
-            };
-        }
-
-        public static short[] IndexBuffer(float[] values)
-        {
-            List<short> indices = new List<short>();
-            for (short i = 0; i < N; i++)
-                if (values[i] != 0)
-                    indices.Add(i);
-
-            return indices.ToArray();
-        }
-
-        public static Feature[] Condense(float[] features)
-        {
-            short[] indices = IndexBuffer(features);
-            Feature[] denseFeatures = new Feature[indices.Length];
-            for (int i = 0; i < indices.Length; i++)
-            {
-                short index = indices[i];
-                denseFeatures[i].Index = index;
-                denseFeatures[i].Value = features[index];
-            }
-            return denseFeatures;
-        }
-
-        public static double MeanSquareError(List<MaterialTuningData> data, float[] coefficients, double scalingCoefficient)
-        {
-            double squaredErrorSum = 0;
-            foreach (MaterialTuningData entry in data)
-            {
-                float eval = Evaluate(entry.Features, coefficients);
-                squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
-            }
-            double result = squaredErrorSum / data.Count;
-            return result;
-        }
-
-        public static void Minimize(List<MaterialTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
-        {
-            float[] accu = new float[N];
-            foreach (MaterialTuningData entry in data)
-            {
-                float eval = Evaluate(entry.Features, coefficients);
-                double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                float error = (float)(sigmoid - entry.Result);
-
-                foreach (Feature f in entry.Features)
-                    accu[f.Index] += error * f.Value;
-            }
-
-            for (int i = 0; i < N; i++)
-                coefficients[i] -= alpha * accu[i] / data.Count;
-        }
-
-        public static void MinimizeParallel(List<MaterialTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
-        {            
-            //each thread maintains a local accu. After the loop is complete the accus are combined
-            Parallel.ForEach(data,
-                //initialize the local variable accu
-                () => new float[N],
-                //invoked by the loop on each iteration in parallel
-                (entry, loop, accu) => 
-                {
-                    float eval = Evaluate(entry.Features, coefficients);
-                    double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                    float error = (float)(sigmoid - entry.Result);
-
-                    foreach (Feature f in entry.Features)
-                        accu[f.Index] += error * f.Value;
-
-                    return accu;
-                },
-                //executed when each partition has completed.
-                (accu) =>
-                {
-                    lock(coefficients)
-                    {
-                        for (int i = 0; i < N; i++)
-                            coefficients[i] -= alpha * accu[i] / data.Count;
-                    }
-                }
-            );
-        }
-
-        //public static void MinimizeSIMD(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
-        //{
-        //    int slots = Vector<float>.Count;
-        //
-        //    float[] accu = new float[N];
-        //    foreach (Data2 entry in data)
-        //    {
-        //        //float eval = EvaluateSIMD(entry.Features, coefficients);
-        //        float eval = Evaluate(entry.Features, entry.Indices, coefficients);
-        //        double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-        //        float error = (float)(sigmoid - entry.Result);
-        //
-        //        for (int i = 0; i < N; i += slots)
-        //        {
-        //            Vector<float> vF = new Vector<float>(entry.Features, i);
-        //            Vector<float> vA = new Vector<float>(accu, i);
-        //            vA = Vector.Add(vA, Vector.Multiply(error, vF));
-        //            vA.CopyTo(accu, i);
-        //        }
-        //    }
-        //
-        //    for (int i = 0; i < N; i++)
-        //        coefficients[i] -= (alpha * accu[i]) / data.Count;
-        //}
-
-        //public static void MinimizeSparse(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
-        //{
-        //    float[] accu = new float[N];
-        //    foreach (Data2 entry in data)
-        //    {
-        //        //float eval = EvaluateSIMD(entry.Features, coefficients);
-        //        float eval = Evaluate(entry.Features, entry.Indices, coefficients);
-        //        double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-        //        double error = (sigmoid - entry.Result);
-        //
-        //        foreach (short i in entry.Indices)
-        //            accu[i] += (float)error * entry.Features[i];
-        //    }
-        //
-        //    for (int i = 0; i < N; i++)
-        //        coefficients[i] -= alpha * accu[i] / data.Count;
-        //}
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Evaluate(Feature[] features, float[] coefficients)
-        {
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
-            float result = 0;
-            foreach (Feature f in features)
-                result += f.Value * coefficients[f.Index];
-            return result;
-        }
-
-        //public static float Evaluate(float[] features, float[] coefficients)
-        //{
-        //    //dot product of features vector with coefficients vector
-        //    float result = 0;
-        //    for (int i = 0; i < N; i++)
-        //        result += features[i] * coefficients[i];
-        //    return result;
-        //}
-        //
-        //public static float EvaluateSIMD(float[] features, float[] coefficients)
-        //{
-        //    //dot product of features vector with coefficients vector
-        //    float result = 0;
-        //    int slots = Vector<float>.Count;
-        //    for (int i = 0; i < N; i += slots)
-        //    {
-        //        Vector<float> vF = new Vector<float>(features, i);
-        //        Vector<float> vC = new Vector<float>(coefficients, i);
-        //        result += Vector.Dot(vF, vC);
-        //    }
-        //    return result;
-        //}
-    }
+    }    
 }

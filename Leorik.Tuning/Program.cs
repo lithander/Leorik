@@ -3,9 +3,12 @@ using Leorik.Tuning;
 using System.Diagnostics;
 
 double MSE_SCALING = 100;
-float ALPHA = 1000; //learning rate
-int EPOCHS = 20000;
-int BATCH = 20;
+float MATERIAL_ALPHA = 1000; //learning rate
+int MATERIAL_EPOCHS = 20000;
+int MATERIAL_BATCH = 20;
+
+int PHASE_EPOCHS = 500;
+int PHASE_ALPHA = 2000;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
@@ -35,32 +38,31 @@ float[] cm_leorik = MaterialTuner.GetLeorikCoefficients();
 TestMaterialMSE(cm_leorik);
 
 float[] cp_leorik = PhaseTuner.GetLeorikPhaseCoefficients();
-Console.WriteLine("Before:");
-TestPhaseMSE(cp_leorik);
+Console.WriteLine("Leorik:");
 PrintPhaseCoefficients(cp_leorik);
-//cp_leorik[0] = 0;
-//cp_leorik[1] = 0;
-//cp_leorik[2] = 0;
-//cp_leorik[3] = 0;
-//cp_leorik[4] = 0;
-//Console.WriteLine("After:");
-//PrintPhaseCoefficients(cp_leorik);
 TestPhaseMSE(cp_leorik);
-double best = float.MaxValue;
-int max = 500;
-for (int j = 1; j < max; j++)
+
+Console.WriteLine("Tuning:");
+cp_leorik[0] = 0;
+cp_leorik[1] = 0;
+cp_leorik[2] = 0;
+cp_leorik[3] = 0;
+cp_leorik[4] = 0;
+PrintPhaseCoefficients(cp_leorik);
+TestPhaseMSE(cp_leorik);
+long t0 = Stopwatch.GetTimestamp();
+for (int j = 1; j <= PHASE_EPOCHS; j++)
 {
-    float alpha = 1000;
-    PhaseTuner.Minimize(phaseData, cp_leorik, MSE_SCALING, alpha);
-    double mse = PhaseTuner.MeanSquareError(phaseData, cp_leorik, MSE_SCALING);
-    PrintPhaseCoefficients(cp_leorik);
-    Console.WriteLine($"Iteration {j}/{max}, alpha = {alpha}, MSE(phase)  = {mse}");
-    if (mse > best)
-        break;
-    else
-        best = mse;
+    PhaseTuner.Minimize(phaseData, cp_leorik, MSE_SCALING, PHASE_ALPHA);
+    //double mse = PhaseTuner.MeanSquareError(phaseData, cp_leorik, MSE_SCALING);
+    //PrintPhaseCoefficients(cp_leorik);
+    //Console.WriteLine($"Iteration {j}/{PHASE_EPOCHS}, alpha = {PHASE_ALPHA}, MSE(phase)  = {mse}");
 }
+long t1 = Stopwatch.GetTimestamp();
+Console.WriteLine($"Tuning {PHASE_EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+Console.WriteLine();
 PrintPhaseCoefficients(cp_leorik);
+TestPhaseMSE(cp_leorik);
 
 Console.ReadKey();
 
@@ -68,14 +70,14 @@ Console.WriteLine("Initializing Coefficients with material values");
 float[] C = MaterialTuner.GetMaterialCoefficients();
 TestMaterialMSE(C);
 
-long t0 = Stopwatch.GetTimestamp();
-for (int j = 1; j < EPOCHS/BATCH; j++)
+t0 = Stopwatch.GetTimestamp();
+for (int j = 1; j <= MATERIAL_EPOCHS/MATERIAL_BATCH; j++)
 {
-    Console.Write($"Iteration {j}/{EPOCHS / BATCH}, alpha = {ALPHA} ");
-    MinimizeBatch(C, ALPHA, BATCH);
+    Console.Write($"Iteration {j}/{MATERIAL_EPOCHS / MATERIAL_BATCH}, alpha = {MATERIAL_ALPHA} ");
+    MinimizeBatch(C, MATERIAL_ALPHA, MATERIAL_BATCH);
 }
-long t1 = Stopwatch.GetTimestamp();
-Console.WriteLine($"Tuning {EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+t1 = Stopwatch.GetTimestamp();
+Console.WriteLine($"Tuning {MATERIAL_EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
 //PrintCoefficientsDelta(Cref, C);
 TestMaterialMSE(C);
@@ -143,33 +145,12 @@ List<Data> LoadData(string epdFile)
     Console.WriteLine($"Loading DATA from '{epdFile}'");
     var file = File.OpenText(epdFile);
     while (!file.EndOfStream)
-        data.Add(ParseEntry(file.ReadLine()));
+        data.Add(Tuner.ParseEntry(file.ReadLine()));
 
     Console.WriteLine($"{data.Count} labeled positions loaded!");
     return data;
 }
 
-Data ParseEntry(string line)
-{
-    //Expected Format:
-    //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
-    //Labels: "1/2-1/2", "1-0", "0-1"
-
-    const string WHITE = "1-0";
-    const string DRAW = "1/2-1/2";
-    const string BLACK = "0-1";
-
-    int iLabel = line.IndexOf('"');
-    string fen = line.Substring(0, iLabel - 1);
-    string label = line.Substring(iLabel + 1, line.Length - iLabel - 3);
-    Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
-    int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
-    return new Data
-    {
-        Position = Notation.GetBoardState(fen),
-        Result = (sbyte)result
-    };
-}
 
 void PrintCoefficientsDelta(float[] c0, float[] c1)
 {
