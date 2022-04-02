@@ -143,10 +143,11 @@ namespace Leorik.Core
         public static readonly int Phase0 = 5255;
         public static readonly int Phase1 = 435;
 
-        public static readonly short[] PhaseValues = new short[6] { 0, 155, 305, 405, 1050, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 118, 346, 420, 926, 0 };
 
-        //20k epochs, fixed MG (no phase) + phase * EG
-        //Leorik's MSE(data) with MSE_SCALING = 100 on the dataset: 0,24612965562919142
+        //Tables tuned with Tuner v2: 20k epochs, fixed MG (no phase) + phase * EG
+        //PhaseValues within the old thresholds are also tuned with Tuner v3
+        //Leorik's MSE(data) with MSE_SCALING = 100 on the dataset: 0,2460741643800938
         public static readonly short[] MidgameTables = new short[6 * 64]{
           100,  100,  100,  100,  100,  100,  100,  100,
           167,  216,  140,  180,  167,  233,  132,   67,
