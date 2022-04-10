@@ -12,6 +12,18 @@ namespace Leorik.Tuning
         public sbyte Result;
     }
 
+    class TuningData
+    {
+        public BoardState Position;
+        public sbyte Result;
+        //Material
+        public Feature[] Features;
+        //Phase
+        public float MidgameEval;
+        public float EndgameEval;
+        public byte[] PieceCounts;
+    }
+
     static class Tuner
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,5 +98,67 @@ namespace Leorik.Tuning
                 Result = (sbyte)result
             };
         }
-    }    
+
+        internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cMaterial)
+        {
+            MaterialTuner.GetEvalTerms(input.Position, cMaterial, out float mgEval, out float egEval);
+            byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
+            float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
+            float[] features = MaterialTuner.GetFeatures(input.Position, phase);
+            Feature[] denseFeatures = MaterialTuner.Condense(features);
+
+            return new TuningData
+            {
+                Position = input.Position,
+                Result = input.Result,
+                Features = denseFeatures,
+                MidgameEval = mgEval,
+                EndgameEval = egEval,
+                PieceCounts = pieceCounts,
+            };
+        }
+
+        internal static float GetSyncError(TuningData entry, float[] cPhase, float[] cMaterial)
+        {
+            float evalP = PhaseTuner.Evaluate(entry, cPhase);
+            float evalM = MaterialTuner.Evaluate(entry.Features, cMaterial);
+            return evalP - evalM;
+        }
+
+        internal static float GetSyncError(IEnumerable<TuningData> data, float[] cPhase, float[] cMaterial)
+        {
+            float error = 0;
+            int count = 0;
+            foreach (var td in data)
+            {
+                count++;
+                error += Math.Abs(GetSyncError(td, cPhase, cMaterial));
+            }
+            return error / count;
+        }
+
+        internal static void SyncMaterialChanges(List<TuningData> data, float[] cMaterial)
+        {
+            //This is called after the material coefficients have been tuned. Now the phase-fatures need to be adjusted
+            //so that the phase-eval and material-eval will agree again.
+            foreach (var td in data)
+            {
+                MaterialTuner.GetEvalTerms(td.Position, cMaterial, out float mgEval, out float egEval);
+                td.MidgameEval = mgEval;
+                td.EndgameEval = egEval;
+            }
+        }
+
+        internal static void SyncPhaseChanges(List<TuningData> data, float[] cPhase)
+        {
+            //This is called after the phase coefficients have been tuned. Now the material-fatures need to be adjusted
+            //so that the phase-eval and material-eval will agree again.
+            foreach (var td in data)
+            {
+                float phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
+                //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
+                td.Features = MaterialTuner.AdjustPhase(td.Features, phase);
+            }
+        }
+    }
 }

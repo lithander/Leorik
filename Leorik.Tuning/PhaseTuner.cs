@@ -4,17 +4,20 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Tuning
 {
-    class PhaseTuningData
-    {
-        public float MidgameScore;
-        public float EndgameScore;
-        public byte[] PieceCounts;
-        public sbyte Result;
-    }
-
     static class PhaseTuner
     {
-        const int N = 5; //[N, B, R, Q, 1] = 5 coefficients
+        const int N = 4; //[N, B, R, Q] = 4
+
+        public static float[] GetUntrainedCoefficients()
+        {
+            return new float[]
+            {
+                200, //4xKnight
+                300, //4xBishop
+                500, //4xRook  
+                700, //2xQueen 
+            };
+        }
 
         public static float[] GetLeorikPhaseCoefficients()
         {
@@ -24,24 +27,10 @@ namespace Leorik.Tuning
                 Evaluation.PhaseValues[2], //Bishop
                 Evaluation.PhaseValues[3], //Rook
                 Evaluation.PhaseValues[4], //Queen
-                Evaluation.Phase0 - Evaluation.Phase1,
             };
         }
 
-        internal static PhaseTuningData GetTuningData(BoardState position, sbyte result)
-        {
-            var eval = new Evaluation(position);
-            byte[] pieceCounts = CountPieces(position);
-            return new PhaseTuningData
-            {
-                MidgameScore = eval.MG,
-                EndgameScore = eval.EG,
-                PieceCounts = pieceCounts,
-                Result = result
-            };
-        }
-
-        private static byte[] CountPieces(BoardState pos)
+        public static byte[] CountPieces(BoardState pos)
         {
             byte[] result = new byte[N];
             ulong occupied = pos.Black | pos.White;
@@ -53,15 +42,13 @@ namespace Leorik.Tuning
                 if (pieceOffset >= 0 && pieceOffset <= 3) //no Pawns or Kings
                     result[pieceOffset]++;
             }
-            //the fifth feature is always 1 to allow for a constant offset
-            result[4] = 1;
             return result;
         }
 
-        public static double MeanSquareError(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient)
+        public static double MeanSquareError(List<TuningData> data, float[] coefficients, double scalingCoefficient)
         {
             double squaredErrorSum = 0;
-            foreach (PhaseTuningData entry in data)
+            foreach (TuningData entry in data)
             {
                 float eval = Evaluate(entry, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
@@ -72,37 +59,49 @@ namespace Leorik.Tuning
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Evaluate(PhaseTuningData features, float[] coefficients)
+        internal static float Evaluate(TuningData features, float[] coefficients)
         {
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
+            float phaseValue = GetPhaseValue(features.PieceCounts, coefficients);
+            float phase = Phase(phaseValue);
+            return features.MidgameEval + phase * features.EndgameEval;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static float GetPhaseValue(byte[] pieceCounts, float[] cPhase)
+        {
             float phaseValue = 0;
             for (int i = 0; i < N; i++)
-                phaseValue += features.PieceCounts[i] * coefficients[i];
+                phaseValue += pieceCounts[i] * cPhase[i];
+            return phaseValue;
+        }
 
-            float phase = Phase(phaseValue);
-            return features.MidgameScore + phase * features.EndgameScore;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static float GetPhase(byte[] pieceCounts, float[] cPhase)
+        {
+            float phaseValue = GetPhaseValue(pieceCounts, cPhase);
+            return Phase(phaseValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float Phase(float phaseValue)
         {
-            return Math.Clamp((Evaluation.Phase0 - phaseValue) / Evaluation.Phase0, 0, 1);
+            return Math.Clamp((Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum, 0, 1);
         }
 
-        internal static void Minimize(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        internal static void Minimize(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
         {
             float[] accu = new float[N];
-            foreach (PhaseTuningData entry in data)
+            foreach (TuningData entry in data)
             {
                 float phaseValue = 0;
                 for (int i = 0; i < N; i++)
                     phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                 float phase = Phase(phaseValue);
-                float eval = entry.MidgameScore + phase * entry.EndgameScore;
+                float eval = entry.MidgameEval + phase * entry.EndgameEval;
 
                 float error = (float)SignedError(entry.Result, eval, scalingCoefficient);
-                float errorMg = (float)SignedError(entry.Result, entry.MidgameScore, scalingCoefficient);
+                float errorMg = (float)SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
                 float delta = error - errorMg;
 
                 //if error is positive a lower eval would have been better
@@ -116,9 +115,26 @@ namespace Leorik.Tuning
 
             for (int i = 0; i < N; i++)
                 coefficients[i] += alpha * accu[i] / data.Count;
+
+            Normalize(coefficients);
         }
 
-        internal static void MinimizeParallel(List<PhaseTuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        private static void Normalize(float[] coefficients)
+        {
+            float nf = Evaluation.PhaseSum / PhaseSum(coefficients);
+            for (int i = 0; i < N; i++)
+                coefficients[i] *= nf;
+        }
+
+        private static float PhaseSum(float[] coefficients)
+        {
+            return 4 * coefficients[0] + // N
+                   4 * coefficients[1] + // B
+                   4 * coefficients[2] + // R
+                   2 * coefficients[3];  // Q
+        }
+
+        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -132,10 +148,10 @@ namespace Leorik.Tuning
                         phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                     float phase = Phase(phaseValue);
-                    float eval = entry.MidgameScore + phase * entry.EndgameScore;
+                    float eval = entry.MidgameEval + phase * entry.EndgameEval;
 
                     float error = (float)SignedError(entry.Result, eval, scalingCoefficient);
-                    float errorMg = (float)SignedError(entry.Result, entry.MidgameScore, scalingCoefficient);
+                    float errorMg = (float)SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
                     float delta = error - errorMg;
 
                     //if error is positive a lower eval would have been better
@@ -154,6 +170,8 @@ namespace Leorik.Tuning
                     {
                         for (int i = 0; i < N; i++)
                             coefficients[i] += alpha * accu[i] / data.Count;
+
+                        Normalize(coefficients);
                     }
                 }
             );

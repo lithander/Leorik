@@ -3,87 +3,82 @@ using Leorik.Tuning;
 using System.Diagnostics;
 
 double MSE_SCALING = 100;
-float MATERIAL_ALPHA = 1000; //learning rate
-int MATERIAL_EPOCHS = 20000;
-int MATERIAL_BATCH = 20;
 
-int PHASE_EPOCHS = 500;
-int PHASE_ALPHA = 2000;
+int ITERATIONS = 500;
+
+int MATERIAL_ALPHA = 1000; //learning rate
+int PHASE_ALPHA = 1000;
+
+int MATERIAL_BATCH = 50;
+int PHASE_BATCH = 5;
+
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v3 ");
+Console.WriteLine(" Leorik Tuning v6 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
 Console.WriteLine();
-Console.WriteLine($"Converting {data.Count} DATA entries...");
-List<MaterialTuningData> materialData = new(data.Count);
-List<PhaseTuningData> phaseData = new(data.Count);
+
+//MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
+TestLeorikMSE();
+
+//float[] cMaterial = MaterialTuner.GetLeorikCoefficients();
+float[] cMaterial = MaterialTuner.GetUntrainedCoefficients();
+//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+
+Console.WriteLine($"Preparing TuningData for {data.Count} positions");
+List<TuningData> tuningData = new(data.Count);
 foreach (Data entry in data)
 {
-    materialData.Add(MaterialTuner.GetTuningData(entry.Position, entry.Result));
-    phaseData.Add(PhaseTuner.GetTuningData(entry.Position, entry.Result));
+    var td = Tuner.GetTuningData(entry, cPhase, cMaterial);
+    //PhaseTuner.Evaluation and MaterialTuner.Evaluation should agree!
+    Debug.Assert(Tuner.GetSyncError(td, cPhase, cMaterial) < 0.01);
+    tuningData.Add(td);
 }
-Console.WriteLine($"{data.Count} labeled positions converted!");
 Console.WriteLine();
 
-TestLeorikMSE();
-//MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
-//TestLeorikMSE();
+TestMaterialMSE(cMaterial);
+TestPhaseMSE(cPhase);
 
-Console.WriteLine("Initializing Coefficients with Leoriks PSTs");
-float[] cm_leorik = MaterialTuner.GetLeorikCoefficients(); 
-TestMaterialMSE(cm_leorik);
-
-float[] cp_leorik = PhaseTuner.GetLeorikPhaseCoefficients();
-Console.WriteLine("Leorik:");
-PrintPhaseCoefficients(cp_leorik);
-TestPhaseMSE(cp_leorik);
-
-Console.WriteLine("Tuning:");
-cp_leorik[0] = 0;
-cp_leorik[1] = 0;
-cp_leorik[2] = 0;
-cp_leorik[3] = 0;
-cp_leorik[4] = 0;
-PrintPhaseCoefficients(cp_leorik);
-TestPhaseMSE(cp_leorik);
 long t0 = Stopwatch.GetTimestamp();
-for (int j = 1; j <= PHASE_EPOCHS; j++)
+for (int it = 0; it < ITERATIONS; it++)
 {
-    PhaseTuner.Minimize(phaseData, cp_leorik, MSE_SCALING, PHASE_ALPHA);
-    //double mse = PhaseTuner.MeanSquareError(phaseData, cp_leorik, MSE_SCALING);
-    //PrintPhaseCoefficients(cp_leorik);
-    //Console.WriteLine($"Iteration {j}/{PHASE_EPOCHS}, alpha = {PHASE_ALPHA}, MSE(phase)  = {mse}");
+    Console.WriteLine($"{it}/{ITERATIONS} ");
+
+    double msePre = MaterialTuner.MeanSquareError(tuningData, cMaterial, MSE_SCALING);
+    Console.WriteLine($"Material MSE={msePre:N12} Alpha={MATERIAL_ALPHA}");
+    long t_0 = Stopwatch.GetTimestamp();
+    for (int i = 0; i < MATERIAL_BATCH && MATERIAL_ALPHA > 0; i++)
+    {
+        MaterialTuner.MinimizeParallel(tuningData, cMaterial, MSE_SCALING, MATERIAL_ALPHA);
+    }
+    Tuner.SyncMaterialChanges(tuningData, cMaterial);
+    long t_1 = Stopwatch.GetTimestamp();
+    double msePost = MaterialTuner.MeanSquareError(tuningData, cMaterial, MSE_SCALING);
+    Console.WriteLine($"Material MSE={msePost:N12} Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s");
+
+    msePre = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
+    Console.WriteLine($"   Phase MSE={msePre:N12} Alpha={PHASE_ALPHA}");
+    t_0 = Stopwatch.GetTimestamp();
+    for (int i = 0; i < PHASE_BATCH && PHASE_ALPHA > 0; i++)
+    {
+        PhaseTuner.MinimizeParallel(tuningData, cPhase, MSE_SCALING, PHASE_ALPHA);
+    }
+    Tuner.SyncPhaseChanges(tuningData, cPhase);
+    t_1 = Stopwatch.GetTimestamp();
+    msePost = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
+    Console.Write($"   Phase MSE={msePost:N12} Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s ");
+    PrintPhaseCoefficients(cPhase);
 }
 long t1 = Stopwatch.GetTimestamp();
-Console.WriteLine($"Tuning {PHASE_EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
-Console.WriteLine();
-PrintPhaseCoefficients(cp_leorik);
-TestPhaseMSE(cp_leorik);
-
+Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Console.ReadKey();
-
-Console.WriteLine("Initializing Coefficients with material values");
-float[] C = MaterialTuner.GetMaterialCoefficients();
-TestMaterialMSE(C);
-
-t0 = Stopwatch.GetTimestamp();
-for (int j = 1; j <= MATERIAL_EPOCHS/MATERIAL_BATCH; j++)
-{
-    Console.Write($"Iteration {j}/{MATERIAL_EPOCHS / MATERIAL_BATCH}, alpha = {MATERIAL_ALPHA} ");
-    MinimizeBatch(C, MATERIAL_ALPHA, MATERIAL_BATCH);
-}
-t1 = Stopwatch.GetTimestamp();
-Console.WriteLine($"Tuning {MATERIAL_EPOCHS} epochs took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
-
-//PrintCoefficientsDelta(Cref, C);
-TestMaterialMSE(C);
-PrintCoefficients(C);
-Console.ReadKey();
-
+PrintCoefficients(cMaterial);
+PrintPhaseCoefficients(cPhase);
 /*
  * 
  * FUNCTIONS 
@@ -93,7 +88,7 @@ Console.ReadKey();
 void PrintPhaseCoefficients(float[] c)
 {
     float R(int i) => (int)Math.Round(c[i]);
-    Console.WriteLine($"N:{R(0),5} B:{R(1),5} R:{R(2),5} Q:{R(3),5} + {R(4),5}");
+    Console.WriteLine($"N:{R(0),4} B:{R(1),4} R:{R(2),4} Q:{R(3),4}");
 }
 
 void MinimizeBatch(float[] coefficients, float alpha, int batchSize)
@@ -102,9 +97,9 @@ void MinimizeBatch(float[] coefficients, float alpha, int batchSize)
     for (int i = 0; i < batchSize; i++)
     {
         Console.Write(".");
-        MaterialTuner.MinimizeParallel(materialData, coefficients, MSE_SCALING, alpha);
+        MaterialTuner.MinimizeParallel(tuningData, coefficients, MSE_SCALING, alpha);
     }
-    double mse = MaterialTuner.MeanSquareError(materialData, coefficients, MSE_SCALING);
+    double mse = MaterialTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
     Console.WriteLine($" MSE={mse} - {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 }
@@ -122,7 +117,7 @@ void TestLeorikMSE()
 void TestMaterialMSE(float[] coefficients)
 {
     long t0 = Stopwatch.GetTimestamp();
-    double mse = MaterialTuner.MeanSquareError(materialData, coefficients, MSE_SCALING);
+    double mse = MaterialTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
     Console.WriteLine($"MSE(Material, C) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -132,7 +127,7 @@ void TestMaterialMSE(float[] coefficients)
 void TestPhaseMSE(float[] coefficients)
 {
     long t0 = Stopwatch.GetTimestamp();
-    double mse = PhaseTuner.MeanSquareError(phaseData, coefficients, MSE_SCALING);
+    double mse = PhaseTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
     Console.WriteLine($"MSE(Phase, C) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
