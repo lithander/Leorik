@@ -117,7 +117,7 @@ namespace Leorik.Core
         public void UpdateEval(BoardState from, ref Move move)
         {
             Eval = from.Eval;
-            Eval.Update(ref move);
+            Eval.Update(ref move, this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

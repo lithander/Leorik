@@ -7,6 +7,8 @@ namespace Leorik.Core
         private short _baseScore;
         private short _endgameScore;
         private short _phaseValue;
+        private short _blackKingSafetyScore;
+        private short _whiteKingSafetyScore;
 
         public short Score { get; private set; }
 
@@ -18,7 +20,7 @@ namespace Leorik.Core
         public Evaluation(BoardState board) : this()
         {
             AddPieces(board);
-            Score = (short)Interpolate(_baseScore, _endgameScore, _phaseValue);
+            Score = (short)CombineScores(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -34,7 +36,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Update(ref Move move)
+        internal void Update(ref Move move, BoardState board)
         {
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);
@@ -68,8 +70,29 @@ namespace Leorik.Core
                     break;
             }
 
-            Score = (short)Interpolate(_baseScore, _endgameScore, _phaseValue);
+            Score = (short)CombineScores(board);
+            //int refScore = new Evaluation(board).Score;
+            //int error = Math.Abs(Score - refScore);
+            //if (error > 0)
+            //    throw new Exception(error.ToString());
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public double CombineScores()
+        {
+            return _baseScore + Phase(_phaseValue) * _endgameScore;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public double CombineScores(BoardState board)
+        {
+            int blackKingSquare = Bitboard.LSB(board.Kings & board.Black);
+            int whiteKingSquare = Bitboard.LSB(board.Kings & board.White) ^ 56;
+            double wk = KingPhaseTable[whiteKingSquare];
+            double bk = KingPhaseTable[blackKingSquare];
+            return _baseScore + Phase(_phaseValue) * _endgameScore + bk * _blackKingSafetyScore + wk * _whiteKingSafetyScore;
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddPiece(Piece piece, int squareIndex)
@@ -77,9 +100,9 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue += PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                AddScore(pieceIndex, squareIndex ^ 56);
+                AddWhiteScore(pieceIndex, squareIndex ^ 56);
             else
-                SubtractScore(pieceIndex, squareIndex);
+                SubtractBlackScore(pieceIndex, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -88,25 +111,45 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue -= PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                SubtractScore(pieceIndex, squareIndex ^ 56);
+                SubtractWhiteScore(pieceIndex, squareIndex ^ 56);
             else
-                AddScore(pieceIndex, squareIndex);
+                AddBlackScore(pieceIndex, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddScore(int pieceIndex, int squareIndex)
+        private void AddBlackScore(int pieceIndex, int squareIndex)
         {
             int tableIndex = (pieceIndex << 6) | squareIndex;
             _baseScore += MidgameTables[tableIndex];
             _endgameScore += EndgameTables[tableIndex];
+            _blackKingSafetyScore += KingSafetyTables[tableIndex];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SubtractScore(int pieceIndex, int squareIndex)
+        private void SubtractBlackScore(int pieceIndex, int squareIndex)
         {
             int tableIndex = (pieceIndex << 6) | squareIndex;
             _baseScore -= MidgameTables[tableIndex];
             _endgameScore -= EndgameTables[tableIndex];
+            _blackKingSafetyScore -= KingSafetyTables[tableIndex];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddWhiteScore(int pieceIndex, int squareIndex)
+        {
+            int tableIndex = (pieceIndex << 6) | squareIndex;
+            _baseScore += MidgameTables[tableIndex];
+            _endgameScore += EndgameTables[tableIndex];
+            _whiteKingSafetyScore += KingSafetyTables[tableIndex];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SubtractWhiteScore(int pieceIndex, int squareIndex)
+        {
+            int tableIndex = (pieceIndex << 6) | squareIndex;
+            _baseScore -= MidgameTables[tableIndex];
+            _endgameScore -= EndgameTables[tableIndex];
+            _whiteKingSafetyScore -= KingSafetyTables[tableIndex];
         }
 
         public const int CheckmateBase = 9000;
@@ -128,13 +171,6 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Checkmate(int ply) => (ply - CheckmateScore);
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double Interpolate(short midgameScore, short endgameScore, short phaseValue)
-        {
-            return midgameScore + Phase(phaseValue) * endgameScore;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Phase(short phaseValue)
@@ -261,6 +297,75 @@ namespace Leorik.Core
           -33,  -27,   28,   71,   87,   68,    9,    5,
           -65,  -51,    1,   75,   53,   12,  -49,  -73,
           -81, -119,  -67,   41,  -59,    3,  -93, -113,
+        };
+
+        public static float[] KingPhaseTable = new float[64]
+{
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+        -0.4f,    0,    0,    0,    0,    0,    0, 0.4f,
+        -0.6f,    0,    0,    0,    0,    0,    0, 0.6f,
+           -1,-0.4f,    0,    0,    0,    0, 0.4f,    1,
+           -1,   -1,-0.5f,    0,    0,  0.5f,   1,    1,
+        };
+
+        public static short[] KingSafetyTables = new short[6 * 64]
+        {
+            0,    0,    0,    0,    0,    0,    0,    0,
+            9,   -5,   -7,  -10,   -7,  -11,  -21,   -3,
+           -4,   -8,   -9,   -7,  -13,  -19,   -9,    1,
+           -4,   -7,   -7,   -9,   -9,   -7,   -9,   -2,
+           -3,   -7,   -8,   -9,   -7,   -6,   -4,    3,
+           -5,   -9,  -10,   -3,   -4,   -5,    1,    3,
+           -3,  -12,  -10,   -7,    1,    0,    8,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+
+            3,    4,    0,    2,    9,    8,    8,    5,
+           15,    5,   -1,    5,   -1,   -5,   -3,   -3,
+            8,    1,   12,    6,    9,    7,    3,   -2,
+            0,    1,    5,   10,    6,    5,   10,    0,
+            5,    9,    2,    3,    6,    5,   -2,    1,
+            2,   -1,   -7,    3,    5,    3,    4,    5,
+            5,   -6,    0,    0,    4,   -6,    3,    5,
+           -3,   -4,    1,    2,    1,    6,   31,   -3,
+
+            6,    6,    3,    6,   -7,   -9,    3,   -3,
+           11,   -3,    3,   -3,   -1,   -6,   -4,   -8,
+            4,   -2,   -2,    0,    1,    3,   -2,   -1,
+            7,    6,    3,    4,    6,   -5,    6,   -2,
+           -4,    2,    4,    3,    4,    2,   -1,    1,
+           -2,   -5,   -1,    1,    4,    0,    3,    3,
+            1,   -8,   -2,   -4,    1,    6,    5,    1,
+           -8,   -2,   -5,   -3,    3,   10,    7,    8,
+
+            4,    5,    0,    1,    4,    2,    0,   -8,
+            4,    6,    5,    2,    3,   -2,    0,  -11,
+            2,    2,    9,    8,    2,   -3,   -5,  -10,
+            5,    5,    3,    3,    3,    0,   -7,   -1,
+            2,    8,    3,    1,    3,    1,   -2,   -6,
+            4,    0,    4,    2,    5,    9,    6,    3,
+            5,   -1,    5,    5,    3,    4,    9,   -3,
+            7,    7,    6,    4,    5,    8,    1,  -23,
+
+           21,   11,    7,    6,    9,   14,    8,   21,
+           11,   13,    5,    5,   11,   13,    8,   15,
+           11,    5,    9,    9,   11,   23,   -6,   14,
+            9,   10,    1,   10,   12,   18,   14,   19,
+            4,    7,    2,    2,   14,    9,   14,   13,
+           11,    5,    6,   10,    9,   13,   18,   11,
+           13,   11,    7,   10,   13,    8,    6,   -1,
+           11,   10,   10,    9,   11,   16,   -6,  -15,
+
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+            0,    0,    0,    0,    0,    0,    0,    0,
+            2,    0,    0,    0,    0,    0,    0,   10,
+            6,    0,    0,    0,    0,    0,    0,    8,
+           10,    8,    0,    0,    0,    0,   10,    3,
+            8,   16,   17,    0,    0,    9,    3,    3,
         };
     }
 }

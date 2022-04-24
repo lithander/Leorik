@@ -45,7 +45,7 @@ namespace Leorik.Tuning
             return result;
         }
 
-        public static double MeanSquareError(List<TuningData> data, float[] coefficients, double scalingCoefficient)
+        public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
         {
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
@@ -88,7 +88,7 @@ namespace Leorik.Tuning
             return Math.Clamp((Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum, 0, 1);
         }
 
-        internal static void Minimize(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        internal static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
         {
             float[] accu = new float[N];
             foreach (TuningData entry in data)
@@ -100,8 +100,8 @@ namespace Leorik.Tuning
                 float phase = Phase(phaseValue);
                 float eval = entry.MidgameEval + phase * entry.EndgameEval;
 
-                float error = (float)SignedError(entry.Result, eval, scalingCoefficient);
-                float errorMg = (float)SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
+                float error = SignedError(entry.Result, eval, scalingCoefficient);
+                float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
                 float delta = error - errorMg;
 
                 //if error is positive a lower eval would have been better
@@ -134,7 +134,7 @@ namespace Leorik.Tuning
                    2 * coefficients[3];  // Q
         }
 
-        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -150,8 +150,8 @@ namespace Leorik.Tuning
                     float phase = Phase(phaseValue);
                     float eval = entry.MidgameEval + phase * entry.EndgameEval;
 
-                    float error = (float)SignedError(entry.Result, eval, scalingCoefficient);
-                    float errorMg = (float)SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
+                    float error = SignedError(entry.Result, eval, scalingCoefficient);
+                    float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
                     float delta = error - errorMg;
 
                     //if error is positive a lower eval would have been better
