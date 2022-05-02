@@ -24,15 +24,25 @@ namespace Leorik.Tuning
         public sbyte Result;
         //Material
         public Feature[] MaterialFeatures;
-        public float MaterialEval;
         //Phase
         public float MidgameEval;
         public float EndgameEval;
+        public float Phase;
         public byte[] PieceCounts;
-        //KS
-        public Feature[] KingSafetyFeatures;
-        public float BlackKS;
-        public float WhiteKS;
+        //King Safety
+        public Feature[] BlackFeatures;
+        public Feature[] WhiteFeatures;
+        public float BlackKingPhase;
+        public float WhiteKingPhase;
+        //King Phase
+        public int BlackKingSquare;
+        public int WhiteKingSquare;
+        public float WhiteKingSafety;
+        public float BlackKingSafety;
+
+        public float MaterialEval => MidgameEval + Phase * EndgameEval;
+
+        public float KingSafety => WhiteKingPhase * WhiteKingSafety - BlackKingPhase * BlackKingSafety;
     }
 
     static class Tuner
@@ -66,7 +76,6 @@ namespace Leorik.Tuning
             float error = reference - Sigmoid(value, scalingCoefficient);
             return error * error;
         }
-
         public static double Minimize(Func<double, double> func, double range0, double range1)
         {
             //find k that minimizes result of func(k)
@@ -125,26 +134,43 @@ namespace Leorik.Tuning
             };
         }
 
-        internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cMaterial, float[] cKingPhase)
+        internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cMaterial, float[] cKingPhase, float[] cKingSafety)
         {
             MaterialTuner.GetEvalTerms(input.Position, cMaterial, out float mgEval, out float egEval);
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             float[] matFeatures = MaterialTuner.GetFeatures(input.Position, phase);
 
-            KingSafetyTuner.GetKingPhases(input.Position, cKingPhase, out float wkPhase, out float bkPhase);
-            float[] ksFeatures = KingSafetyTuner.GetFeatures(input.Position, wkPhase, bkPhase);
+            KingPhaseTuner.GetKingPhases(input.Position, cKingPhase, out float wkPhase, out float bkPhase);
+            Feature[] blackFeatures = Condense(KingSafetyTuner.GetFeaturesBlack(input.Position));
+            Feature[] whiteFeatures = Condense(KingSafetyTuner.GetFeaturesWhite(input.Position));
+
+            int blackKingSquare = Bitboard.LSB(input.Position.Kings & input.Position.Black);
+            int whiteKingSquare = Bitboard.LSB(input.Position.Kings & input.Position.White);
+            float evalBlackKs = Evaluate(blackFeatures, cKingSafety);
+            float evalWhiteKs = Evaluate(whiteFeatures, cKingSafety);
 
             return new TuningData
             {
                 Position = input.Position,
                 Result = input.Result,
+                
                 MaterialFeatures = Condense(matFeatures),
+                
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,
-                KingSafetyFeatures = Condense(ksFeatures),
-                MaterialEval = mgEval + phase * egEval
+                Phase = phase,
+
+                BlackFeatures = blackFeatures,
+                BlackKingPhase = bkPhase,
+                WhiteFeatures = whiteFeatures,
+                WhiteKingPhase = wkPhase,
+
+                BlackKingSquare = blackKingSquare,
+                WhiteKingSquare = whiteKingSquare,
+                WhiteKingSafety = evalWhiteKs,
+                BlackKingSafety = evalBlackKs,
             };
         }
 
@@ -189,10 +215,32 @@ namespace Leorik.Tuning
             //so that the phase-eval and material-eval will agree again.
             foreach (var td in data)
             {
-                float phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
+                td.Phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
                 //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
-                td.MaterialFeatures = MaterialTuner.AdjustPhase(td.MaterialFeatures, phase);
+                td.MaterialFeatures = MaterialTuner.AdjustPhase(td.MaterialFeatures, td.Phase);
             }
         }
+
+        internal static void SyncKingSafetyChanges(List<TuningData> data, float[] cKingSafety)
+        {
+            //This is called after the king-safety coefficients have been tuned. Re-Evaluate the features! 
+            foreach (var td in data)
+            {
+                td.WhiteKingSafety = Evaluate(td.WhiteFeatures, cKingSafety);
+                td.BlackKingSafety = Evaluate(td.BlackFeatures, cKingSafety);
+            }
+        }
+
+        internal static void SyncKingPhaseChanges(List<TuningData> data, float[] cKingPhase)
+        {
+            //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
+            foreach (var td in data)
+            {
+                KingPhaseTuner.GetKingPhases(td, cKingPhase, out float wkPhase, out float bkPhase);
+                td.BlackKingPhase = bkPhase;
+                td.WhiteKingPhase = wkPhase;
+            }
+        }
+
     }
 }

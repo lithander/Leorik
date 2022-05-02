@@ -186,7 +186,7 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                float eval = Evaluate(entry.MaterialFeatures, coefficients) + entry.KingSafety;
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
@@ -198,7 +198,7 @@ namespace Leorik.Tuning
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                float eval = Evaluate(entry.MaterialFeatures, coefficients) + entry.KingSafety;
                 float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                 foreach (Feature f in entry.MaterialFeatures)
@@ -218,7 +218,7 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                    float eval = Evaluate(entry.MaterialFeatures, coefficients) + entry.KingSafety;
                     float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                     foreach (Feature f in entry.MaterialFeatures)

@@ -50,13 +50,12 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry, coefficients);
+                float eval = Evaluate(entry, coefficients) + entry.KingSafety;
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
             return result;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static float Evaluate(TuningData features, float[] coefficients)
@@ -98,7 +97,7 @@ namespace Leorik.Tuning
                     phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                 float phase = Phase(phaseValue);
-                float eval = entry.MidgameEval + phase * entry.EndgameEval;
+                float eval = entry.MidgameEval + phase * entry.EndgameEval + entry.KingSafety;
 
                 float error = SignedError(entry.Result, eval, scalingCoefficient);
                 float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
@@ -148,7 +147,7 @@ namespace Leorik.Tuning
                         phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                     float phase = Phase(phaseValue);
-                    float eval = entry.MidgameEval + phase * entry.EndgameEval;
+                    float eval = entry.MidgameEval + phase * entry.EndgameEval + entry.KingSafety;
 
                     float error = SignedError(entry.Result, eval, scalingCoefficient);
                     float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);

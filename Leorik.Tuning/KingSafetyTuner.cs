@@ -7,11 +7,6 @@ namespace Leorik.Tuning
     {
         const int N = 384; //6 Pieces * 64 Squares
 
-        public static float[] GetLeorikKingPhaseCoefficients()
-        {
-            return (float[])Evaluation.KingPhaseTable.Clone();
-        }
-
         public static float[] GetLeorikKingSafetyCoefficients()
         {
             float[] result = new float[N];
@@ -26,9 +21,15 @@ namespace Leorik.Tuning
             return result;
         }
 
+        public static float[] GetUntrainedKingSafetyCoefficients()
+        {
+            return new float[N];
+        }
+
         public static float EvaluateKingSafety(BoardState board)
         {
-            GetKingPhases(board, Evaluation.KingPhaseTable, out float wkPhase, out float bkPhase);
+            float[] coefficients = KingPhaseTuner.GetLeorikKingPhaseCoefficients();
+            KingPhaseTuner.GetKingPhases(board, coefficients, out float wkPhase, out float bkPhase);
             return EvaluateWhite(board, wkPhase) - EvaluateBlack(board, bkPhase);
         }
 
@@ -64,16 +65,7 @@ namespace Leorik.Tuning
 
         private static int PieceIndex(Piece piece) => ((int)piece >> 2) - 1;
 
-        public static void GetKingPhases(BoardState pos, float[] cKingPhase, out float wkPhase, out float bkPhase)
-        {
-            int blackKingSquare = Bitboard.LSB(pos.Kings & pos.Black);
-            bkPhase = cKingPhase[blackKingSquare];
-
-            int whiteKingSquare = Bitboard.LSB(pos.Kings & pos.White);
-            wkPhase = cKingPhase[whiteKingSquare ^ 56];
-        }
-
-        internal static float[] GetFeatures(BoardState pos, float wkPhase, float bkPhase)
+        internal static float[] GetFeaturesBlack(BoardState pos)
         {
             float[] result = new float[N];
 
@@ -83,8 +75,15 @@ namespace Leorik.Tuning
                 Piece piece = pos.GetPiece(square);
                 int pieceIndex = PieceIndex(piece);
                 int tableIndex = (pieceIndex << 6) | square;
-                result[tableIndex] -= bkPhase;
+                result[tableIndex]++;
             }
+
+            return result;
+        }
+
+        internal static float[] GetFeaturesWhite(BoardState pos)
+        {
+            float[] result = new float[N];
 
             for (ulong bits = pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
@@ -92,10 +91,17 @@ namespace Leorik.Tuning
                 Piece piece = pos.GetPiece(square);
                 int pieceIndex = PieceIndex(piece);
                 int tableIndex = (pieceIndex << 6) | (square ^ 56);
-                result[tableIndex] += wkPhase;
+                result[tableIndex]++;
             }
 
             return result;
+        }
+
+        internal static float EvaluateKingSafety(TuningData td, float[] cKingSafety)
+        {
+            float evalBlack = Evaluate(td.BlackFeatures, cKingSafety);
+            float evalWhite = Evaluate(td.WhiteFeatures, cKingSafety);
+            return td.WhiteKingPhase * evalWhite - td.BlackKingPhase * evalBlack;
         }
 
         internal static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
@@ -103,7 +109,7 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = entry.MaterialEval + Evaluate(entry.KingSafetyFeatures, coefficients);
+                float eval = entry.MaterialEval + EvaluateKingSafety(entry, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
@@ -115,11 +121,16 @@ namespace Leorik.Tuning
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = entry.MaterialEval + Evaluate(entry.KingSafetyFeatures, coefficients);
+                float eval = entry.MaterialEval + EvaluateKingSafety(entry, coefficients);
                 float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                foreach (Feature f in entry.KingSafetyFeatures)
-                    accu[f.Index] += error * f.Value;
+                //evalKS = WhiteKingPhase * evalWhite - td.BlackKingPhase * evalBlack;
+                foreach (Feature f in entry.BlackFeatures)
+                    accu[f.Index] -= error * entry.BlackKingPhase * f.Value;
+
+                foreach (Feature f in entry.WhiteFeatures)
+                    accu[f.Index] += error * entry.WhiteKingPhase * f.Value;
+
             }
 
             for (int i = 0; i < N; i++)
@@ -135,11 +146,15 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = entry.MaterialEval + Evaluate(entry.KingSafetyFeatures, coefficients);
+                    float eval = entry.MaterialEval + EvaluateKingSafety(entry, coefficients);
                     float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                    foreach (Feature f in entry.KingSafetyFeatures)
-                        accu[f.Index] += error * f.Value;
+                    //evalKS = WhiteKingPhase * evalWhite - td.BlackKingPhase * evalBlack;
+                    foreach (Feature f in entry.BlackFeatures)
+                        accu[f.Index] -= error * entry.BlackKingPhase * f.Value;
+
+                    foreach (Feature f in entry.WhiteFeatures)
+                        accu[f.Index] += error * entry.WhiteKingPhase * f.Value;
 
                     return accu;
                 },
