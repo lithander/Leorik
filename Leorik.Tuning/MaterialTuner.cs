@@ -1,16 +1,9 @@
 ﻿using static Leorik.Tuning.Tuner;
 using Leorik.Core;
-using System.Runtime.CompilerServices;
 using System.Diagnostics;
 
 namespace Leorik.Tuning
 {
-    struct Feature
-    {
-        public short Index;
-        public float Value;
-    }
-
     static class MaterialTuner
     {
         const int N = 768; //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
@@ -48,7 +41,6 @@ namespace Leorik.Tuning
             }
             return result;
         }
-
 
         public static float[] GetRandomCoefficients(int min, int max, int seed)
         {
@@ -169,40 +161,6 @@ namespace Leorik.Tuning
             }
         }
 
-        public static short[] IndexBuffer(float[] values)
-        {
-            List<short> indices = new List<short>();
-            for (short i = 0; i < N; i++)
-                if (values[i] != 0)
-                    indices.Add(i);
-
-            return indices.ToArray();
-        }
-
-        public static Feature[] Condense(float[] features)
-        {
-            short[] indices = IndexBuffer(features);
-            Feature[] denseFeatures = new Feature[indices.Length];
-            for (int i = 0; i < indices.Length; i++)
-            {
-                short index = indices[i];
-                denseFeatures[i].Index = index;
-                denseFeatures[i].Value = features[index];
-            }
-            return denseFeatures;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static float Evaluate(Feature[] features, float[] cMaterial)
-        {
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
-            float result = 0;
-            foreach (Feature f in features)
-                result += f.Value * cMaterial[f.Index];
-            return result;
-        }
-
         internal static void GetEvalTerms(BoardState pos, float[] cMaterial, out float midgame, out float endgame)
         {
             midgame = 0; 
@@ -223,28 +181,27 @@ namespace Leorik.Tuning
             }
         }
 
-        public static double MeanSquareError(List<TuningData> data, float[] coefficients, double scalingCoefficient)
+        public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
         {
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients);
+                float eval = Evaluate(entry.MaterialFeatures, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
             return result;
         }
 
-        public static void Minimize(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        public static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
         {
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients);
-                double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                float error = (float)(sigmoid - entry.Result);
+                float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                foreach (Feature f in entry.Features)
+                foreach (Feature f in entry.MaterialFeatures)
                     accu[f.Index] += error * f.Value;
             }
 
@@ -252,7 +209,7 @@ namespace Leorik.Tuning
                 coefficients[i] -= alpha * accu[i] / data.Count;
         }
 
-        public static void MinimizeParallel(List<TuningData> data, float[] coefficients, double scalingCoefficient, float alpha)
+        public static void MinimizeParallel(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -261,11 +218,10 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = Evaluate(entry.Features, coefficients);
-                    double sigmoid = 2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1;
-                    float error = (float)(sigmoid - entry.Result);
+                    float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                    float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                    foreach (Feature f in entry.Features)
+                    foreach (Feature f in entry.MaterialFeatures)
                         accu[f.Index] += error * f.Value;
 
                     return accu;

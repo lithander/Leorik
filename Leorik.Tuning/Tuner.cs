@@ -6,6 +6,12 @@ using static Leorik.Tuning.Tuner;
 
 namespace Leorik.Tuning
 {
+    struct Feature
+    {
+        public short Index;
+        public float Value;
+    }
+
     class Data
     {
         public BoardState Position;
@@ -17,28 +23,46 @@ namespace Leorik.Tuning
         public BoardState Position;
         public sbyte Result;
         //Material
-        public Feature[] Features;
+        public Feature[] MaterialFeatures;
         //Phase
         public float MidgameEval;
         public float EndgameEval;
+        public float Phase;
         public byte[] PieceCounts;
+
+        public float MaterialEval => MidgameEval + Phase * EndgameEval;
     }
 
     static class Tuner
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double SignedError(float reference, float value, double scalingCoefficient)
+        internal static float Sigmoid(float eval, float scalingCoefficient)
         {
-            double sigmoid = 2 / (1 + Math.Exp(-(value / scalingCoefficient))) - 1;
-            return sigmoid - reference;
+            //[-1..1] f(0) = 0
+            return (float)(2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double SquareError(float reference, float value, double scalingCoefficient)
+        internal static float Evaluate(Feature[] features, float[] coefficients)
         {
-            double sigmoid = 2 / (1 + Math.Exp(-(value / scalingCoefficient))) - 1;
-            double error = reference - sigmoid;
-            return (error * error);
+            //dot product of a selection (indices) of elements from the features vector with coefficients vector
+            float result = 0;
+            foreach (Feature f in features)
+                result += f.Value * coefficients[f.Index];
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float SignedError(float reference, float value, float scalingCoefficient)
+        {
+            return Sigmoid(value, scalingCoefficient) - reference;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float SquareError(float reference, float value, float scalingCoefficient)
+        {
+            float error = reference - Sigmoid(value, scalingCoefficient);
+            return error * error;
         }
 
         public static double Minimize(Func<double, double> func, double range0, double range1)
@@ -65,7 +89,7 @@ namespace Leorik.Tuning
             return Minimize(func, min_k - step, min_k + step);
         }
 
-        public static double MeanSquareError(List<Data> data, double scalingCoefficient)
+        public static double MeanSquareError(List<Data> data, float scalingCoefficient)
         {
             double squaredErrorSum = 0;
             foreach (Data entry in data)
@@ -104,37 +128,43 @@ namespace Leorik.Tuning
             MaterialTuner.GetEvalTerms(input.Position, cMaterial, out float mgEval, out float egEval);
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
-            float[] features = MaterialTuner.GetFeatures(input.Position, phase);
-            Feature[] denseFeatures = MaterialTuner.Condense(features);
+            float[] matFeatures = MaterialTuner.GetFeatures(input.Position, phase);
 
             return new TuningData
             {
                 Position = input.Position,
                 Result = input.Result,
-                Features = denseFeatures,
+                
+                MaterialFeatures = Condense(matFeatures),
+                
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,
+                Phase = phase,
             };
         }
 
-        internal static float GetSyncError(TuningData entry, float[] cPhase, float[] cMaterial)
+        public static short[] IndexBuffer(float[] values)
         {
-            float evalP = PhaseTuner.Evaluate(entry, cPhase);
-            float evalM = MaterialTuner.Evaluate(entry.Features, cMaterial);
-            return evalP - evalM;
+            List<short> indices = new List<short>();
+            for (short i = 0; i < values.Length; i++)
+                if (values[i] != 0)
+                    indices.Add(i);
+
+            return indices.ToArray();
         }
 
-        internal static float GetSyncError(IEnumerable<TuningData> data, float[] cPhase, float[] cMaterial)
+        public static Feature[] Condense(float[] features)
         {
-            float error = 0;
-            int count = 0;
-            foreach (var td in data)
+            short[] indices = IndexBuffer(features);
+            Feature[] denseFeatures = new Feature[indices.Length];
+            for (int i = 0; i < indices.Length; i++)
             {
-                count++;
-                error += Math.Abs(GetSyncError(td, cPhase, cMaterial));
+                short index = indices[i];
+                denseFeatures[i].Index = index;
+                denseFeatures[i].Value = features[index];
             }
-            return error / count;
+            return denseFeatures;
         }
 
         internal static void SyncMaterialChanges(List<TuningData> data, float[] cMaterial)
@@ -155,10 +185,23 @@ namespace Leorik.Tuning
             //so that the phase-eval and material-eval will agree again.
             foreach (var td in data)
             {
-                float phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
+                td.Phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
                 //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
-                td.Features = MaterialTuner.AdjustPhase(td.Features, phase);
+                td.MaterialFeatures = MaterialTuner.AdjustPhase(td.MaterialFeatures, td.Phase);
             }
         }
+        
+        internal static void ValidateConsistency(List<TuningData> data, float[] cPhase, float[] cMaterial)
+        {
+            //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
+            foreach (var td in data)
+            {
+                float m = Evaluate(td.MaterialFeatures, cMaterial);
+                float p = PhaseTuner.Evaluate(td, cPhase);
+                if (Math.Abs(m - p) > 0.1f)
+                    throw new Exception("TuningData is out of Sync!");
+            }
+        }
+
     }
 }
