@@ -75,7 +75,7 @@ namespace Leorik.Tuning
                 Piece piece = pos.GetPiece(square);
                 int pieceIndex = PieceIndex(piece);
                 int tableIndex = (pieceIndex << 6) | square;
-                result[tableIndex]++;
+                result[tableIndex] = 1;
             }
 
             return result;
@@ -91,7 +91,7 @@ namespace Leorik.Tuning
                 Piece piece = pos.GetPiece(square);
                 int pieceIndex = PieceIndex(piece);
                 int tableIndex = (pieceIndex << 6) | (square ^ 56);
-                result[tableIndex]++;
+                result[tableIndex] = 1;
             }
 
             return result;

@@ -7,6 +7,8 @@ namespace Leorik.Tuning
     {
         const int N = 64;
 
+        public static float[] Weights = new float[N];
+
         public static float[] GetLeorikKingPhaseCoefficients()
         {
             float[] coefficients = new float[N];
@@ -21,6 +23,19 @@ namespace Leorik.Tuning
             coefficients[62] = 1; //Kingside Castling
             coefficients[57] = -1; //Queenside Castling
             return coefficients;
+        }
+
+        public static float[] InitKingPlacementWeights(List<TuningData> data)
+        {
+            Weights = new float[N];
+            foreach (TuningData entry in data)
+            {
+                Weights[entry.BlackKingSquare]++;
+                Weights[entry.WhiteKingSquare]++;
+            }
+            for (int i = 0; i < N; i++)
+                Weights[i] /= data.Count;
+            return Weights;
         }
 
         public static void GetKingPhases(BoardState pos, float[] cKingPhase, out float wkPhase, out float bkPhase)
@@ -68,9 +83,9 @@ namespace Leorik.Tuning
                 accu[entry.BlackKingSquare] -= error * entry.BlackKingSafety;
                 accu[entry.WhiteKingSquare] += error * entry.WhiteKingSafety;
             }
-
+                        
             for (int i = 0; i < N; i++)
-                coefficients[i] -= alpha * accu[i] / data.Count;
+                coefficients[i] -= alpha * accu[i] / data.Count * Weights[i];
 
             Clamp(coefficients);
         }
@@ -99,7 +114,7 @@ namespace Leorik.Tuning
                     lock (coefficients)
                     {
                         for (int i = 0; i < N; i++)
-                            coefficients[i] -= alpha * accu[i] / data.Count;
+                            coefficients[i] -= alpha * accu[i] / data.Count * Weights[i];
 
                         Clamp(coefficients);
                     }

@@ -5,12 +5,12 @@ using System.Globalization;
 
 float MSE_SCALING = 100;
 
-int ITERATIONS = 100;
+int ITERATIONS = 125;
 
 int MATERIAL_ALPHA = 1000; //learning rate
 int PHASE_ALPHA = 1000;
 int KS_ALPHA = 1000;
-float KS_PHASE_ALPHA = 0.5f;
+float KS_PHASE_ALPHA = 5;
 
 int MATERIAL_BATCH = 100;
 int PHASE_BATCH = 5;
@@ -24,37 +24,34 @@ Console.WriteLine(" Leorik Tuning v8 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
-//ReplKingPhase();
-
 List<Data> data = LoadData("data/quiet-labeled.epd");
 Console.WriteLine();
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
-//TestLeorikMSE();
+TestLeorikMSE();
 //DebugKingPhase();
 
-//float[] cMaterial = MaterialTuner.GetLeorikCoefficients();
-float[] cMaterial = MaterialTuner.GetUntrainedCoefficients();
 //float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cKingPhase = KingPhaseTuner.GetUntrainedKingPhaseCoefficients();
+//float[] cMaterial = MaterialTuner.GetLeorikCoefficients();
+//float[] cKingPhase = KingPhaseTuner.GetLeorikKingPhaseCoefficients();
 //float[] cKingSafety = KingSafetyTuner.GetLeorikKingSafetyCoefficients();
-float[] cKingSafety = KingSafetyTuner.GetUntrainedKingSafetyCoefficients();
 
+float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+float[] cMaterial = MaterialTuner.GetUntrainedCoefficients();
+float[] cKingPhase = KingPhaseTuner.GetUntrainedKingPhaseCoefficients();
+float[] cKingSafety = KingSafetyTuner.GetUntrainedKingSafetyCoefficients();
+PrintKingPhaseCoefficients(cKingPhase);
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 List<TuningData> tuningData = new(data.Count);
 foreach (Data entry in data)
 {
     var td = Tuner.GetTuningData(entry, cPhase, cMaterial, cKingPhase, cKingSafety);
-    //PhaseTuner.Evaluation and MaterialTuner.Evaluation should agree!
-    Debug.Assert(PhaseTuner.Evaluate(td, cPhase) - Tuner.Evaluate(td.MaterialFeatures, cMaterial) < 0.01);
-    //Debug.Assert(KingSafetyTuner.EvaluateKingSafety(entry.Position) - Tuner.Evaluate(td.KingSafetyFeatures, cKingSafety) < 0.01);
-    Debug.Assert(KingSafetyTuner.EvaluateKingSafety(entry.Position) - KingSafetyTuner.EvaluateKingSafety(td, cKingSafety) < 0.01);
     tuningData.Add(td);
 }
+Tuner.ValidateConsistency(tuningData, cPhase, cMaterial, cKingPhase, cKingSafety);
+PrintKingPhaseCoefficients(KingPhaseTuner.InitKingPlacementWeights(tuningData));
 Console.WriteLine();
-
 
 TestMaterialMSE(cMaterial);
 TestPhaseMSE(cPhase);
@@ -69,6 +66,7 @@ for (int it = 0; it < ITERATIONS; it++)
     TuneKingPhaseBatch(KS_PHASE_BATCH, KS_PHASE_ALPHA);
     TuneMaterialBatch(MATERIAL_BATCH, MATERIAL_ALPHA);
     TuneKingSafetyBatch(KS_BATCH, KS_ALPHA);
+    Tuner.ValidateConsistency(tuningData, cPhase, cMaterial, cKingPhase, cKingSafety);
 }
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -210,6 +208,7 @@ void ReplKingPhase()
     {
         string fen = Console.ReadLine();
         BoardState board = Notation.GetBoardState(fen);
+        KingPhaseTuner.GetKingPhases(board, cKingPhase, out float wkPhase, out float bkPhase);
         var eval = new Evaluation(board);
         Console.WriteLine(eval.Score);
     }

@@ -76,6 +76,7 @@ namespace Leorik.Tuning
             float error = reference - Sigmoid(value, scalingCoefficient);
             return error * error;
         }
+
         public static double Minimize(Func<double, double> func, double range0, double range1)
         {
             //find k that minimizes result of func(k)
@@ -239,6 +240,24 @@ namespace Leorik.Tuning
                 KingPhaseTuner.GetKingPhases(td, cKingPhase, out float wkPhase, out float bkPhase);
                 td.BlackKingPhase = bkPhase;
                 td.WhiteKingPhase = wkPhase;
+            }
+        }
+
+        internal static void ValidateConsistency(List<TuningData> data, float[] cPhase, float[] cMaterial, float[] cKingPhase, float[] cKingSafety)
+        {
+            //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
+            foreach (var td in data)
+            {
+                float a = KingPhaseTuner.EvaluateKingPhase(td, cKingPhase);
+                float b = KingSafetyTuner.EvaluateKingSafety(td, cKingSafety);
+                float c = Evaluate(td.MaterialFeatures, cMaterial);
+                float d = PhaseTuner.Evaluate(td, cPhase);
+                if (Math.Abs(a - b) > 0.1f)
+                    throw new Exception("TuningData is out of Sync!");
+                if (Math.Abs(c - d) > 0.1f)
+                    throw new Exception("TuningData is out of Sync!");
+                if (Math.Abs((a + c) - (b + d)) > 0.1f)
+                    throw new Exception("TuningData is out of Sync!");
             }
         }
 
