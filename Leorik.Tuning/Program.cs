@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 125;
+int ITERATIONS = 25;
 int MATERIAL_ALPHA = 1000;
 int PHASE_ALPHA = 1000;
 int MATERIAL_BATCH = 100;
@@ -17,6 +17,8 @@ Console.WriteLine(" Leorik Tuning v9 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
+//ReplPawnStructure();
+
 List<Data> data = LoadData("data/quiet-labeled.epd");
 Console.WriteLine();
 
@@ -24,36 +26,39 @@ Console.WriteLine();
 TestLeorikMSE();
 
 //float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cMaterial = MaterialTuner.GetLeorikCoefficients();
+//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 
 float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cMaterial = MaterialTuner.GetUntrainedCoefficients();
+float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
+long t0 = Stopwatch.GetTimestamp();
 List<TuningData> tuningData = new(data.Count);
 foreach (Data entry in data)
 {
-    var td = Tuner.GetTuningData(entry, cPhase, cMaterial);
+    var td = Tuner.GetTuningData(entry, cPhase, cFeatures);
     tuningData.Add(td);
 }
-Tuner.ValidateConsistency(tuningData, cPhase, cMaterial);
+long t1 = Stopwatch.GetTimestamp();
+Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
-TestMaterialMSE(cMaterial);
+TestMaterialMSE(cFeatures);
 TestPhaseMSE(cPhase);
 
-long t0 = Stopwatch.GetTimestamp();
+t0 = Stopwatch.GetTimestamp();
 for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
     TunePhaseBatch(PHASE_BATCH, PHASE_ALPHA);
     TuneMaterialBatch(MATERIAL_BATCH, MATERIAL_ALPHA);
-    Tuner.ValidateConsistency(tuningData, cPhase, cMaterial);
+    Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 }
-long t1 = Stopwatch.GetTimestamp();
+t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Console.ReadKey();
-PrintMaterialCoefficients(cMaterial);
+PrintMaterialCoefficients(cFeatures);
 PrintPhaseCoefficients(cPhase);
 
 /*
@@ -64,16 +69,16 @@ PrintPhaseCoefficients(cPhase);
 
 void TuneMaterialBatch(int batchSize, float alpha)
 {
-    double msePre = MaterialTuner.MeanSquareError(tuningData, cMaterial, MSE_SCALING);
+    double msePre = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
     Console.Write($"  Material MSE={msePre:N12} Alpha={alpha,5} ");
     long t_0 = Stopwatch.GetTimestamp();
     for (int i = 0; i < batchSize; i++)
     {
-        MaterialTuner.MinimizeParallel(tuningData, cMaterial, MSE_SCALING, alpha);
+        FeatureTuner.MinimizeParallel(tuningData, cFeatures, MSE_SCALING, alpha);
     }
-    Tuner.SyncMaterialChanges(tuningData, cMaterial);
+    Tuner.SyncFeaturesChanges(tuningData, cFeatures);
     long t_1 = Stopwatch.GetTimestamp();
-    double msePost = MaterialTuner.MeanSquareError(tuningData, cMaterial, MSE_SCALING);
+    double msePost = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
     Console.WriteLine($"Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s");
 }
 
@@ -112,9 +117,9 @@ void TestLeorikMSE()
 void TestMaterialMSE(float[] coefficients)
 {
     long t0 = Stopwatch.GetTimestamp();
-    double mse = MaterialTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
+    double mse = FeatureTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
     long t1 = Stopwatch.GetTimestamp();
-    Console.WriteLine($"MSE(cMaterial) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
+    Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
     Console.WriteLine();
 }
@@ -163,4 +168,44 @@ void WriteTable(int offset, int step, float[] coefficients)
         Console.WriteLine();
     }
     Console.WriteLine();
+}
+
+void PrintBitboard(ulong bits)
+{
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            int sq = (7-i) * 8 + j;
+            bool bit = (bits & (1UL << sq)) != 0;
+            Console.Write(bit ? "O " : "- ");
+        }
+        Console.WriteLine();
+    }
+}
+
+void ReplPawnStructure()
+{
+    while (true)
+    {
+        string fen = Console.ReadLine();
+        //fen = "8/8/7p/1P2Pp1P/2Pp1PP1/8/8/8 w - - 0 1";
+        BoardState board = Notation.GetBoardState(fen);
+        Console.WriteLine("Black Pawns");
+        PrintBitboard(board.Black & board.Pawns);
+        Console.WriteLine("Isolated Black Pawns");
+        PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.Black));
+        Console.WriteLine("Passed Black Pawns");
+        PrintBitboard(PawnStructure.GetPassedPawns(board, Color.Black));
+        Console.WriteLine("Doubled Black Pawns");
+        PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.Black));
+        Console.WriteLine("White Pawns");
+        PrintBitboard(board.White & board.Pawns);
+        Console.WriteLine("Isolated White Pawns");
+        PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.White));
+        Console.WriteLine("Passed White Pawns");
+        PrintBitboard(PawnStructure.GetPassedPawns(board, Color.White));
+        Console.WriteLine("Doubled White Pawns");
+        PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.White));
+    }
 }

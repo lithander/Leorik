@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Leorik.Tuning
 {
-    static class MaterialTuner
+    static class FeatureTuner
     {
         const int N = 768; //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
 
@@ -58,126 +58,57 @@ namespace Leorik.Tuning
             return result;
         }
 
+
+        delegate void FeatureHandler(int table, int square, int value);
+
+        private static void IteratePieces(BoardState pos, ulong pieces, FeatureHandler action, int table)
+        {
+            for (ulong bits = pieces & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                action(table, square, -1);
+            }
+            for (ulong bits = pieces & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                action(table, square ^ 56, 1);
+            }
+        }
+
         public static float[] GetFeatures(BoardState pos, float phase)
         {
             float[] result = new float[N];
 
             //phase is used to interpolate between endgame and midgame score but we want to incorporate it into the features vector
             //score = midgameScore + phase * endgameScore
-
-            ulong occupied = pos.Black | pos.White;
-            for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
+            void AddFeature(int table, int square, int value)
             {
-                int square = Bitboard.LSB(bits);
-                Piece piece = pos.GetPiece(square);
-                int pieceOffset = ((int)piece >> 2) - 1;
-                int squareIndex = (piece & Piece.ColorMask) == Piece.White ? square ^ 56 : square;
-                int sign = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
-
-                int iMg = pieceOffset * 128 + 2 * squareIndex;
-                int iEg = iMg + 1;
-                result[iMg] += sign;
-                result[iEg] += sign * phase;
+                int index = table * 128 + 2 * square;
+                result[index] += value;
+                result[index + 1] += value * phase;
             }
+
+            IteratePieces(pos, pos.Pawns,   AddFeature, 0);
+            IteratePieces(pos, pos.Knights, AddFeature, 1);
+            IteratePieces(pos, pos.Bishops, AddFeature, 2);
+            IteratePieces(pos, pos.Rooks,   AddFeature, 3);
+            IteratePieces(pos, pos.Queens,  AddFeature, 4);
+            IteratePieces(pos, pos.Kings,   AddFeature, 5);
             return result;
         }
 
-        internal static Feature[] _AdjustPhase(BoardState position, Feature[] features, float phase)
+        internal static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
         {
-            //*** This is the naive but slow approach ***
-            float[] rawFeatures = GetFeatures(position, phase);
-            Feature[] refResult = Condense(rawFeatures);
-
-            //...but knowing the implementation details we can do it much faster...
-            Feature[] result = AdjustPhase(features, phase);
-
-            //...however, the results should be the same!
-            if (refResult.Length != result.Length)
-                throw new Exception("AdjustPhase is seriously buggy");
-            float error = 0;
-            for(int i = 0; i < result.Length; i++)
-            {
-                ref Feature a = ref refResult[i];
-                ref Feature b = ref result[i];
-                if(a.Index != b.Index)
-                    throw new Exception("AdjustPhase is seriously buggy");
-
-                error += Math.Abs(a.Value - b.Value);
-            }
-            if (error > 0.1)
-                throw new Exception("AdjustPhase is seriously buggy");
-
-            //...which is now verified! (Don't use outside debugging, obviuosly)
-            return result;
-        }
-
-        internal static Feature[] AdjustPhase(Feature[] features, float phase)
-        {
-            //The amount of features could change when phase is or was zero. So let's count the mg features first
-            //mg features are those with an even index
-            int count = 0;
-            foreach (var feature in features)
-                if (feature.Index % 2 == 0)
-                    count++;
-
-            //1. no eg features present or needed -> no change!
-            if (phase == 0 && features.Length == count)
-                return features;
-
-            //2. get rid of the endgame features
-            if (phase == 0 && features.Length == 2 * count) 
-            {
-                Feature[] result = new Feature[count];
-                for (int i = 0; i < features.Length; i += 2)
-                    result[i/2] = features[i];
-
-                return result;
-            }
-
-            //3. just update the eg values
-            if (phase > 0 && features.Length == 2 * count)
-            {
-                for (int i = 0; i < features.Length; i += 2)
-                    features[i + 1].Value = features[i].Value * phase;
-
-                return features;
-            }
-
-            //4. construct eg features from the mg features
-            Debug.Assert(phase > 0 && features.Length == count);
-            {
-                Feature[] result = new Feature[2 * count];
-                int index = 0;
-                foreach (var feature in features)
-                {
-                    result[index++] = feature;
-                    result[index++] = new()
-                    {
-                        Index = (short)(feature.Index + 1),
-                        Value = feature.Value * phase
-                    };
-                }
-                return result;
-            }
-        }
-
-        internal static void GetEvalTerms(BoardState pos, float[] cMaterial, out float midgame, out float endgame)
-        {
-            midgame = 0; 
+            midgame = 0;
             endgame = 0;
-            
-            ulong occupied = pos.Black | pos.White;
-            for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
+            //dot product of a selection (indices) of elements from the features vector with coefficients vector
+            foreach (Feature feature in features)
             {
-                int square = Bitboard.LSB(bits);
-                Piece piece = pos.GetPiece(square);
-                int pieceOffset = ((int)piece >> 2) - 1;
-                int squareIndex = (piece & Piece.ColorMask) == Piece.White ? square ^ 56 : square;
-                int sign = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
+                if (feature.Index % 2 != 0)
+                    continue; //ignore features with built-in phase!
 
-                int iMg = pieceOffset * 128 + 2 * squareIndex;
-                midgame += sign * cMaterial[iMg];
-                endgame += sign * cMaterial[iMg+1];
+                midgame += feature.Value * coefficients[feature.Index];
+                endgame += feature.Value * coefficients[feature.Index + 1];
             }
         }
 
@@ -186,7 +117,7 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                float eval = Evaluate(entry.Features, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
@@ -198,10 +129,10 @@ namespace Leorik.Tuning
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                float eval = Evaluate(entry.Features, coefficients);
                 float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                foreach (Feature f in entry.MaterialFeatures)
+                foreach (Feature f in entry.Features)
                     accu[f.Index] += error * f.Value;
             }
 
@@ -218,10 +149,10 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = Evaluate(entry.MaterialFeatures, coefficients);
+                    float eval = Evaluate(entry.Features, coefficients);
                     float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
-                    foreach (Feature f in entry.MaterialFeatures)
+                    foreach (Feature f in entry.Features)
                         accu[f.Index] += error * f.Value;
 
                     return accu;

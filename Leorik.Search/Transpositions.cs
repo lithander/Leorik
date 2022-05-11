@@ -66,7 +66,6 @@ namespace Leorik.Search
             return (++e0.Age - e0.Depth) > (++e1.Age - e1.Depth) ? index : index ^ 1;
         }
 
-
         static Transpositions()
         {
             Resize(DEFAULT_SIZE_MB);
