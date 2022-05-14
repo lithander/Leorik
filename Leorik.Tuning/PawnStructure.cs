@@ -38,6 +38,11 @@ namespace Leorik.Tuning
             return result;
         }
 
+        public static ulong GetIsolatedPawns(BoardState board)
+        {
+            return GetIsolatedPawns(board, Color.Black) | GetIsolatedPawns(board, Color.White);
+        }
+
         public static ulong GetPassedPawns(BoardState board, Color color)
         {
             if(color == Color.Black)
@@ -52,6 +57,11 @@ namespace Leorik.Tuning
             }
         }
 
+        public static ulong GetPassedPawns(BoardState board)
+        {
+            return GetPassedPawns(board, Color.Black) | GetPassedPawns(board, Color.White);
+        }
+
         public static ulong GetDoubledPawns(BoardState board, Color color)
         {
             if (color == Color.Black)
@@ -64,6 +74,11 @@ namespace Leorik.Tuning
                 ulong whiteRear = Down(FillDown(board.White & board.Pawns));
                 return board.White & board.Pawns & whiteRear;
             }
+        }
+
+        public static ulong GetDoubledPawns(BoardState board)
+        {
+            return GetDoubledPawns(board, Color.Black) | GetDoubledPawns(board, Color.White);
         }
 
         private static ulong FillUp(ulong bits)

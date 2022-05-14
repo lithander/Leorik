@@ -6,7 +6,9 @@ namespace Leorik.Tuning
 {
     static class FeatureTuner
     {
-        const int N = 768; //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
+        //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
+        //(Midgame + Endgame) * (Doubled + Isolated + Passed) * 64 = 384 coefficients
+        const int N = 1152; 
 
         public static float[] GetUntrainedCoefficients()
         {
@@ -94,6 +96,11 @@ namespace Leorik.Tuning
             IteratePieces(pos, pos.Rooks,   AddFeature, 3);
             IteratePieces(pos, pos.Queens,  AddFeature, 4);
             IteratePieces(pos, pos.Kings,   AddFeature, 5);
+
+            //Pawn Structure
+            IteratePieces(pos, PawnStructure.GetDoubledPawns(pos), AddFeature, 6);
+            IteratePieces(pos, PawnStructure.GetIsolatedPawns(pos), AddFeature, 7);
+            IteratePieces(pos, PawnStructure.GetPassedPawns(pos), AddFeature, 8);
             return result;
         }
 

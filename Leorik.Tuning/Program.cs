@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 25;
+int ITERATIONS = 100;
 int MATERIAL_ALPHA = 1000;
 int PHASE_ALPHA = 1000;
 int MATERIAL_BATCH = 100;
@@ -13,7 +13,7 @@ int PHASE_BATCH = 5;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v9 ");
+Console.WriteLine(" Leorik Tuning v10 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
@@ -148,12 +148,28 @@ List<Data> LoadData(string epdFile)
 
 void PrintMaterialCoefficients(float[] coefficients)
 {
-    //MIDGAME PSTs
+    Console.WriteLine("MIDGAME");
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128, 2, coefficients);
-    //ENDGAME PSTs
+    
+    Console.WriteLine("ENDGAME");
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("Doubled - Midgame");
+    WriteTable(6 * 128, 2, coefficients);
+    Console.WriteLine("Doubled - Endgame");
+    WriteTable(6 * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("Isolated - Midgame");
+    WriteTable(7 * 128, 2, coefficients);
+    Console.WriteLine("Isolated - Endgame");
+    WriteTable(7 * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("Passed - Midgame");
+    WriteTable(8 * 128, 2, coefficients);
+    Console.WriteLine("Passed - Endgame");
+    WriteTable(8 * 128 + 1, 2, coefficients);
 }
 
 void WriteTable(int offset, int step, float[] coefficients)
