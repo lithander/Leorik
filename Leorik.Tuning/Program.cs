@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 100;
-int MATERIAL_ALPHA = 1000;
+int ITERATIONS = 200;
+int MATERIAL_ALPHA = 700;
 int PHASE_ALPHA = 1000;
-int MATERIAL_BATCH = 100;
+int MATERIAL_BATCH = 50;
 int PHASE_BATCH = 5;
 
 
@@ -17,7 +17,7 @@ Console.WriteLine(" Leorik Tuning v10 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
-//ReplPawnStructure();
+ReplPawnStructure();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
 Console.WriteLine();
@@ -57,10 +57,11 @@ for (int it = 0; it < ITERATIONS; it++)
 }
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
-Console.ReadKey();
+
 PrintMaterialCoefficients(cFeatures);
 PrintPhaseCoefficients(cPhase);
 
+Console.ReadKey();
 /*
 * 
 * FUNCTIONS 
@@ -156,20 +157,30 @@ void PrintMaterialCoefficients(float[] coefficients)
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
 
-    Console.WriteLine("Doubled - Midgame");
+    Console.WriteLine("ConnectedOrProtected - MG");
     WriteTable(6 * 128, 2, coefficients);
-    Console.WriteLine("Doubled - Endgame");
+    Console.WriteLine("ConnectedOrProtected - EG");
     WriteTable(6 * 128 + 1, 2, coefficients);
 
-    Console.WriteLine("Isolated - Midgame");
+    Console.WriteLine("DoubledPawns - MG");
     WriteTable(7 * 128, 2, coefficients);
-    Console.WriteLine("Isolated - Endgame");
+    Console.WriteLine("DoubledPawns - EG");
     WriteTable(7 * 128 + 1, 2, coefficients);
 
-    Console.WriteLine("Passed - Midgame");
+    Console.WriteLine("PassedPawns - MG");
     WriteTable(8 * 128, 2, coefficients);
-    Console.WriteLine("Passed - Endgame");
+    Console.WriteLine("PassedPawns - EG");
     WriteTable(8 * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("IsolatedPawns - MG");
+    WriteTable(9 * 128, 2, coefficients);
+    Console.WriteLine("IsolatedPawns - EG");
+    WriteTable(9 * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("ConnectedPassedPawns - MG");
+    WriteTable(10 * 128, 2, coefficients);
+    Console.WriteLine("ConnectedPassedPawns - EG");
+    WriteTable(10 * 128 + 1, 2, coefficients);
 }
 
 void WriteTable(int offset, int step, float[] coefficients)
@@ -205,23 +216,38 @@ void ReplPawnStructure()
     while (true)
     {
         string fen = Console.ReadLine();
+        if (fen == "")
+            break;
         //fen = "8/8/7p/1P2Pp1P/2Pp1PP1/8/8/8 w - - 0 1";
         BoardState board = Notation.GetBoardState(fen);
         Console.WriteLine("Black Pawns");
         PrintBitboard(board.Black & board.Pawns);
-        Console.WriteLine("Isolated Black Pawns");
-        PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.Black));
-        Console.WriteLine("Passed Black Pawns");
-        PrintBitboard(PawnStructure.GetPassedPawns(board, Color.Black));
-        Console.WriteLine("Doubled Black Pawns");
-        PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.Black));
+        //Console.WriteLine("Isolated Black Pawns");
+        //PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.Black));
+        //Console.WriteLine("Passed Black Pawns");
+        //PrintBitboard(PawnStructure.GetPassedPawns(board, Color.Black));
+        //Console.WriteLine("Doubled Black Pawns");
+        //PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.Black));
+        //Console.WriteLine("Protected Black Pawns");
+        //PrintBitboard(PawnStructure.GetProtectedPawns(board, Color.Black));
+        Console.WriteLine("Connected Black Pawns");
+        PrintBitboard(PawnStructure.GetConnectedPawns(board, Color.Black));
+        
         Console.WriteLine("White Pawns");
         PrintBitboard(board.White & board.Pawns);
-        Console.WriteLine("Isolated White Pawns");
-        PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.White));
-        Console.WriteLine("Passed White Pawns");
-        PrintBitboard(PawnStructure.GetPassedPawns(board, Color.White));
-        Console.WriteLine("Doubled White Pawns");
-        PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.White));
+        //Console.WriteLine("Isolated White Pawns");
+        //PrintBitboard(PawnStructure.GetIsolatedPawns(board, Color.White));
+        //Console.WriteLine("Passed White Pawns");
+        //PrintBitboard(PawnStructure.GetPassedPawns(board, Color.White));
+        //Console.WriteLine("Doubled White Pawns");
+        //PrintBitboard(PawnStructure.GetDoubledPawns(board, Color.White));
+        //Console.WriteLine("Protected White Pawns");
+        //PrintBitboard(PawnStructure.GetProtectedPawns(board, Color.White));
+        Console.WriteLine("Connected Black Pawns");
+        PrintBitboard(PawnStructure.GetConnectedPawns(board, Color.White));
+
+        Console.WriteLine("Connected Passed Pawns");
+        PrintBitboard(PawnStructure.GetConnectedPassedPawns(board));
+
     }
 }

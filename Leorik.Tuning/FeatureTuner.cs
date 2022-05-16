@@ -8,7 +8,7 @@ namespace Leorik.Tuning
     {
         //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
         //(Midgame + Endgame) * (Doubled + Isolated + Passed) * 64 = 384 coefficients
-        const int N = 1152; 
+        const int N = 1152 + 128 + 128; 
 
         public static float[] GetUntrainedCoefficients()
         {
@@ -90,6 +90,7 @@ namespace Leorik.Tuning
                 result[index + 1] += value * phase;
             }
 
+
             IteratePieces(pos, pos.Pawns,   AddFeature, 0);
             IteratePieces(pos, pos.Knights, AddFeature, 1);
             IteratePieces(pos, pos.Bishops, AddFeature, 2);
@@ -98,9 +99,11 @@ namespace Leorik.Tuning
             IteratePieces(pos, pos.Kings,   AddFeature, 5);
 
             //Pawn Structure
-            IteratePieces(pos, PawnStructure.GetDoubledPawns(pos), AddFeature, 6);
-            IteratePieces(pos, PawnStructure.GetIsolatedPawns(pos), AddFeature, 7);
+            IteratePieces(pos, PawnStructure.GetConnectedOrProtected(pos), AddFeature, 6);
+            IteratePieces(pos, PawnStructure.GetDoubledPawns(pos), AddFeature, 7);
             IteratePieces(pos, PawnStructure.GetPassedPawns(pos), AddFeature, 8);
+            IteratePieces(pos, PawnStructure.GetIsolatedPawns(pos), AddFeature, 9);
+            IteratePieces(pos, PawnStructure.GetConnectedPassedPawns(pos), AddFeature, 10);
             return result;
         }
 

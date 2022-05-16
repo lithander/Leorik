@@ -213,6 +213,7 @@ namespace Leorik.Tuning
             //...however, the results should be the same!
             if (refResult.Length != result.Length)
                 throw new Exception("AdjustPhase is seriously buggy");
+
             float error = 0;
             for (int i = 0; i < result.Length; i++)
             {

@@ -1,14 +1,8 @@
-﻿using Leorik.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
 
-namespace Leorik.Tuning
+namespace Leorik.Core
 {
-    internal class PawnStructure
+    public class PawnStructure
     {
         public static readonly ulong[] NeighbourFiles =
         {
@@ -45,7 +39,7 @@ namespace Leorik.Tuning
 
         public static ulong GetPassedPawns(BoardState board, Color color)
         {
-            if(color == Color.Black)
+            if (color == Color.Black)
             {
                 ulong whiteFront = Up(FillUp(board.White & board.Pawns));
                 return board.Black & board.Pawns & ~(whiteFront | Left(whiteFront) | Right(whiteFront));
@@ -73,6 +67,59 @@ namespace Leorik.Tuning
             {
                 ulong whiteRear = Down(FillDown(board.White & board.Pawns));
                 return board.White & board.Pawns & whiteRear;
+            }
+        }
+
+        public static ulong GetProtectedPawns(BoardState board)
+        {
+            return GetProtectedPawns(board, Color.Black) | GetProtectedPawns(board, Color.White);
+        }
+
+        public static ulong GetProtectedPawns(BoardState board, Color color)
+        {
+            if (color == Color.Black)
+            {
+                ulong blackPawns = board.Black & board.Pawns;
+                //capture left
+                ulong captureLeft = (blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9;
+                ulong captureRight = (blackPawns & 0x7F7F7F7F7F7F7F7FUL) >> 7;
+                return (captureLeft | captureRight) & blackPawns;
+            }
+            else //White
+            {
+                ulong whitePawns = board.White & board.Pawns;
+                ulong captureRight = (whitePawns & 0x7F7F7F7F7F7F7F7FUL) << 9;
+                ulong captureLeft = (whitePawns & 0xFEFEFEFEFEFEFEFEUL) << 7;
+                return (captureRight | captureLeft) & whitePawns;
+            }
+        }
+
+        public static ulong GetConnectedOrProtected(BoardState board)
+        {
+            return GetConnectedPawns(board) | GetProtectedPawns(board);
+        }
+
+        public static ulong GetConnectedPassedPawns(BoardState board)
+        {
+            return GetConnectedPawns(board) & GetPassedPawns(board);
+        }
+
+        public static ulong GetConnectedPawns(BoardState board)
+        {
+            return GetConnectedPawns(board, Color.Black) | GetConnectedPawns(board, Color.White);
+        }
+
+        public static ulong GetConnectedPawns(BoardState board, Color color)
+        {
+            if (color == Color.Black)
+            {
+                ulong blackPawns = board.Black & board.Pawns;
+                return (Left(blackPawns) ^ Right(blackPawns)) & blackPawns;
+            }
+            else //White
+            {
+                ulong whitePawns = board.White & board.Pawns;
+                return (Left(whitePawns) ^ Right(whitePawns)) & whitePawns;
             }
         }
 
