@@ -4,16 +4,16 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 200;
+int ITERATIONS = 80;
 int MATERIAL_ALPHA = 700;
-int PHASE_ALPHA = 1000;
-int MATERIAL_BATCH = 50;
+int PHASE_ALPHA = 200;
+int MATERIAL_BATCH = 100;
 int PHASE_BATCH = 5;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v10 ");
+Console.WriteLine(" Leorik Tuning v11 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
@@ -157,30 +157,30 @@ void PrintMaterialCoefficients(float[] coefficients)
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
 
-    Console.WriteLine("ConnectedOrProtected - MG");
-    WriteTable(6 * 128, 2, coefficients);
-    Console.WriteLine("ConnectedOrProtected - EG");
-    WriteTable(6 * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("DoubledPawns - MG");
-    WriteTable(7 * 128, 2, coefficients);
-    Console.WriteLine("DoubledPawns - EG");
-    WriteTable(7 * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("PassedPawns - MG");
-    WriteTable(8 * 128, 2, coefficients);
-    Console.WriteLine("PassedPawns - EG");
-    WriteTable(8 * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("IsolatedPawns - MG");
-    WriteTable(9 * 128, 2, coefficients);
-    Console.WriteLine("IsolatedPawns - EG");
-    WriteTable(9 * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("ConnectedPassedPawns - MG");
-    WriteTable(10 * 128, 2, coefficients);
-    Console.WriteLine("ConnectedPassedPawns - EG");
-    WriteTable(10 * 128 + 1, 2, coefficients);
+    //Console.WriteLine("ConnectedOrProtected - MG");
+    //WriteTable(6 * 128, 2, coefficients);
+    //Console.WriteLine("ConnectedOrProtected - EG");
+    //WriteTable(6 * 128 + 1, 2, coefficients);
+    //
+    //Console.WriteLine("DoubledPawns - MG");
+    //WriteTable(7 * 128, 2, coefficients);
+    //Console.WriteLine("DoubledPawns - EG");
+    //WriteTable(7 * 128 + 1, 2, coefficients);
+    //
+    //Console.WriteLine("PassedPawns - MG");
+    //WriteTable(8 * 128, 2, coefficients);
+    //Console.WriteLine("PassedPawns - EG");
+    //WriteTable(8 * 128 + 1, 2, coefficients);
+    //
+    //Console.WriteLine("IsolatedPawns - MG");
+    //WriteTable(9 * 128, 2, coefficients);
+    //Console.WriteLine("IsolatedPawns - EG");
+    //WriteTable(9 * 128 + 1, 2, coefficients);
+    //
+    //Console.WriteLine("ConnectedPassedPawns - MG");
+    //WriteTable(10 * 128, 2, coefficients);
+    //Console.WriteLine("ConnectedPassedPawns - EG");
+    //WriteTable(10 * 128 + 1, 2, coefficients);
 }
 
 void WriteTable(int offset, int step, float[] coefficients)

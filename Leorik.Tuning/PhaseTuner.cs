@@ -62,7 +62,7 @@ namespace Leorik.Tuning
         {
             float phaseValue = GetPhaseValue(features.PieceCounts, coefficients);
             float phase = Phase(phaseValue);
-            return features.MidgameEval + phase * features.EndgameEval;
+            return features.MidgameEval + phase * features.EndgameEval + features.Pawns.GetScore(phase);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -97,7 +97,7 @@ namespace Leorik.Tuning
                     phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                 float phase = Phase(phaseValue);
-                float eval = entry.MidgameEval + phase * entry.EndgameEval;
+                float eval = entry.MidgameEval + phase * entry.EndgameEval + entry.Pawns.GetScore(phase);
 
                 float error = SignedError(entry.Result, eval, scalingCoefficient);
                 float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
@@ -147,7 +147,7 @@ namespace Leorik.Tuning
                         phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                     float phase = Phase(phaseValue);
-                    float eval = entry.MidgameEval + phase * entry.EndgameEval;
+                    float eval = entry.MidgameEval + phase * entry.EndgameEval + entry.Pawns.GetScore(phase);
 
                     float error = SignedError(entry.Result, eval, scalingCoefficient);
                     float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);

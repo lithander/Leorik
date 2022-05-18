@@ -8,7 +8,8 @@ namespace Leorik.Tuning
     {
         //(Midgame + Endgame) * 6 Pieces * 64 Squares = 768 coefficients
         //(Midgame + Endgame) * (Doubled + Isolated + Passed) * 64 = 384 coefficients
-        const int N = 1152 + 128 + 128; 
+        const int N = 768;
+        //const int N = 1152 + 128 + 128; 
 
         public static float[] GetUntrainedCoefficients()
         {
@@ -37,8 +38,8 @@ namespace Leorik.Tuning
             {
                 for (int sq = 0; sq < 64; sq++)
                 {
-                    result[index++] = Evaluation.MidgameTables[64 * piece + sq];
-                    result[index++] = Evaluation.EndgameTables[64 * piece + sq];
+                    result[index++] = MaterialEval.MidgameTables[64 * piece + sq];
+                    result[index++] = MaterialEval.EndgameTables[64 * piece + sq];
                 }
             }
             return result;
@@ -99,11 +100,11 @@ namespace Leorik.Tuning
             IteratePieces(pos, pos.Kings,   AddFeature, 5);
 
             //Pawn Structure
-            IteratePieces(pos, PawnStructure.GetConnectedOrProtected(pos), AddFeature, 6);
-            IteratePieces(pos, PawnStructure.GetDoubledPawns(pos), AddFeature, 7);
-            IteratePieces(pos, PawnStructure.GetPassedPawns(pos), AddFeature, 8);
-            IteratePieces(pos, PawnStructure.GetIsolatedPawns(pos), AddFeature, 9);
-            IteratePieces(pos, PawnStructure.GetConnectedPassedPawns(pos), AddFeature, 10);
+            //IteratePieces(pos, PawnStructure.GetConnectedOrProtected(pos), AddFeature, 6);
+            //IteratePieces(pos, PawnStructure.GetDoubledPawns(pos), AddFeature, 7);
+            //IteratePieces(pos, PawnStructure.GetPassedPawns(pos), AddFeature, 8);
+            //IteratePieces(pos, PawnStructure.GetIsolatedPawns(pos), AddFeature, 9);
+            //IteratePieces(pos, PawnStructure.GetConnectedPassedPawns(pos), AddFeature, 10);
             return result;
         }
 
@@ -127,7 +128,7 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients);
+                float eval = Evaluate(entry.Features, coefficients) + entry.Pawns.GetScore(entry.Phase);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
@@ -139,7 +140,7 @@ namespace Leorik.Tuning
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients);
+                float eval = Evaluate(entry.Features, coefficients) + entry.Pawns.GetScore(entry.Phase);
                 float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                 foreach (Feature f in entry.Features)
@@ -159,7 +160,7 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = Evaluate(entry.Features, coefficients);
+                    float eval = Evaluate(entry.Features, coefficients) + entry.Pawns.GetScore(entry.Phase);
                     float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                     foreach (Feature f in entry.Features)

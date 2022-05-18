@@ -2,23 +2,161 @@
 
 namespace Leorik.Core
 {
+    public struct MaterialEval
+    {
+        public short Base;
+        public short Endgame;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddScore(int pieceIndex, int squareIndex)
+        {
+            int tableIndex = (pieceIndex << 6) | squareIndex;
+            Base += MidgameTables[tableIndex];
+            Endgame += EndgameTables[tableIndex];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SubtractScore(int pieceIndex, int squareIndex)
+        {
+            int tableIndex = (pieceIndex << 6) | squareIndex;
+            Base -= MidgameTables[tableIndex];
+            Endgame -= EndgameTables[tableIndex];
+        }
+
+        public static readonly short[] MidgameTables = new short[6 * 64]{
+          100,  100,  100,  100,  100,  100,  100,  100,
+          154,  195,  130,  165,  152,  191,  115,   68,
+           74,   79,  109,  110,  147,  150,  105,   75,
+           60,   79,   84,   99,  100,   93,   90,   65,
+           48,   61,   71,   88,   92,   85,   81,   61,
+           51,   59,   71,   66,   78,   84,  103,   74,
+           40,   61,   54,   51,   59,  103,  106,   63,
+          100,  100,  100,  100,  100,  100,  100,  100,
+
+          147,  242,  256,  267,  306,  232,  269,  196,
+          245,  264,  386,  336,  329,  371,  301,  289,
+          278,  376,  360,  389,  411,  427,  397,  348,
+          305,  342,  341,  379,  363,  396,  345,  340,
+          310,  322,  338,  337,  352,  345,  341,  315,
+          301,  313,  336,  334,  343,  342,  349,  308,
+          289,  258,  311,  320,  322,  340,  300,  312,
+          225,  303,  259,  282,  303,  296,  306,  279,
+
+          298,  316,  261,  257,  295,  279,  302,  298,
+          320,  362,  337,  314,  365,  375,  358,  307,
+          338,  378,  389,  392,  379,  397,  386,  353,
+          348,  361,  374,  404,  392,  389,  363,  351,
+          342,  371,  368,  377,  390,  366,  360,  349,
+          350,  367,  367,  369,  367,  381,  369,  359,
+          348,  368,  366,  354,  363,  370,  386,  349,
+          303,  345,  340,  331,  337,  342,  301,  321,
+
+          480,  505,  472,  520,  516,  486,  483,  485,
+          480,  481,  510,  518,  532,  542,  486,  507,
+          441,  464,  476,  481,  469,  503,  518,  471,
+          418,  431,  449,  475,  468,  480,  454,  440,
+          401,  413,  430,  437,  446,  440,  465,  425,
+          394,  418,  427,  422,  446,  445,  450,  417,
+          392,  426,  419,  430,  441,  451,  440,  377,
+          418,  427,  441,  449,  453,  438,  417,  422,
+
+          861,  895,  922,  899,  952,  941,  920,  928,
+          893,  870,  905,  918,  910,  960,  927,  953,
+          902,  901,  921,  922,  945,  976,  963,  970,
+          878,  884,  899,  898,  912,  931,  912,  912,
+          902,  885,  902,  901,  908,  911,  916,  912,
+          891,  916,  900,  908,  905,  913,  926,  912,
+          875,  900,  924,  911,  919,  926,  909,  911,
+          905,  891,  900,  922,  892,  884,  887,  863,
+
+          -41,    3,    1,   -5,  -16,   -8,    9,   -2,
+            6,   26,   17,   33,   12,   12,    2,  -11,
+           13,   30,   38,    9,   18,   43,   53,   -5,
+            0,    4,   11,   -6,  -14,  -14,   -2,  -47,
+          -26,   14,  -16,  -68,  -71,  -42,  -49,  -66,
+           -1,   19,   -8,  -39,  -49,  -36,    3,  -12,
+           22,   37,    4,  -56,  -34,   -2,   41,   50,
+           15,   72,   41,  -46,   27,  -13,   61,   56,
+        };
+
+        public static short[] EndgameTables = new short[6 * 64]{
+            0,    0,    0,    0,    0,    0,    0,    0,
+           32,  -13,   58,    7,   22,  -39,   54,  118,
+           65,   67,   25,   13,  -42,  -49,   14,   45,
+           30,    6,    0,  -22,  -23,  -17,  -13,   11,
+           28,   15,    5,  -12,  -16,  -15,  -16,    3,
+           18,   12,    2,   20,    7,  -10,  -48,  -17,
+           42,   12,   39,   44,   40,  -24,  -47,   -3,
+            0,    0,    0,    0,    0,    0,    0,    0,
+
+           71,  -12,    5,  -24,  -50,    9,  -43,  -14,
+            3,    1, -142,  -64,  -65, -126,  -50,  -61,
+          -33, -126,  -80, -113, -152, -165, -148, -114,
+          -50,  -71,  -50,  -93,  -74, -120,  -70,  -86,
+          -55,  -56,  -52,  -43,  -67,  -62,  -66,  -61,
+          -54,  -46,  -70,  -50,  -64,  -75,  -99,  -62,
+          -52,    0,  -52,  -56,  -55,  -86,  -48,  -88,
+           15,  -90,   -6,  -25,  -55,  -44,  -90,  -54,
+
+          -14,  -38,   23,   35,   -5,   11,  -17,  -23,
+          -35,  -79,  -44,  -30,  -79,  -93,  -72,  -25,
+          -50,  -98, -106, -109,  -94, -111, -103,  -65,
+          -66,  -68,  -79, -113,  -95,  -98,  -78,  -65,
+          -61,  -85,  -68,  -71,  -99,  -72,  -80,  -66,
+          -72,  -80,  -72,  -73,  -69,  -96,  -89,  -85,
+          -71, -100,  -87,  -68,  -75,  -94, -117,  -88,
+          -29,  -62,  -79,  -49,  -59,  -76,  -14,  -42,
+
+           37,    5,   52,   -7,   -1,   27,   27,   27,
+           33,   35,    1,  -10,  -38,  -45,   24,   -3,
+           74,   50,   35,   30,   40,   -7,  -23,   29,
+           99,   83,   71,   32,   40,   26,   45,   70,
+          117,  107,   89,   78,   62,   63,   30,   76,
+          118,   96,   80,   90,   55,   52,   46,   82,
+          120,   79,   94,   83,   60,   46,   57,  134,
+           88,   88,   75,   65,   56,   68,   95,   65,
+
+           47,   36,    6,   48,  -25,  -13,  -14,  -10,
+            3,   65,   39,   36,   55,  -26,   10,  -35,
+          -11,   11,   -9,   30,   15,  -43,  -37,  -60,
+           43,   54,   34,   63,   65,   21,   64,   46,
+          -11,   58,   34,   64,   41,   35,   27,   27,
+           18,  -40,   34,   12,   25,   16,   -7,   10,
+           19,   -8,  -50,  -16,  -21,  -42,  -40,  -45,
+          -27,  -13,  -13,  -69,   18,  -11,    5,   10,
+
+          -35,  -35,  -32,  -17,    3,   11,   -3,   -6,
+          -18,  -20,   -7,  -24,   -1,   16,   21,   21,
+           -9,  -21,  -27,   -1,   -9,  -12,  -18,   13,
+          -15,    8,    9,   27,   36,   43,   26,   51,
+            5,  -23,   37,  102,  105,   71,   65,   64,
+          -18,  -25,   20,   63,   79,   60,    5,    4,
+          -52,  -52,    3,   75,   52,    9,  -50,  -76,
+          -72, -122,  -69,   40,  -61,    2,  -98, -117,
+        };
+    }
+
     public struct Evaluation
     {
-        private short _baseScore;
-        private short _endgameScore;
         private short _phaseValue;
+        private PawnEval _pawns;
+        private MaterialEval _material;
 
         public short Score { get; private set; }
 
-        //TODO: don't export interna for the sake of the Tuner
-        public float P => (float)Phase(_phaseValue);
-        public short MG => _baseScore;
-        public short EG => _endgameScore;
-
         public Evaluation(BoardState board) : this()
         {
+            _pawns.Update(board);
             AddPieces(board);
-            Score = (short)Interpolate(_baseScore, _endgameScore, _phaseValue);
+            UpdateScore();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateScore()
+        {
+            int mg = _pawns.Base + _material.Base;
+            int eg = _pawns.Endgame + _material.Endgame;
+            Score = (short)(mg + Phase(_phaseValue) * eg);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -34,8 +172,10 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Update(ref Move move)
+        internal void Update(BoardState board, ref Move move)
         {
+            _pawns.Update(board, ref move);
+
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);
 
@@ -68,7 +208,7 @@ namespace Leorik.Core
                     break;
             }
 
-            Score = (short)Interpolate(_baseScore, _endgameScore, _phaseValue);
+            UpdateScore();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,9 +217,9 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue += PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                AddScore(pieceIndex, squareIndex ^ 56);
+                _material.AddScore(pieceIndex, squareIndex ^ 56);
             else
-                SubtractScore(pieceIndex, squareIndex);
+                _material.SubtractScore(pieceIndex, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -88,29 +228,14 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             _phaseValue -= PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                SubtractScore(pieceIndex, squareIndex ^ 56);
+                _material.SubtractScore(pieceIndex, squareIndex ^ 56);
             else
-                AddScore(pieceIndex, squareIndex);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddScore(int pieceIndex, int squareIndex)
-        {
-            int tableIndex = (pieceIndex << 6) | squareIndex;
-            _baseScore += MidgameTables[tableIndex];
-            _endgameScore += EndgameTables[tableIndex];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SubtractScore(int pieceIndex, int squareIndex)
-        {
-            int tableIndex = (pieceIndex << 6) | squareIndex;
-            _baseScore -= MidgameTables[tableIndex];
-            _endgameScore -= EndgameTables[tableIndex];
+                _material.AddScore(pieceIndex, squareIndex);
         }
 
         public const int CheckmateBase = 9000;
         public const int CheckmateScore = 9999;
+                
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetMateDistance(int score)
@@ -131,136 +256,28 @@ namespace Leorik.Core
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double Interpolate(short midgameScore, short endgameScore, short phaseValue)
+        public static float Phase(short phaseValue)
         {
-            return midgameScore + Phase(phaseValue) * endgameScore;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double Phase(short phaseValue)
-        {
-            return Math.Clamp((double)(PhaseSum - phaseValue) / PhaseSum, 0, 1);
+            return Math.Clamp((float)(PhaseSum - phaseValue) / PhaseSum, 0, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int PieceIndex(Piece piece) => ((int)piece >> 2) - 1;
 
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 77, 317, 382, 946, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 105, 311, 395, 879, 0 };
 
         //Tuned on 'data/quiet-labeled.epd'
-        //500 Iterations. Material MSE = 0,245998296203
-        //Leorik's MSE(data) with MSE_SCALING = 100 on the dataset: 0,24599673230870314
-        public static readonly short[] MidgameTables = new short[6 * 64]{
-          100,  100,  100,  100,  100,  100,  100,  100,
-          154,  205,  132,  172,  159,  222,  121,   51,
-           63,   80,  105,  108,  147,  137,  102,   57,
-           51,   84,   81,   95,   97,   86,   93,   51,
-           40,   69,   69,   86,   91,   82,   87,   50,
-           42,   67,   69,   64,   78,   81,  110,   63,
-           33,   71,   53,   50,   59,  101,  114,   53,
-          100,  100,  100,  100,  100,  100,  100,  100,
+        //MSE_SCALING = 100;
+        //ITERATIONS = 80;
+        //MATERIAL_ALPHA = 700;
+        //PHASE_ALPHA = 200;
+        //MATERIAL_BATCH = 100;
+        //PHASE_BATCH = 5;
+        //==================
+        //MSE=0,241711475410
+        //==================
+        //Leorik's MSE(data) with MSE_SCALING = 100 on the dataset: 0,24173941526656895
 
-          140,  229,  246,  281,  350,  233,  298,  204,
-          252,  272,  396,  351,  346,  385,  319,  313,
-          290,  383,  363,  392,  418,  444,  402,  374,
-          311,  345,  344,  381,  365,  399,  348,  345,
-          312,  326,  340,  339,  355,  348,  346,  319,
-          304,  316,  339,  336,  346,  345,  351,  311,
-          293,  267,  313,  323,  324,  343,  308,  314,
-          208,  306,  266,  288,  305,  300,  309,  299,
-
-          329,  337,  256,  251,  309,  288,  317,  335,
-          330,  369,  342,  323,  384,  391,  368,  315,
-          339,  381,  390,  394,  383,  404,  390,  356,
-          349,  360,  373,  405,  393,  393,  363,  353,
-          345,  372,  367,  376,  388,  365,  361,  353,
-          351,  367,  367,  369,  366,  381,  369,  360,
-          356,  368,  366,  353,  361,  371,  385,  349,
-          309,  348,  340,  333,  339,  342,  311,  327,
-
-          464,  491,  455,  509,  505,  454,  439,  461,
-          459,  467,  494,  501,  515,  526,  465,  484,
-          421,  446,  460,  462,  450,  483,  496,  449,
-          403,  417,  434,  461,  453,  463,  434,  421,
-          390,  399,  418,  426,  434,  427,  446,  413,
-          385,  406,  417,  412,  435,  433,  436,  406,
-          383,  416,  410,  421,  431,  442,  426,  366,
-          410,  417,  431,  440,  443,  429,  406,  412,
-
-          859,  871,  914,  867,  970,  965,  935,  933,
-          878,  860,  893,  902,  888,  964,  920,  950,
-          887,  886,  910,  910,  935,  978,  958,  962,
-          863,  870,  885,  884,  898,  919,  896,  898,
-          889,  870,  889,  887,  894,  897,  902,  899,
-          876,  901,  886,  893,  891,  899,  912,  899,
-          862,  886,  910,  897,  904,  911,  898,  905,
-          891,  876,  886,  908,  878,  869,  870,  839,
-
-          -39,   63,   52,   12,  -50,  -38,   30,   16,
-           31,   68,   37,   83,   16,    0,  -28,  -53,
-           31,   46,   75,   12,   33,   63,   76,  -23,
-            4,  -10,    2,  -26,  -30,  -35,  -19,  -84,
-          -42,   11,  -29,  -94,  -86,  -54,  -60,  -75,
-           10,   19,  -16,  -46,  -56,  -43,   -1,  -13,
-           31,   34,    4,  -57,  -35,   -4,   39,   46,
-           20,   70,   39,  -48,   26,  -15,   57,   53,
-        };
-
-        public static short[] EndgameTables = new short[6 * 64]{
-            0,    0,    0,    0,    0,    0,    0,    0,
-          119,   57,  124,   55,   72,   -9,  132,  227,
-          135,  123,   76,   56,   -1,    9,   76,  126,
-           82,   37,   29,    4,   -5,   13,   17,   63,
-           72,   37,   24,    2,   -4,    3,    8,   45,
-           61,   37,   20,   33,   18,    8,  -21,   24,
-           81,   34,   52,   55,   48,   -8,  -21,   35,
-            0,    0,    0,    0,    0,    0,    0,    0,
-
-           83,    1,   15,  -48, -109,    3,  -84,  -26,
-          -13,  -13, -157,  -88,  -91, -146,  -77,  -99,
-          -54, -138,  -88, -122, -165, -191, -159, -153,
-          -61,  -79,  -59, -100,  -82, -128,  -80,  -98,
-          -65,  -67,  -60,  -51,  -76,  -69,  -78,  -72,
-          -64,  -54,  -79,  -59,  -73,  -84, -106,  -72,
-          -67,  -19,  -61,  -65,  -63,  -97,  -64,  -96,
-           31,  -98,  -21,  -38,  -63,  -56,  -97,  -90,
-
-          -63,  -74,   23,   39,  -30,   -7,  -45,  -78,
-          -57,  -95,  -57,  -49, -111, -124,  -93,  -46,
-          -58, -109, -114, -119, -107, -127, -116,  -75,
-          -73,  -72,  -85, -121, -102, -108,  -83,  -75,
-          -72,  -92,  -74,  -78, -104,  -78,  -88,  -80,
-          -81,  -88,  -79,  -80,  -74, -101,  -96,  -94,
-          -91, -106,  -92,  -73,  -80, -104, -122,  -95,
-          -45,  -75,  -85,  -58,  -68,  -82,  -36,  -58,
-
-           50,   16,   68,    0,    6,   60,   75,   50,
-           52,   45,   15,    7,  -24,  -32,   44,   19,
-           91,   66,   50,   48,   57,   12,   -1,   51,
-          110,   94,   84,   43,   53,   42,   65,   88,
-          122,  115,   96,   85,   69,   72,   48,   83,
-          121,  103,   85,   96,   62,   59,   57,   87,
-          122,   85,   98,   87,   67,   53,   68,  140,
-           91,   93,   79,   69,   61,   71,  101,   72,
-
-           33,   60,   -2,   87,  -81,  -80,  -64,  -44,
-           13,   66,   43,   43,   77,  -59,   -4,  -64,
-           -3,   19,  -10,   32,   12,  -77,  -57,  -73,
-           56,   63,   41,   70,   72,   25,   76,   51,
-           -6,   66,   38,   72,   47,   44,   33,   26,
-           26,  -36,   39,   18,   30,   23,   -3,   13,
-           22,   -1,  -46,  -10,  -16,  -34,  -45,  -64,
-          -21,   -4,   -7,  -65,   25,    0,   20,   44,
-
-          -37, -108,  -95,  -38,   44,   49,  -26,  -27,
-          -46,  -67,  -31,  -85,   -7,   32,   58,   75,
-          -29,  -38,  -69,   -6,  -27,  -35,  -44,   37,
-          -17,   27,   20,   51,   54,   68,   48,   99,
-           23,  -19,   51,  131,  123,   84,   79,   74,
-          -33,  -27,   28,   71,   87,   68,    9,    5,
-          -65,  -51,    1,   75,   53,   12,  -49,  -73,
-          -81, -119,  -67,   41,  -59,    3,  -93, -113,
-        };
     }
 }

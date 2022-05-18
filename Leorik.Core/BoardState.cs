@@ -117,7 +117,10 @@ namespace Leorik.Core
         public void UpdateEval(BoardState from, ref Move move)
         {
             Eval = from.Eval;
-            Eval.Update(ref move);
+            Eval.Update(this, ref move);
+
+            //if (Eval.Score != new Evaluation(this).Score)
+            //    throw new Exception("Incremental update gave wrong result!");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
