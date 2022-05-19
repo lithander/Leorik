@@ -23,7 +23,7 @@ namespace Leorik.Tuning
         public BoardState Position;
         public sbyte Result;
         //Pawns
-        public PawnEval Pawns;
+        public PawnStructure Pawns;
         //Material
         public Feature[] Features;
         //Phase
@@ -50,6 +50,12 @@ namespace Leorik.Tuning
             foreach (Feature f in features)
                 result += f.Value * coefficients[f.Index];
             return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float PawnEval(PawnStructure pawns, float phase)
+        {
+            return pawns.Base + phase * pawns.Endgame;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -129,7 +135,7 @@ namespace Leorik.Tuning
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
-            PawnEval pawns = new PawnEval(input.Position);
+            PawnStructure pawns = new PawnStructure(input.Position);
 
             return new TuningData
             {
@@ -196,7 +202,7 @@ namespace Leorik.Tuning
             //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
             foreach (var td in data)
             {
-                float m = Evaluate(td.Features, cFeatures) + td.Pawns.GetScore(td.Phase);
+                float m = Evaluate(td.Features, cFeatures) + PawnEval(td.Pawns, td.Phase);
                 float p = PhaseTuner.Evaluate(td, cPhase);
                 if (Math.Abs(m - p) > 0.1f)
                     throw new Exception("TuningData is out of Sync!");
