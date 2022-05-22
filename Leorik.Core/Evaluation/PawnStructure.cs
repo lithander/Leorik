@@ -33,7 +33,9 @@ namespace Leorik.Core
         const int HASH_TABLE_SIZE = 4999; //prime!
         static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
 
-        const short ISOLATED_PAWN = -14;
+        const short ISOLATED_PAWN = -13;
+        const short CONNECTED_PAWN = 7;
+        const short PROTECTED_PAWN = 16;
         const short PASSED_RANK = 15;
         const short PASSED_CENTER = -12;
 
@@ -44,6 +46,8 @@ namespace Leorik.Core
         {
             AddIsolatedPawns(pos);
             AddPassedPawns(pos);
+            AddProtectedPawns(pos);
+            AddConnectedPawns(pos);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -67,12 +71,10 @@ namespace Leorik.Core
 
         private void AddPassedPawns(BoardState pos)
         {
-            ulong passed = Features.GetPassedPawns(pos);
-
-            for (ulong bits = passed & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            for (ulong bits = Features.GetPassedPawns(pos, Color.Black); bits != 0; bits = Bitboard.ClearLSB(bits))
                 Endgame -= ScorePassedPawn(Bitboard.LSB(bits));
 
-            for (ulong bits = passed & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
+            for (ulong bits = Features.GetPassedPawns(pos, Color.White); bits != 0; bits = Bitboard.ClearLSB(bits))
                 Endgame += ScorePassedPawn(Bitboard.LSB(bits) ^ 56);
         }
 
@@ -88,13 +90,25 @@ namespace Leorik.Core
 
         private void AddIsolatedPawns(BoardState pos)
         {
-            ulong isolated = Features.GetIsolatedPawns(pos);
+            int white = Bitboard.PopCount(Features.GetIsolatedPawns(pos, Color.White));
+            int black = Bitboard.PopCount(Features.GetIsolatedPawns(pos, Color.Black));
+            Base += (short)(ISOLATED_PAWN * (white - black));
+        }
 
-            for (ulong bits = isolated & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
-                Base -= ISOLATED_PAWN;
+        private void AddConnectedPawns(BoardState pos)
+        {
+            int white = Bitboard.PopCount(Features.GetConnectedPawns(pos, Color.White));
+            int black = Bitboard.PopCount(Features.GetConnectedPawns(pos, Color.Black));
+            Base += (short)(CONNECTED_PAWN * (white - black));
+            Endgame -= (short)(CONNECTED_PAWN * (white - black));
+        }
 
-            for (ulong bits = isolated & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
-                Base += ISOLATED_PAWN;
+        private void AddProtectedPawns(BoardState pos)
+        {
+            int white = Bitboard.PopCount(Features.GetProtectedPawns(pos, Color.White));
+            int black = Bitboard.PopCount(Features.GetProtectedPawns(pos, Color.Black));
+            Base += (short)(PROTECTED_PAWN * (white - black));
+            Endgame -= (short)(PROTECTED_PAWN * (white - black));
         }
     }
 }

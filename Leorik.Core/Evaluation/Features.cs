@@ -32,11 +32,6 @@ namespace Leorik.Core
             return result;
         }
 
-        public static ulong GetIsolatedPawns(BoardState board)
-        {
-            return GetIsolatedPawns(board, Color.Black) | GetIsolatedPawns(board, Color.White);
-        }
-
         public static ulong GetPassedPawns(BoardState board, Color color)
         {
             if (color == Color.Black)
@@ -51,11 +46,6 @@ namespace Leorik.Core
             }
         }
 
-        public static ulong GetPassedPawns(BoardState board)
-        {
-            return GetPassedPawns(board, Color.Black) | GetPassedPawns(board, Color.White);
-        }
-
         public static ulong GetDoubledPawns(BoardState board, Color color)
         {
             if (color == Color.Black)
@@ -68,11 +58,6 @@ namespace Leorik.Core
                 ulong whiteRear = Down(FillDown(board.White & board.Pawns));
                 return board.White & board.Pawns & whiteRear;
             }
-        }
-
-        public static ulong GetProtectedPawns(BoardState board)
-        {
-            return GetProtectedPawns(board, Color.Black) | GetProtectedPawns(board, Color.White);
         }
 
         public static ulong GetProtectedPawns(BoardState board, Color color)
@@ -94,21 +79,6 @@ namespace Leorik.Core
             }
         }
 
-        public static ulong GetConnectedOrProtected(BoardState board)
-        {
-            return GetConnectedPawns(board) | GetProtectedPawns(board);
-        }
-
-        public static ulong GetConnectedPassedPawns(BoardState board)
-        {
-            return GetConnectedPawns(board) & GetPassedPawns(board);
-        }
-
-        public static ulong GetConnectedPawns(BoardState board)
-        {
-            return GetConnectedPawns(board, Color.Black) | GetConnectedPawns(board, Color.White);
-        }
-
         public static ulong GetConnectedPawns(BoardState board, Color color)
         {
             if (color == Color.Black)
@@ -123,9 +93,40 @@ namespace Leorik.Core
             }
         }
 
-        public static ulong GetDoubledPawns(BoardState board)
+        const ulong QUEEN_SIDE = 0x0000000000000007UL;
+        const ulong KING_SIDE = 0x00000000000000E0UL;
+
+        const ulong BLACK_QUEEN_SIDE_SHIELD = 0x0007030100000000UL;
+        const ulong BLACK_KING_SIDE_SHIELD = 0x00C0C0C000000000UL;
+        //. . . . . . . .
+        //B B B . . . B B
+        //B B . . . . B B
+        //B . . . . . B B
+        //W . . . . . W W
+        //W W . . . . W W
+        //W W W . . . W W
+        //. . . . . . . .
+        const ulong WHITE_QUEEN_SIDE_SHIELD = 0x0000000001030700UL;
+        const ulong WHITE_KING_SIDE_SHIELD = 0x00000000C0C0C000UL;
+
+        public static ulong GetPawnShields(BoardState board)
         {
-            return GetDoubledPawns(board, Color.Black) | GetDoubledPawns(board, Color.White);
+            ulong result = 0;
+            ulong blackKing = board.Black & board.Kings;
+            ulong blackPawns = board.Black & board.Pawns;
+            if ((blackKing & (KING_SIDE << 56)) > 0)
+                result |= blackPawns & BLACK_KING_SIDE_SHIELD;
+            if ((blackKing & (QUEEN_SIDE << 56)) > 0)
+                result |= blackPawns & BLACK_QUEEN_SIDE_SHIELD;
+
+            ulong whiteKing = board.White & board.Kings;
+            ulong whitePawns = board.White & board.Pawns;
+            if ((whiteKing & KING_SIDE) > 0)
+                result |= whitePawns & WHITE_KING_SIDE_SHIELD;
+            if ((whiteKing & QUEEN_SIDE) > 0)
+                result |= whitePawns & WHITE_QUEEN_SIDE_SHIELD;
+
+            return result;
         }
 
         private static ulong FillUp(ulong bits)

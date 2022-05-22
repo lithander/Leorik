@@ -134,6 +134,9 @@ namespace Leorik.Core
         public static ulong ClearLSB(ulong bb) => bb & (bb - 1);
         //public static ulong ClearLSB(ulong bb) => Bmi1.X64.ResetLowestSetBit(bb);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(ulong bb) => BitOperations.PopCount(bb);
+
         const ulong HORIZONTAL = 0x00000000000000FFUL;
         const ulong VERTICAL = 0x0101010101010101UL;
 

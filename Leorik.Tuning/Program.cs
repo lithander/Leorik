@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 80;
+int ITERATIONS = 70;
 int MATERIAL_ALPHA = 700;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 100;
@@ -13,14 +13,14 @@ int PHASE_BATCH = 5;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v11 ");
+Console.WriteLine(" Leorik Tuning v12 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
 ReplPawnStructure();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
-Console.WriteLine();
+//RenderFeatures(data);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -156,15 +156,15 @@ void PrintMaterialCoefficients(float[] coefficients)
     Console.WriteLine("ENDGAME");
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("ConnectedOrProtected - MG");
+        
+    Console.WriteLine("GetConnectedPawns - MG");
     WriteTable(6 * 128, 2, coefficients);
-    Console.WriteLine("ConnectedOrProtected - EG");
+    Console.WriteLine("GetConnectedPawns - EG");
     WriteTable(6 * 128 + 1, 2, coefficients);
     
-    Console.WriteLine("DoubledPawns - MG");
+    Console.WriteLine("GetProtectedPawns - MG");
     WriteTable(7 * 128, 2, coefficients);
-    Console.WriteLine("DoubledPawns - EG");
+    Console.WriteLine("GetProtectedPawns - EG");
     WriteTable(7 * 128 + 1, 2, coefficients);
     
     Console.WriteLine("PassedPawns - MG");
@@ -189,7 +189,8 @@ void WriteTable(int offset, int step, float[] coefficients)
     {
         for (int j = 0; j < 8; j++)
         {
-            float c = coefficients[offset + 8 * i * step + j * step];
+            int k = offset + 8 * i * step + j * step;
+            float c = (k < coefficients.Length) ? coefficients[k] : 0;
             Console.Write($"{(int)Math.Round(c),5},");
         }
         Console.WriteLine();
@@ -220,34 +221,23 @@ void ReplPawnStructure()
             break;
         //fen = "8/8/7p/1P2Pp1P/2Pp1PP1/8/8/8 w - - 0 1";
         BoardState board = Notation.GetBoardState(fen);
-        Console.WriteLine("Black Pawns");
-        PrintBitboard(board.Black & board.Pawns);
-        Console.WriteLine("Isolated Black Pawns");
-        PrintBitboard(Features.GetIsolatedPawns(board, Color.Black));
-        Console.WriteLine("Passed Black Pawns");
-        PrintBitboard(Features.GetPassedPawns(board, Color.Black));
-        Console.WriteLine("Doubled Black Pawns");
-        PrintBitboard(Features.GetDoubledPawns(board, Color.Black));
-        Console.WriteLine("Protected Black Pawns");
-        PrintBitboard(Features.GetProtectedPawns(board, Color.Black));
-        Console.WriteLine("Connected Black Pawns");
-        PrintBitboard(Features.GetConnectedPawns(board, Color.Black));
-        
-        Console.WriteLine("White Pawns");
-        PrintBitboard(board.White & board.Pawns);
-        Console.WriteLine("Isolated White Pawns");
-        PrintBitboard(Features.GetIsolatedPawns(board, Color.White));
-        Console.WriteLine("Passed White Pawns");
-        PrintBitboard(Features.GetPassedPawns(board, Color.White));
-        Console.WriteLine("Doubled White Pawns");
-        PrintBitboard(Features.GetDoubledPawns(board, Color.White));
-        Console.WriteLine("Protected White Pawns");
-        PrintBitboard(Features.GetProtectedPawns(board, Color.White));
-        Console.WriteLine("Connected Black Pawns");
-        PrintBitboard(Features.GetConnectedPawns(board, Color.White));
-
-        Console.WriteLine("Connected Passed Pawns");
-        PrintBitboard(Features.GetConnectedPassedPawns(board));
-
+        RenderFeature(board);
     }
+}
+
+void RenderFeatures(List<Data> data)
+{
+    foreach (var entry in data)
+        RenderFeature(entry.Position);
+}
+
+void RenderFeature(BoardState board)
+{
+    Console.WriteLine(Notation.GetFEN(board));
+    PrintBitboard(board.Pawns);
+    Console.WriteLine();
+    PrintBitboard(Features.GetProtectedPawns(board, Color.Black));
+    Console.WriteLine();
+    PrintBitboard(Features.GetProtectedPawns(board, Color.White));
+    Console.WriteLine();
 }
