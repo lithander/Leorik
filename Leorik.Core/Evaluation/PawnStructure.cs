@@ -33,10 +33,12 @@ namespace Leorik.Core
         const int HASH_TABLE_SIZE = 4999; //prime!
         static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
 
-        const short ISOLATED_PAWN = -13;
+        const short ISOLATED_PAWN = -10;
         const short CONNECTED_PAWN = 7;
-        const short PROTECTED_PAWN = 16;
-        const short PASSED_RANK = 15;
+        const short CONNECTED_PAWN_EG = -5;
+        const short PROTECTED_PAWN = 15;
+        const short PROTECTED_PAWN_EG = -9;
+        const short PASSED_RANK = 16;
         const short PASSED_CENTER = -12;
 
         public short Base;
@@ -100,7 +102,7 @@ namespace Leorik.Core
             int white = Bitboard.PopCount(Features.GetConnectedPawns(pos, Color.White));
             int black = Bitboard.PopCount(Features.GetConnectedPawns(pos, Color.Black));
             Base += (short)(CONNECTED_PAWN * (white - black));
-            Endgame -= (short)(CONNECTED_PAWN * (white - black));
+            Endgame += (short)(CONNECTED_PAWN_EG * (white - black));
         }
 
         private void AddProtectedPawns(BoardState pos)
@@ -108,7 +110,7 @@ namespace Leorik.Core
             int white = Bitboard.PopCount(Features.GetProtectedPawns(pos, Color.White));
             int black = Bitboard.PopCount(Features.GetProtectedPawns(pos, Color.Black));
             Base += (short)(PROTECTED_PAWN * (white - black));
-            Endgame -= (short)(PROTECTED_PAWN * (white - black));
+            Endgame += (short)(PROTECTED_PAWN_EG * (white - black));
         }
     }
 }

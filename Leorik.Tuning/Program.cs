@@ -8,7 +8,7 @@ int ITERATIONS = 70;
 int MATERIAL_ALPHA = 700;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 100;
-int PHASE_BATCH = 5;
+int PHASE_BATCH = 4;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
