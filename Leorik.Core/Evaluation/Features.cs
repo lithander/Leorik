@@ -84,12 +84,12 @@ namespace Leorik.Core
             if (color == Color.Black)
             {
                 ulong blackPawns = board.Black & board.Pawns;
-                return (Left(blackPawns) ^ Right(blackPawns)) & blackPawns;
+                return (Left(blackPawns) | Right(blackPawns)) & blackPawns;
             }
             else //White
             {
                 ulong whitePawns = board.White & board.Pawns;
-                return (Left(whitePawns) ^ Right(whitePawns)) & whitePawns;
+                return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
             }
         }
 

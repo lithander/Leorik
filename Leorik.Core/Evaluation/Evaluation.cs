@@ -5,7 +5,7 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 112, 315, 407, 830, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 113, 316, 410, 821, 0 };
 
         private short _phaseValue;
         private PawnStructure _pawns;
