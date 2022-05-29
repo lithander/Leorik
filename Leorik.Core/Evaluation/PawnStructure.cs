@@ -4,14 +4,18 @@ namespace Leorik.Core
 {
     public struct PawnStructure
     {
-        struct PawnHashEntry
+        public struct PawnHashEntry
         {
             public PawnStructure Eval;
+            public int StoreCount;
+            public int Age;
             public ulong BlackPawns;
             public ulong WhitePawns;
 
-            public PawnHashEntry(PawnStructure pawns, BoardState board) : this()
+            public PawnHashEntry(PawnStructure pawns, BoardState board, int count) : this()
             {
+                Age = 0;
+                StoreCount = count;
                 Eval = pawns;
                 BlackPawns = board.Black & board.Pawns;
                 WhitePawns = board.White & board.Pawns;
@@ -25,13 +29,18 @@ namespace Leorik.Core
                 if ((board.White & board.Pawns) != WhitePawns)
                     return false;
 
+                //hit resets the age
+                Age = 0;
                 eval = Eval;
                 return true;
             }
         }
 
-        const int HASH_TABLE_SIZE = 4999; //prime!
-        static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
+        public static ulong TableHits = 0;
+        public static ulong TableMisses = 0;
+
+        public const int HASH_TABLE_SIZE = 4999; //prime!
+        public static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE+1];
 
         const short ISOLATED_PAWN = -8;
         const short CONNECTED_PAWN = 6;
@@ -41,6 +50,13 @@ namespace Leorik.Core
 
         public short Base;
         public short Endgame;
+
+        public static void Clear()
+        {
+            PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE+1];
+            TableHits = 0;
+            TableMisses = 0;
+        }
 
         public PawnStructure(BoardState pos) : this()
         {
@@ -62,10 +78,38 @@ namespace Leorik.Core
         internal void Update(BoardState board)
         {
             ulong index = board.Pawns % HASH_TABLE_SIZE;
-            if (!PawnHashTable[index].GetEval(board, ref this))
+            TableHits++;
+
+            ref PawnHashEntry e0 = ref PawnHashTable[index];
+            ref PawnHashEntry e1 = ref PawnHashTable[index ^ 1];
+            e0.Age++;
+            e1.Age++;
+
+            if (e0.GetEval(board, ref this))
+                return;
+
+            if (e1.GetEval(board, ref this))
+                return;
+
+
+            TableHits--;
+            TableMisses++;
+            this = new PawnStructure(board);
+            if (e1.Age > e0.Age)
             {
-                this = new PawnStructure(board);
-                PawnHashTable[index] = new PawnHashEntry(this, board);
+                e1.Age = 0;
+                e1.StoreCount++;
+                e1.Eval = new PawnStructure(board);
+                e1.BlackPawns = board.Black & board.Pawns;
+                e1.WhitePawns = board.White & board.Pawns;
+            }
+            else 
+            {
+                e0.Age = 0;
+                e0.StoreCount++;
+                e0.Eval = new PawnStructure(board);
+                e0.BlackPawns = board.Black & board.Pawns;
+                e0.WhitePawns = board.White & board.Pawns;
             }
         }
 

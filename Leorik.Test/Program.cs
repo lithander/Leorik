@@ -33,7 +33,7 @@ namespace Leorik.Test
 
         private static void RunWacTests()
         {
-            for (int i = 2; i <= 4; i++)
+            for (int i = 3; i <= 4; i++)
             {
                 int budget = (int)Math.Pow(10, i);
                 CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
@@ -74,6 +74,7 @@ namespace Leorik.Test
                 }
                 else
                     Console.Write('.');
+
             }
 
             double nps = totalNodes / (totalTime / freq);
@@ -126,6 +127,32 @@ namespace Leorik.Test
                 }
                 else
                     Console.Write('.');
+
+
+                int min = int.MaxValue;
+                int max = int.MinValue;
+                long sum = 0;
+                for (int i = 0; i < PawnStructure.PawnHashTable.Length; i++)
+                {
+                    int cnt = PawnStructure.PawnHashTable[i].StoreCount;
+                    min = Math.Min(cnt, min);
+                    max = Math.Max(cnt, max);
+                    sum += cnt;
+                }
+                int avg = (int)(sum / PawnStructure.PawnHashTable.Length);
+
+                int over2xAvg = 0;
+                for (int i = 0; i < PawnStructure.PawnHashTable.Length; i++)
+                {
+                    int cnt = PawnStructure.PawnHashTable[i].StoreCount;
+                    if (cnt > 2*avg)
+                        over2xAvg++;
+                }
+                Console.WriteLine($"Min {min} Max {max} Average {avg} >2xAverage {over2xAvg}/{PawnStructure.HASH_TABLE_SIZE} {(over2xAvg*100)/PawnStructure.HASH_TABLE_SIZE}%");
+                float ratio = PawnStructure.TableHits / (float)(PawnStructure.TableHits + PawnStructure.TableMisses);
+                Console.WriteLine($"Hits {PawnStructure.TableHits} Misses {PawnStructure.TableMisses} Hitrate {ratio*100:0.00}%");
+                PawnStructure.Clear();
+                Console.WriteLine();
             }
 
             double nps = totalNodes / (totalTime / freq);
