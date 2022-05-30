@@ -9,25 +9,6 @@ namespace Leorik.Core
             public PawnStructure Eval;
             public ulong BlackPawns;
             public ulong WhitePawns;
-
-            public PawnHashEntry(PawnStructure pawns, BoardState board) : this()
-            {
-                Eval = pawns;
-                BlackPawns = board.Black & board.Pawns;
-                WhitePawns = board.White & board.Pawns;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool GetEval(BoardState board, ref PawnStructure eval)
-            {
-                if ((board.Black & board.Pawns) != BlackPawns)
-                    return false;
-                if ((board.White & board.Pawns) != WhitePawns)
-                    return false;
-
-                eval = Eval;
-                return true;
-            }
         }
 
         const int HASH_TABLE_SIZE = 4999; //prime!
@@ -61,12 +42,21 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board)
         {
+            //try to update via pawn hash table
             ulong index = board.Pawns % HASH_TABLE_SIZE;
-            if (!PawnHashTable[index].GetEval(board, ref this))
+            ref PawnHashEntry entry = ref PawnHashTable[index];
+
+            ulong blackPawns = board.Black & board.Pawns;
+            ulong whitePawns = board.White & board.Pawns;
+            if (blackPawns != entry.BlackPawns || whitePawns != entry.WhitePawns)
             {
-                this = new PawnStructure(board);
-                PawnHashTable[index] = new PawnHashEntry(this, board);
+                //compute pawnstructure from scratch and save it in the hash table
+                entry.Eval = new PawnStructure(board);
+                entry.BlackPawns = blackPawns;
+                entry.WhitePawns = whitePawns;
             }
+
+            this = entry.Eval;
         }
 
         private void AddPassedPawns(BoardState pos)
@@ -84,7 +74,6 @@ namespace Leorik.Core
             int rank = 8 - (square >> 3);
             int file = square & 7;
             int center = Math.Min(file, 7 - file);
-
             return (short)(PASSED_RANK * rank + PASSED_CENTER * center);
         }
 
