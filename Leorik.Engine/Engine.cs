@@ -146,6 +146,9 @@ namespace Leorik.Engine
             if (_search == null)
                 return;
 
+            if (_search.Aborted)
+                return;
+
             if (_search.PrincipalVariation.Length > 0)
                 _best = _search.PrincipalVariation[0];
 

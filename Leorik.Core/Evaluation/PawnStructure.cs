@@ -9,6 +9,18 @@ namespace Leorik.Core
             public PawnStructure Eval;
             public ulong BlackPawns;
             public ulong WhitePawns;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool TryGetEval(BoardState board, ref PawnStructure eval)
+            {
+                if ((board.Black & board.Pawns) != BlackPawns)
+                    return false;
+                if ((board.White & board.Pawns) != WhitePawns)
+                    return false;
+
+                eval = Eval;
+                return true;
+            }
         }
 
         const int HASH_TABLE_SIZE = 4999; //prime!
@@ -42,21 +54,15 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board)
         {
-            //try to update via pawn hash table
             ulong index = board.Pawns % HASH_TABLE_SIZE;
             ref PawnHashEntry entry = ref PawnHashTable[index];
+            if (entry.TryGetEval(board, ref this))
+                return;
 
-            ulong blackPawns = board.Black & board.Pawns;
-            ulong whitePawns = board.White & board.Pawns;
-            if (blackPawns != entry.BlackPawns || whitePawns != entry.WhitePawns)
-            {
-                //compute pawnstructure from scratch and save it in the hash table
-                entry.Eval = new PawnStructure(board);
-                entry.BlackPawns = blackPawns;
-                entry.WhitePawns = whitePawns;
-            }
-
-            this = entry.Eval;
+            //compute pawnstructure from scratch and save it in the hash table
+            entry.Eval = this = new PawnStructure(board);
+            entry.BlackPawns = board.Black & board.Pawns;
+            entry.WhitePawns = board.White & board.Pawns;
         }
 
         private void AddPassedPawns(BoardState pos)
