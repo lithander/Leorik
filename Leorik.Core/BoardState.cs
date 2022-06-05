@@ -354,6 +354,15 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsEndgame(Color color)
+        {
+            if (color == Color.White)
+                return White == (White & (Kings | Pawns));
+            else
+                return Black == (Black & (Kings | Pawns));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CopyBitboards(BoardState from, ulong mask)
         {
             if (mask == 0)

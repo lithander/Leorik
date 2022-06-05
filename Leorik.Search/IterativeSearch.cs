@@ -313,7 +313,7 @@ namespace Leorik.Search
             bool inCheck = current.InCheck();
 
             //consider null move pruning first           
-            if (remaining >= 2 && !inCheck && beta < MAX_BETA && AllowNullMove(ply))
+            if (remaining >= 2 && !inCheck && beta < MAX_BETA && AllowNullMove(ply) && !current.IsEndgame(current.SideToMove))
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 PlayNullMove(ply);
