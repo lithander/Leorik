@@ -289,19 +289,12 @@ namespace Leorik.Search
             return bestScore;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void PlayNullMove(int ply)
-        {
-            BoardState current = Positions[ply];
-            BoardState next = Positions[ply + 1];
-            next.PlayNullMove(current);
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool AllowNullMove(int ply)
         {
-            //if the previous iteration found a mate we check the first few plys without null move to try and find the shortest mate or escape
-            return Evaluation.IsCheckmate(Score) ? (ply > Depth / 4) : true;
+            //if the previous iteration found a mate we do the first few plys without null move to try and find the shortest mate or escape
+            return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
         }
 
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
@@ -313,10 +306,10 @@ namespace Leorik.Search
             bool inCheck = current.InCheck();
 
             //consider null move pruning first           
-            if (remaining >= 2 && !inCheck && beta < MAX_BETA && AllowNullMove(ply) && !current.IsEndgame(current.SideToMove))
+            if (remaining >= 2 && beta < MAX_BETA && !inCheck && AllowNullMove(ply) && !current.IsEndgame(current.SideToMove))
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
-                PlayNullMove(ply);
+                next.PlayNullMove(current);
                 if (FailHigh(ply, remaining - R_NULL_MOVE, beta, moveGen))
                     return beta;
             }

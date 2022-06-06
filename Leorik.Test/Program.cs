@@ -24,14 +24,15 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            RunWacTests();
+            RunWacTestsDepth();
+            //RunWacTestsTime();
             //RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
         }
 
-        private static void RunWacTests()
+        private static void RunWacTestsTime()
         {
             for (int i = 2; i <= 4; i++)
             {
@@ -39,6 +40,15 @@ namespace Leorik.Test
                 CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
             }
         }
+
+        private static void RunWacTestsDepth()
+        {
+            for (int depth = 10; depth <= 16; depth += 2)
+            {
+                CompareBestMove(File.OpenText("wac.epd"), depth, int.MaxValue, IterativeSearch, "", DETAILS);
+            }
+        }
+
 
         private delegate Span<Move> SearchDelegate(BoardState state, int depth);
 
@@ -79,7 +89,7 @@ namespace Leorik.Test
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
             Console.WriteLine($"Searched {count} positions with {label}({depth})");
-            Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
+            Console.WriteLine($"{totalNodes} nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
             Console.WriteLine();
