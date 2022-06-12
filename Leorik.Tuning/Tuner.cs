@@ -136,6 +136,8 @@ namespace Leorik.Tuning
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             PawnStructure pawns = new PawnStructure(input.Position);
+            Move[] moves = Mobility.GetMoves(input.Position);
+            Mobility.LogStatistics(input.Position, moves);
 
             return new TuningData
             {

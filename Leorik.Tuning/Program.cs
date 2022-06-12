@@ -39,6 +39,7 @@ foreach (Data entry in data)
     var td = Tuner.GetTuningData(entry, cPhase, cFeatures);
     tuningData.Add(td);
 }
+Mobility.LogMaxMoves();
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);

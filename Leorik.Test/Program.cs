@@ -24,8 +24,8 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            RunWacTestsDepth();
-            //RunWacTestsTime();
+            //RunWacTestsDepth();
+            RunWacTestsTime();
             //RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
@@ -36,7 +36,7 @@ namespace Leorik.Test
         {
             for (int i = 2; i <= 4; i++)
             {
-                int budget = (int)Math.Pow(10, i);
+                int budget = (int)Math.Pow(10, i) + 10;
                 CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
             }
         }
