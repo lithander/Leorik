@@ -134,10 +134,11 @@ namespace Leorik.Tuning
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
+            Feature[] mobility = Mobility.GetFeatures(input.Position, phase);
+            features = Merge(features, mobility, FeatureTuner.M);
+
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             PawnStructure pawns = new PawnStructure(input.Position);
-            Move[] moves = Mobility.GetMoves(input.Position);
-            Mobility.LogStatistics(input.Position, moves);
 
             return new TuningData
             {
@@ -173,6 +174,19 @@ namespace Leorik.Tuning
                 denseFeatures[i].Value = features[index];
             }
             return denseFeatures;
+        }
+
+        private static Feature[] Merge(Feature[] first, Feature[] second, int offset)
+        {
+            Feature[] combined = new Feature[first.Length + second.Length];
+            Array.Copy(first, combined, first.Length);
+            for(int i = 0; i < second.Length; i++)
+            {
+                int j = first.Length + i;
+                combined[j].Value = second[i].Value;
+                combined[j].Index = (short)(second[i].Index + offset);
+            }
+            return combined;
         }
 
         internal static void SyncFeaturesChanges(List<TuningData> data, float[] cFeatures)

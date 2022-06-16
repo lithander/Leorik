@@ -5,7 +5,7 @@ using System.Globalization;
 
 float MSE_SCALING = 100;
 int ITERATIONS = 70;
-int MATERIAL_ALPHA = 700;
+int MATERIAL_ALPHA = 400;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 100;
 int PHASE_BATCH = 4;
@@ -13,7 +13,7 @@ int PHASE_BATCH = 4;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v12 ");
+Console.WriteLine(" Leorik Tuning v13 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
@@ -39,7 +39,6 @@ foreach (Data entry in data)
     var td = Tuner.GetTuningData(entry, cPhase, cFeatures);
     tuningData.Add(td);
 }
-Mobility.LogMaxMoves();
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
@@ -158,31 +157,23 @@ void PrintMaterialCoefficients(float[] coefficients)
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
         
-    Console.WriteLine("GetConnectedPawns - MG");
-    WriteTable(6 * 128, 2, coefficients);
-    Console.WriteLine("GetConnectedPawns - EG");
-    WriteTable(6 * 128 + 1, 2, coefficients);
-    
-    Console.WriteLine("GetProtectedPawns - MG");
-    WriteTable(7 * 128, 2, coefficients);
-    Console.WriteLine("GetProtectedPawns - EG");
-    WriteTable(7 * 128 + 1, 2, coefficients);
-    
-    Console.WriteLine("PassedPawns - MG");
-    WriteTable(8 * 128, 2, coefficients);
-    Console.WriteLine("PassedPawns - EG");
-    WriteTable(8 * 128 + 1, 2, coefficients);
-    
-    Console.WriteLine("IsolatedPawns - MG");
-    WriteTable(9 * 128, 2, coefficients);
-    Console.WriteLine("IsolatedPawns - EG");
-    WriteTable(9 * 128 + 1, 2, coefficients);
-    
-    Console.WriteLine("ConnectedPassedPawns - MG");
-    WriteTable(10 * 128, 2, coefficients);
-    Console.WriteLine("ConnectedPassedPawns - EG");
-    WriteTable(10 * 128 + 1, 2, coefficients);
+    Console.WriteLine("Mobility - MG");
+    WriteMobilityTable(6 * 128, 2, coefficients);
+    Console.WriteLine("Mobility - EG");
+    WriteMobilityTable(6 * 128 + 1, 2, coefficients);
 }
+
+void WriteMobilityTable(int offset, int step, float[] coefficients)
+{
+    Mobility.Report(Piece.Pawn, offset, step, coefficients);
+    Mobility.Report(Piece.Knight, offset, step, coefficients);
+    Mobility.Report(Piece.Bishop, offset, step, coefficients);
+    Mobility.Report(Piece.Rook, offset, step, coefficients);
+    Mobility.Report(Piece.Queen, offset, step, coefficients);
+    Mobility.Report(Piece.King, offset, step, coefficients);
+    Console.WriteLine();
+}
+
 
 void WriteTable(int offset, int step, float[] coefficients)
 {
