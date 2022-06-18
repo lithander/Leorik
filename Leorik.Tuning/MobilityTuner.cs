@@ -71,6 +71,8 @@ namespace Leorik.Tuning
                 });
                 if (phase == 0)
                     continue;
+
+                //Set to 0 if you don't want to consider phases
                 features.Add(new Feature
                 {
                     Index = (short)(2 * index + 1),
