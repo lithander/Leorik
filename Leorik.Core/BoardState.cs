@@ -114,16 +114,6 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateEval(BoardState from, ref Move move)
-        {
-            Eval = from.Eval;
-            Eval.Update(this, ref move);
-
-            //if (Eval.Score != new Evaluation(this).Score)
-            //    throw new Exception("Incremental update gave wrong result!");
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int RelativeScore()
         {
             return (int)SideToMove * Eval.Score;
@@ -150,7 +140,9 @@ namespace Leorik.Core
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
             }
-            UpdateEval(from, ref move);
+            Eval = from.Eval;
+            //Eval.UpdateMobility(this);
+            Eval.Update(this, ref move);
             //UpdateHalfmoveClock(ref move);
             //UpdateHash(from, ref move);
             return true;
@@ -171,7 +163,9 @@ namespace Leorik.Core
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
             }
-            UpdateEval(from, ref move);
+            Eval = from.Eval;
+            Eval.UpdateMobility(this);
+            Eval.Update(this, ref move);
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;

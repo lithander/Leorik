@@ -22,11 +22,11 @@ namespace Leorik.Tuning
     {
         public BoardState Position;
         public sbyte Result;
-        //Pawns
+
+        public Mobility Mobility;
         public PawnStructure Pawns;
-        //Material
         public Feature[] Features;
-        //Phase
+
         public float MidgameEval;
         public float EndgameEval;
         public float Phase;
@@ -42,8 +42,9 @@ namespace Leorik.Tuning
             return (float)(2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1);
         }
 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static float Evaluate(Feature[] features, float[] coefficients)
+        public static float Evaluate(Feature[] features, float[] coefficients)
         {
             //dot product of a selection (indices) of elements from the features vector with coefficients vector
             float result = 0;
@@ -56,6 +57,12 @@ namespace Leorik.Tuning
         public static float PawnEval(PawnStructure pawns, float phase)
         {
             return pawns.Base + phase * pawns.Endgame;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float MobilityEval(Mobility mobility, float phase)
+        {
+            return mobility.Base + phase * mobility.Endgame;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -134,11 +141,12 @@ namespace Leorik.Tuning
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
-            Feature[] mobility = Mobility.GetFeatures(input.Position, phase);
-            features = Merge(features, mobility, FeatureTuner.M);
+            //Feature[] mobility = MobilityTuner.GetFeatures(input.Position, phase);
+            //features = Merge(features, mobility, FeatureTuner.M);
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             PawnStructure pawns = new PawnStructure(input.Position);
+            Mobility mobility = new Mobility(input.Position);
 
             return new TuningData
             {
@@ -146,6 +154,7 @@ namespace Leorik.Tuning
                 Result = input.Result,               
                 Features = features,
                 Pawns = pawns,
+                Mobility = mobility,
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,
@@ -210,6 +219,9 @@ namespace Leorik.Tuning
                 td.Phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
                 //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
                 td.Features = AdjustPhase(td.Features, td.Phase);
+                for (int i = 0; i < td.Features.Length; i++)
+                    if (td.Features[i].Index >= FeatureTuner.M && td.Features[i].Index % 2 == 1)
+                        td.Features[i].Value = 0;
             }
         }
         
@@ -218,7 +230,7 @@ namespace Leorik.Tuning
             //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
             foreach (var td in data)
             {
-                float m = Evaluate(td.Features, cFeatures) + PawnEval(td.Pawns, td.Phase);
+                float m = FeatureTuner.Evaluate(td, cFeatures);
                 float p = PhaseTuner.Evaluate(td, cPhase);
                 if (Math.Abs(m - p) > 0.1f)
                     throw new Exception("TuningData is out of Sync!");

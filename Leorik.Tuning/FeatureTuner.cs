@@ -1,6 +1,7 @@
 ﻿using static Leorik.Tuning.Tuner;
 using Leorik.Core;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Leorik.Tuning
 {
@@ -129,11 +130,19 @@ namespace Leorik.Tuning
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients) + PawnEval(entry.Pawns, entry.Phase);
+                float eval = Evaluate(entry, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
             return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Evaluate(TuningData entry, float[] coefficients)
+        {
+            return Tuner.Evaluate(entry.Features, coefficients) +
+                   PawnEval(entry.Pawns, entry.Phase) +
+                   MobilityEval(entry.Mobility, entry.Phase);
         }
 
         public static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
@@ -141,7 +150,7 @@ namespace Leorik.Tuning
             float[] accu = new float[N];
             foreach (TuningData entry in data)
             {
-                float eval = Evaluate(entry.Features, coefficients) + PawnEval(entry.Pawns, entry.Phase);
+                float eval = Evaluate(entry, coefficients);
                 float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                 foreach (Feature f in entry.Features)
@@ -161,7 +170,7 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float eval = Evaluate(entry.Features, coefficients) + PawnEval(entry.Pawns, entry.Phase);
+                    float eval = Evaluate(entry, coefficients);
                     float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
 
                     foreach (Feature f in entry.Features)

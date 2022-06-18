@@ -62,7 +62,7 @@ namespace Leorik.Tuning
         {
             float phaseValue = GetPhaseValue(features.PieceCounts, coefficients);
             float phase = Phase(phaseValue);
-            return features.MidgameEval + phase * features.EndgameEval + PawnEval(features.Pawns, phase);
+            return Evaluate(features, phase);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,6 +87,14 @@ namespace Leorik.Tuning
             return Math.Clamp((Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum, 0, 1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Evaluate(TuningData entry, float phase)
+        {
+            return entry.MidgameEval + phase * entry.EndgameEval +
+                   PawnEval(entry.Pawns, phase) +
+                   MobilityEval(entry.Mobility, phase);
+        }
+
         internal static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
         {
             float[] accu = new float[N];
@@ -97,7 +105,7 @@ namespace Leorik.Tuning
                     phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                 float phase = Phase(phaseValue);
-                float eval = entry.MidgameEval + phase * entry.EndgameEval + PawnEval(entry.Pawns, phase);
+                float eval = Evaluate(entry, phase);
 
                 float error = SignedError(entry.Result, eval, scalingCoefficient);
                 float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
@@ -147,7 +155,7 @@ namespace Leorik.Tuning
                         phaseValue += entry.PieceCounts[i] * coefficients[i];
 
                     float phase = Phase(phaseValue);
-                    float eval = entry.MidgameEval + phase * entry.EndgameEval + PawnEval(entry.Pawns, phase);
+                    float eval = Evaluate(entry, phase);
 
                     float error = SignedError(entry.Result, eval, scalingCoefficient);
                     float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);

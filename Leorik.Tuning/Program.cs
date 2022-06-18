@@ -4,16 +4,16 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 70;
-int MATERIAL_ALPHA = 400;
+int ITERATIONS = 100;
+int MATERIAL_ALPHA = 200;
 int PHASE_ALPHA = 200;
-int MATERIAL_BATCH = 100;
+int MATERIAL_BATCH = 50;
 int PHASE_BATCH = 4;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v13 ");
+Console.WriteLine(" Leorik Tuning v14 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
@@ -25,11 +25,11 @@ List<Data> data = LoadData("data/quiet-labeled.epd");
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -165,12 +165,12 @@ void PrintMaterialCoefficients(float[] coefficients)
 
 void WriteMobilityTable(int offset, int step, float[] coefficients)
 {
-    Mobility.Report(Piece.Pawn, offset, step, coefficients);
-    Mobility.Report(Piece.Knight, offset, step, coefficients);
-    Mobility.Report(Piece.Bishop, offset, step, coefficients);
-    Mobility.Report(Piece.Rook, offset, step, coefficients);
-    Mobility.Report(Piece.Queen, offset, step, coefficients);
-    Mobility.Report(Piece.King, offset, step, coefficients);
+    MobilityTuner.Report(Piece.Pawn, offset, step, coefficients);
+    MobilityTuner.Report(Piece.Knight, offset, step, coefficients);
+    MobilityTuner.Report(Piece.Bishop, offset, step, coefficients);
+    MobilityTuner.Report(Piece.Rook, offset, step, coefficients);
+    MobilityTuner.Report(Piece.Queen, offset, step, coefficients);
+    MobilityTuner.Report(Piece.King, offset, step, coefficients);
     Console.WriteLine();
 }
 

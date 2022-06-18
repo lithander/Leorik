@@ -3,7 +3,7 @@ using Leorik.Core;
 
 namespace Leorik.Tuning
 {
-    static class Mobility
+    static class MobilityTuner
     {
         //Max possible moves:
         //Pawn      = 12 + zero = 13  [00..12]
@@ -57,6 +57,10 @@ namespace Leorik.Tuning
                 Piece piece = position.GetPiece(i);
                 if (piece == Piece.None)
                     continue;
+                if ((piece & Piece.TypeMask) == Piece.Knight)
+                    continue;
+                //if ((piece & Piece.TypeMask) == Piece.Pawn)
+                //    continue;
 
                 int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
                 int index = (short)GetIndex(piece, _moveCounts[i]);
@@ -70,7 +74,7 @@ namespace Leorik.Tuning
                 features.Add(new Feature
                 {
                     Index = (short)(2 * index + 1),
-                    Value = value * phase
+                    Value = 0
                 });
             }
             return features.ToArray();
@@ -143,7 +147,7 @@ namespace Leorik.Tuning
             {
                 int c = (int)Math.Round(coefficients[offset + i * step]);
                 Console.Write(c);
-                Console.Write(" ");
+                Console.Write(", ");
             }
             Console.WriteLine();
         }
