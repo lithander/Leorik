@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 100;
+int ITERATIONS = 50;
 int MATERIAL_ALPHA = 200;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 50;
-int PHASE_BATCH = 4;
+int PHASE_BATCH = 1;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
@@ -17,7 +17,8 @@ Console.WriteLine(" Leorik Tuning v14 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
-ReplPawnStructure();
+//ReplPawnStructure();
+ReplCurves();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
 //RenderFeatures(data);
@@ -233,3 +234,38 @@ void RenderFeature(BoardState board)
     PrintBitboard(Features.GetProtectedPawns(board, Color.White));
     Console.WriteLine();
 }
+
+void ReplCurves()
+{
+    Console.WriteLine("Curve(0..'width') = 'a' + x * 'b')");
+    while (true)
+    {
+        string input = Console.ReadLine();
+        if (input == "")
+            break;
+
+        string[] tokens = input.Trim().Split();
+        
+        int width = int.Parse(tokens[0]);
+        int a = int.Parse(tokens[1]);
+        int b = int.Parse(tokens[2]);
+        PrintCurve(width, a, b);
+    }
+}
+
+void PrintCurve(int width, int a, int b)
+{
+    for (int i = 0; i <= width; i++)
+    {
+        Console.Write(a + b * i);
+        Console.Write(" ");
+    }
+    Console.WriteLine();
+}
+
+int Arc(int x, int width, int height)
+{
+    //Looks like an inverted parabola with Arc(0) = 0 Arc(width) = 0 and Arc(width/2) = height
+    return height * 4 * (width * x - x * x) / (width * width);
+}
+

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,11 +11,30 @@ namespace Leorik.Core
     {
         //Tuned on the SMALL Dataset, then retuned material based on 2.1 tables with the mobility / pawn term encorporated (e.g. fixed)
         //Leorik's MSE('data/quiet-labeled.epd') with MSE_SCALING = 100: 0,2363611307038096
-        static short[] Pawn = new short[13] { -9, 0, 0, 0, 67, 0, 0, 0, 0, 0, 0, 0, 0, };
-        static short[] Bishop = new short[14] { -30, -19, -9, -4, 3, 7, 11, 13, 16, 15, 15, 14, 10, 14, };
-        static short[] Rook = new short[15] { -42, -34, -27, -20, -16, -8, -3, 1, 5, 9, 12, 14, 20, 18, 18 };
-        static short[] Queen = new short[28] { -30, -34, -29, -30, -25, -22, -21, -21, -17, -13, -11, -9, -2, 0, 3, 9, 12, 17, 23, 28, 30, 36, 42, 41, 44, 47, 18, 30, };
-        static short[] King = new short[9] { 13, 7, 5, 7, 5, -1, -3, -11, -22 };
+        //static short[] Pawn = new short[13] { -9, 0, 0, 0, 67, 0, 0, 0, 0, 0, 0, 0, 0, };
+        const short PAWN_STUCK = -9;
+        const short PAWN_PROMOTION = 67;
+
+        //C(7 -27 6) =                          -27  -21 -15  -9 -3  3   9  15
+        //static short[] Bishop = new short[14] { -30, -19, -9, -4, 3, 7, 11, 13, 16, 15, 15, 14, 10, 14, };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static short Bishop(int moves) => (short)(Math.Min(7, moves) * 5);
+
+        //C(10 -35 5) =                       -40  -35  -30  -25  -20 -15 -10 -5  0  5  10
+        //static short[] Rook = new short[15] { -42, -34, -27, -20, -16, -8, -3, 1, 5, 9, 12, 14, 20, 18, 18 };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static short Rook(int moves) => (short)(Math.Min(11, moves) * 5);
+
+        //C(21 -30 2) =                        -30  -28  -26  -24  -22  -20  -18  -16  -14  -12  -10  -8  -6 -4 -2  0  2    4   6   8  10
+        //static short[] Queen = new short[28] { -30, -34, -29, -30, -25, -22, -21, -21, -17, -13, -11, -9, -2, 0, 3, 9, 12, 17, 23, 28, 30, 36, 42, 41, 44, 47, 18, 30, };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        static short Queen(int moves) => (short)(Math.Min(25, moves) * 2);
+
+        //C(8 18 -4) =                       18  14 10 6  2  -2  -6  -10  -14
+        //static short[] King = new short[9] { 13, 7, 5, 7, 5, -1, -3, -11, -22 };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        static short King(int count) => (short)(count * -5);
 
         //Tuned on the BIG Dataset
         //Leorik's MSE('data/quiet-labeled.epd') with MSE_SCALING = 100: 0,23698339051219622
@@ -37,24 +57,24 @@ namespace Leorik.Core
             //Kings
             int square = Bitboard.LSB(board.Kings & board.Black);
             int count = Bitboard.PopCount(Bitboard.KingTargets[square] & ~occupied);
-            Base -= King[count];
+            Base -= King(count);
 
             square = Bitboard.LSB(board.Kings & board.White);
             count = Bitboard.PopCount(Bitboard.KingTargets[square] & ~occupied);
-            Base += King[count];
+            Base += King(count);
 
             //Bishops
             for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
             {
                 square = Bitboard.LSB(bishops);
                 count = Bitboard.PopCount(Bitboard.GetBishopTargets(occupied, square) & ~occupied);
-                Base -= Bishop[count];
+                Base -= Bishop(count);
             }
             for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
             {
                 square = Bitboard.LSB(bishops);
                 count = Bitboard.PopCount(Bitboard.GetBishopTargets(occupied, square) & ~occupied);
-                Base += Bishop[count];
+                Base += Bishop(count);
             }
 
             //Rooks
@@ -62,13 +82,13 @@ namespace Leorik.Core
             {
                 square = Bitboard.LSB(rooks);
                 count = Bitboard.PopCount(Bitboard.GetRookTargets(occupied, square) & ~occupied);
-                Base -= Rook[count];
+                Base -= Rook(count);
             }
             for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = Bitboard.ClearLSB(rooks))
             {
                 square = Bitboard.LSB(rooks);
                 count = Bitboard.PopCount(Bitboard.GetRookTargets(occupied, square) & ~occupied);
-                Base += Rook[count];
+                Base += Rook(count);
             }
 
             //Queens
@@ -76,13 +96,13 @@ namespace Leorik.Core
             {
                 square = Bitboard.LSB(queens);
                 count = Bitboard.PopCount(Bitboard.GetQueenTargets(occupied, square) & ~occupied);
-                Base -= Queen[count];
+                Base -= Queen(count);
             }
             for (ulong queens = board.Queens & board.White; queens != 0; queens = Bitboard.ClearLSB(queens))
             {
                 square = Bitboard.LSB(queens);
                 count = Bitboard.PopCount(Bitboard.GetQueenTargets(occupied, square) & ~occupied);
-                Base += Queen[count];
+                Base += Queen(count);
             }
 
             //Black Pawns
@@ -92,7 +112,7 @@ namespace Leorik.Core
             int blocked = Bitboard.PopCount(blackPawns) - Bitboard.PopCount(oneStep);
             //promotion square not blocked?
             int promo = Bitboard.PopCount(oneStep & 0x00000000000000FFUL);
-            Base -= (short)(promo * Pawn[4] + Pawn[0] * blocked);
+            Base -= (short)(promo * PAWN_PROMOTION + PAWN_STUCK * blocked);
 
             //White Pawns
             ulong whitePawns = board.Pawns & board.White;
@@ -101,7 +121,7 @@ namespace Leorik.Core
             blocked = Bitboard.PopCount(whitePawns) - Bitboard.PopCount(oneStep);
             //promotion square not blocked?
             promo = Bitboard.PopCount(oneStep & 0xFF00000000000000UL);
-            Base += (short)(promo * Pawn[4] + Pawn[0] * blocked);
+            Base += (short)(promo * PAWN_PROMOTION + PAWN_STUCK * blocked);
         }
     }
 }

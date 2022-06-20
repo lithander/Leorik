@@ -13,7 +13,7 @@ namespace Leorik.Test
 
         static void Main()
         {
-            Console.WriteLine("Leorik Tests v13");
+            Console.WriteLine("Leorik Tests v14");
             Console.WriteLine();
             unsafe
             {

@@ -141,12 +141,12 @@ namespace Leorik.Tuning
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
-            Feature[] mobility = MobilityTuner.GetFeatures(input.Position, phase);
-            features = Merge(features, mobility, FeatureTuner.M);
+            //Feature[] mobility = MobilityTuner.GetFeatures(input.Position, phase);
+            //features = Merge(features, mobility, FeatureTuner.M);
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             PawnStructure pawns = new PawnStructure(input.Position);
-            //Mobility mobility = new Mobility(input.Position);
+            Mobility mobility = new Mobility(input.Position);
 
             return new TuningData
             {
@@ -154,7 +154,7 @@ namespace Leorik.Tuning
                 Result = input.Result,               
                 Features = features,
                 Pawns = pawns,
-                //Mobility = mobility,
+                Mobility = mobility,
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,
