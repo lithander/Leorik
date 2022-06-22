@@ -5,19 +5,19 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 126, 341, 380, 807, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
 
         private short _phaseValue;
         private PawnStructure _pawns;
         private Material _material;
-        private Mobility _mobility;
+        private short _mobility;
 
         public short Score { get; private set; }
 
         public Evaluation(BoardState board) : this()
         {
             _pawns.Update(board);
-            _mobility = new Mobility(board);
+            _mobility = Mobility.Eval(board);
             AddPieces(board);
             UpdateScore();
         }
@@ -25,7 +25,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateScore()
         {
-            int mg = _pawns.Base + _material.Base + _mobility.Base;
+            int mg = _pawns.Base + _material.Base + _mobility;
             int eg = _pawns.Endgame + _material.Endgame;
             Score = (short)(mg + Phase(_phaseValue) * eg);
         }
@@ -45,7 +45,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void UpdateMobility(BoardState board)
         {
-            _mobility = new Mobility(board);
+            _mobility = Mobility.Eval(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

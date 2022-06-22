@@ -23,7 +23,7 @@ namespace Leorik.Tuning
         public BoardState Position;
         public sbyte Result;
 
-        public Mobility Mobility;
+        public short Mobility;
         public PawnStructure Pawns;
         public Feature[] Features;
 
@@ -57,12 +57,6 @@ namespace Leorik.Tuning
         public static float PawnEval(PawnStructure pawns, float phase)
         {
             return pawns.Base + phase * pawns.Endgame;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float MobilityEval(Mobility mobility, float phase)
-        {
-            return mobility.Base + phase * mobility.Endgame;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -146,7 +140,7 @@ namespace Leorik.Tuning
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             PawnStructure pawns = new PawnStructure(input.Position);
-            Mobility mobility = new Mobility(input.Position);
+            short mobility = Mobility.Eval(input.Position);
 
             return new TuningData
             {

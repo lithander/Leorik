@@ -142,7 +142,7 @@ namespace Leorik.Tuning
         {
             return Tuner.Evaluate(entry.Features, coefficients) +
                    PawnEval(entry.Pawns, entry.Phase) +
-                   MobilityEval(entry.Mobility, entry.Phase);
+                   entry.Mobility;
         }
 
         public static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)

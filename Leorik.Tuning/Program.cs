@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 50;
+int ITERATIONS = 5;
 int MATERIAL_ALPHA = 200;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 50;
@@ -44,6 +44,14 @@ long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
+
+Console.WriteLine($"TestMobilityPerf() - as comitted");
+TestMobilityPerf();
+TestMobilityPerf();
+TestMobilityPerf();
+TestMobilityPerf();
+TestMobilityPerf();
+TestMobilityPerf();
 
 TestMaterialMSE(cFeatures);
 TestPhaseMSE(cPhase);
@@ -114,6 +122,27 @@ void TestLeorikMSE()
     Console.WriteLine($"Leorik's MSE(data) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
     Console.WriteLine();
+}
+
+void TestMobilityPerf()
+{
+    double t0 = Stopwatch.GetTimestamp();
+    foreach (TuningData entry in tuningData)
+    {
+        short mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+        mob = Mobility.Eval(entry.Position);
+    }
+    long t1 = Stopwatch.GetTimestamp();
+    Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 }
 
 void TestMaterialMSE(float[] coefficients)

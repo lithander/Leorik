@@ -92,7 +92,7 @@ namespace Leorik.Tuning
         {
             return entry.MidgameEval + phase * entry.EndgameEval +
                    PawnEval(entry.Pawns, phase) +
-                   MobilityEval(entry.Mobility, phase);
+                   entry.Mobility;
         }
 
         internal static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
