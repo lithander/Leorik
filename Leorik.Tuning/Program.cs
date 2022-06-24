@@ -18,7 +18,7 @@ Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
 //ReplPawnStructure();
-ReplCurves();
+//ReplCurves();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
 //RenderFeatures(data);
@@ -44,14 +44,6 @@ long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
-
-Console.WriteLine($"TestMobilityPerf() - as comitted");
-TestMobilityPerf();
-TestMobilityPerf();
-TestMobilityPerf();
-TestMobilityPerf();
-TestMobilityPerf();
-TestMobilityPerf();
 
 TestMaterialMSE(cFeatures);
 TestPhaseMSE(cPhase);
@@ -122,27 +114,6 @@ void TestLeorikMSE()
     Console.WriteLine($"Leorik's MSE(data) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
     Console.WriteLine();
-}
-
-void TestMobilityPerf()
-{
-    double t0 = Stopwatch.GetTimestamp();
-    foreach (TuningData entry in tuningData)
-    {
-        short mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-        mob = Mobility.Eval(entry.Position);
-    }
-    long t1 = Stopwatch.GetTimestamp();
-    Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 }
 
 void TestMaterialMSE(float[] coefficients)

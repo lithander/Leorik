@@ -81,66 +81,7 @@ namespace Leorik.Tuning
             }
             return features.ToArray();
         }
-
-        //*** DEBUG VERSION ***
-
-        static Piece[] Pieces = new Piece[88];
-        static ulong[] Sum = new ulong[88];
-
-        internal static Feature[] _GetFeatures(BoardState position, float phase)
-        {
-            Array.Clear(_moveCounts);
-            Move[] moves = GetMoves(position);
-            for(int i = 0; i < moves.Length; i++)
-            {
-                Move move = moves[i];
-                //TODO: count captures? Count promotions as one?
-                _moveCounts[move.FromSquare]++;
-            }
-                        
-            Console.WriteLine(Notation.GetFEN(position));
-            List<Feature> features = new List<Feature>();
-            for(int i = 0; i < 64; i++)
-            {
-                if (position.GetPiece(i) == Piece.None)
-                    continue;
-                features.Add(GetFeature(position.GetPiece(i), _moveCounts[i], phase));
-            }
-            Report();
-            Console.WriteLine();
-
-            //...make sure the debug version creates the same features
-            var others = GetFeatures(position, phase);
-            for (int i = 0; i < features.Count; i++)
-                if (!features[i].Equals(others[i]))
-                    throw new Exception();
-
-            return features.ToArray();
-        }
-
-        public static void Report()
-        {
-            Report(Piece.Pawn);
-            Report(Piece.Knight);
-            Report(Piece.Bishop);
-            Report(Piece.Rook);
-            Report(Piece.Queen);
-            Report(Piece.King);
-        }
-
-        private static void Report(Piece piece)
-        {
-            Console.Write($"{piece}: ");
-            int i0 = Move.Order(piece);
-            for(int i = PieceMobilityIndices[i0]; i < PieceMobilityIndices[i0+1]; i++)
-            {
-                Pieces[i] = piece;
-                Console.Write(Sum[i]);
-                Console.Write(" ");
-            }
-            Console.WriteLine();
-        }
-
+                
         internal static void Report(Piece piece, int offset, int step, float[] coefficients)
         {
             Console.Write($"{piece}: ");
@@ -152,25 +93,6 @@ namespace Leorik.Tuning
                 Console.Write(", ");
             }
             Console.WriteLine();
-        }
-
-        private static Feature GetFeature(Piece piece, int moves, float phase)
-        {
-            int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
-
-            Console.WriteLine($"{piece} has {moves} in phase {phase}");
-            short index = (short)GetIndex(piece, moves);
-
-            if (Pieces[index] != (piece & Piece.TypeMask))
-                throw new Exception();
-
-            Sum[index]++;
-
-            return new Feature
-            {
-                Index = index,
-                Value = value
-            };
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateScore()
+        public void UpdateScore()
         {
             int mg = _pawns.Base + _material.Base + _mobility;
             int eg = _pawns.Endgame + _material.Endgame;
@@ -49,9 +49,14 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Update(BoardState board, ref Move move)
+        internal void UpdatePawns(BoardState board)
         {
-            _pawns.Update(board, ref move);
+            _pawns.Update(board);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void UpdateMaterial(BoardState board, ref Move move)
+        {
 
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);
@@ -84,8 +89,6 @@ namespace Leorik.Core
                     AddPiece(Piece.WhiteRook, 3);
                     break;
             }
-
-            UpdateScore();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

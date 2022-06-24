@@ -9,6 +9,7 @@ namespace Leorik.Tuning
     {
         //(Midgame + Endgame) * (6 Pieces + Doubled + Isolated + Passed + ...) * 64 = ??? coefficients
         public const int M = 2 * 6 * 64;
+        //Inc Mobility: (Midgame + Endgame) * 88
         public const int N = M + 2 * 88;
 
         public static float[] GetUntrainedCoefficients()
@@ -26,15 +27,6 @@ namespace Leorik.Tuning
                 c[index] = 500; //Rooks
             for (int sq = 0; sq < 64; sq++, index += 2)
                 c[index] = 900; //Queens
-            
-            //for (int sq = 0; sq < 64; sq++, index += 2)
-            //    c[index] = 0; //king
-            //
-            //for (int mob = 0; mob < 88; mob++)
-            //{
-            //    c[index++] = mob;
-            //    c[index++] = -mob;
-            //}
 
             return c;
         }

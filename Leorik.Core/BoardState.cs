@@ -142,7 +142,9 @@ namespace Leorik.Core
             }
             Eval = from.Eval;
             //Eval.UpdateMobility(this);
-            Eval.Update(this, ref move);
+            Eval.UpdatePawns(this);
+            Eval.UpdateMaterial(this, ref move);
+            Eval.UpdateScore();
             //UpdateHalfmoveClock(ref move);
             //UpdateHash(from, ref move);
             return true;
@@ -165,7 +167,9 @@ namespace Leorik.Core
             }
             Eval = from.Eval;
             Eval.UpdateMobility(this);
-            Eval.Update(this, ref move);
+            Eval.UpdatePawns(this);
+            Eval.UpdateMaterial(this, ref move);
+            Eval.UpdateScore();
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;
