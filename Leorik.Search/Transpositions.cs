@@ -34,6 +34,7 @@ namespace Leorik.Search
         public const int DEFAULT_SIZE_MB = 50;
         const int ENTRY_SIZE = 16; //BYTES
         static HashEntry[] _table;
+        static byte _age = 0;
 
         static bool Find(in ulong hash, out int index)
         {
@@ -45,12 +46,12 @@ namespace Leorik.Search
                 return false; //both slots missed
 
             //a table hit resets the age
-            _table[index].Age = 0;
+            _table[index].Age = _age;
             return true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static int Index(in ulong hash)
+        static int Index(in ulong hash, int newDepth)
         {
             int index = (int)(hash % (ulong)_table.Length);
             ref HashEntry e0 = ref _table[index];
@@ -62,8 +63,14 @@ namespace Leorik.Search
             if (e1.Hash == hash)
                 return index ^ 1;
 
-            //raise age of both and choose the older, shallower entry!
-            return (++e0.Age - e0.Depth) > (++e1.Age - e1.Depth) ? index : index ^ 1;
+            if (e0.Depth < e1.Depth)
+                return index;
+
+            //undercut replacement prevents deep entries from sticking around forever.
+            if (newDepth >= e0.Depth - 1 - (byte)(_age - e0.Age))
+                return index;
+
+            return index ^ 1;
         }
 
         static Transpositions()
@@ -79,12 +86,18 @@ namespace Leorik.Search
 
         public static void Clear()
         {
+            _age = 0;
             Array.Clear(_table, 0, _table.Length);
+        }
+
+        public static void IncreaseAge()
+        {
+            _age++;
         }
 
         public static void Store(ulong zobristHash, int depth, int ply, int alpha, int beta, int score, Move bestMove)
         {
-            ref HashEntry entry = ref _table[Index(zobristHash)];
+            ref HashEntry entry = ref _table[Index(zobristHash, depth)];
 
             //don't overwrite a bestmove with 'default' unless it's a new position
             if (entry.Hash == zobristHash && bestMove == default)
@@ -94,7 +107,7 @@ namespace Leorik.Search
 
             entry.Hash = zobristHash;
             entry.Depth = depth < 0 ? default : (byte)depth;
-            entry.Age = 0;
+            entry.Age = _age;
 
             if (score >= beta)
             {

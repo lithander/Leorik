@@ -7,13 +7,13 @@ namespace Leorik.Test
 {
     class Program
     {
-        const int WAC_COUNT = 999;
+        const int WAC_COUNT = 300;
         const int MATE_COUNT = 999;
         const bool DETAILS = true;
 
         static void Main()
         {
-            Console.WriteLine("Leorik Tests v14");
+            Console.WriteLine("Leorik Tests v15");
             Console.WriteLine();
             unsafe
             {
@@ -24,8 +24,23 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
+            int depth = 20;
+            Console.WriteLine("Depth:");
+            int.TryParse(Console.ReadLine(), out depth);
+
+            int count = WAC_COUNT;
+            Console.WriteLine("Number of positions:");
+            int.TryParse(Console.ReadLine(), out count);
+
+            Console.WriteLine("HashSize in MB:");
+            if (int.TryParse(Console.ReadLine(), out int hashSize))
+            {
+                Transpositions.Resize(hashSize);
+            }
+
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
-            RunWacTestsTime();
+            //RunWacTestsTime();
             //RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
@@ -36,16 +51,16 @@ namespace Leorik.Test
         {
             for (int i = 2; i <= 4; i++)
             {
-                int budget = (int)Math.Pow(10, i) + 10;
+                int budget = (int)Math.Pow(10, i);
                 CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
             }
         }
 
         private static void RunWacTestsDepth()
         {
-            for (int depth = 10; depth <= 16; depth += 2)
+            for (int depth = 14; depth <= 20; depth += 2)
             {
-                CompareBestMove(File.OpenText("wac.epd"), depth, int.MaxValue, IterativeSearch, "", DETAILS);
+                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, IterativeSearch, "", DETAILS);
             }
         }
 
@@ -62,7 +77,8 @@ namespace Leorik.Test
             int foundBest = 0;
             while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
-                Transpositions.Clear();
+                //Transpositions.Clear();
+                Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
                 Span<Move> pv = search(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
@@ -78,8 +94,7 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    //Console.WriteLine(pvString);
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
                 }
                 else
@@ -131,7 +146,7 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited / 1000}K nodes, { 1000 * dt / freq}ms");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
                 }
                 else

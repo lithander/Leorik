@@ -95,6 +95,8 @@ namespace Leorik.Engine
 
         private void StartSearch(long maxNodes)
         {
+            Transpositions.IncreaseAge();
+
             //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
             foreach (var position in _history)
                 Transpositions.StoreHistory(position);
