@@ -24,19 +24,17 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            int depth = 20;
             Console.WriteLine("Depth:");
-            int.TryParse(Console.ReadLine(), out depth);
+            if (!int.TryParse(Console.ReadLine(), out int depth))
+                depth = 15;
 
-            int count = WAC_COUNT;
             Console.WriteLine("Number of positions:");
-            int.TryParse(Console.ReadLine(), out count);
+            if (!int.TryParse(Console.ReadLine(), out int count))
+                count = WAC_COUNT;
 
             Console.WriteLine("HashSize in MB:");
             if (int.TryParse(Console.ReadLine(), out int hashSize))
-            {
                 Transpositions.Resize(hashSize);
-            }
 
             CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
