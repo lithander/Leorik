@@ -399,7 +399,7 @@ namespace Leorik.Search
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestCapture(i, moveGen.Next);
-                if (next.PlayWithoutHash(current, ref Moves[i]))
+                if (next.QuickPlay(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
@@ -419,7 +419,7 @@ namespace Leorik.Search
             //Play Quiets only when in check!
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
             {
-                if (next.PlayWithoutHash(current, ref Moves[i]))
+                if (next.QuickPlay(current, ref Moves[i]))
                 {
                     movesPlayed = true;
                     int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);

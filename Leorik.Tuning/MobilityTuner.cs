@@ -64,20 +64,7 @@ namespace Leorik.Tuning
 
                 int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
                 int index = (short)GetIndex(piece, _moveCounts[i]);
-                features.Add(new Feature
-                {
-                    Index = (short)(2 * index),
-                    Value = value
-                });
-                if (phase == 0)
-                    continue;
-
-                //Set to 0 if you don't want to consider phases
-                features.Add(new Feature
-                {
-                    Index = (short)(2 * index + 1),
-                    Value = 0
-                });
+                features.AddFeature(index, value, phase, false);
             }
             return features.ToArray();
         }

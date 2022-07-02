@@ -8,9 +8,11 @@ namespace Leorik.Tuning
     static class FeatureTuner
     {
         //(Midgame + Endgame) * (6 Pieces + Doubled + Isolated + Passed + ...) * 64 = ??? coefficients
-        public const int M = 2 * 6 * 64;
+        public const int MaterialWeights = 2 * 6 * 64;
         //Inc Mobility: (Midgame + Endgame) * 88
-        public const int N = M + 2 * 88;
+        public const int MobilityWeights = 2 * 88;
+        public const int KingSafetyWeights = 2 * 2 * 10;
+        public const int N = MaterialWeights + KingSafetyWeights;
 
         public static float[] GetUntrainedCoefficients()
         {
@@ -133,7 +135,7 @@ namespace Leorik.Tuning
         public static float Evaluate(TuningData entry, float[] coefficients)
         {
             return Tuner.Evaluate(entry.Features, coefficients) +
-                   PawnEval(entry.Pawns, entry.Phase) +
+                   entry.Pawns.Eval(entry.Phase) +
                    entry.Mobility;
         }
 

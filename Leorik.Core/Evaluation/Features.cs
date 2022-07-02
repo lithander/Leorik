@@ -2,6 +2,7 @@
 
 namespace Leorik.Core
 {
+    //TODO: consider removing the color enum and using two dedicated functions instead
     public class Features
     {
         public static readonly ulong[] NeighbourFiles =
@@ -77,6 +78,42 @@ namespace Leorik.Core
             {
                 ulong whitePawns = board.White & board.Pawns;
                 return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ulong GetKingPawns(BoardState board, Color color)
+        {
+            if (color == Color.Black)
+            {
+                int square = Bitboard.LSB(board.Kings & board.Black);
+                return board.Black & board.Pawns & Bitboard.KingTargets[square];
+            }
+            else //White
+            {
+                int square = Bitboard.LSB(board.White & board.Kings);
+                return board.White & board.Pawns & Bitboard.KingTargets[square];
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ulong GetPawnShield(BoardState board, Color color)
+        {
+            if (color == Color.Black)
+            {
+                ulong blackKing = board.Black & board.Kings;
+                ulong shield = Down(blackKing);
+                shield |= Left(shield) | Right(shield);
+                //shield |= Down(shield);
+                return board.Black & board.Pawns & shield;
+            }
+            else //White
+            {
+                ulong whiteKing = board.White & board.Kings;
+                ulong shield = Up(whiteKing);
+                shield |= Left(shield) | Right(shield);
+                //shield |= Up(shield);
+                return board.White & board.Pawns & shield;
             }
         }
 

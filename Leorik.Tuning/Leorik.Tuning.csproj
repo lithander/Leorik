@@ -12,6 +12,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="data\quiet-extended.epd">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="data\quiet-labeled.epd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

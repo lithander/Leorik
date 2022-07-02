@@ -126,7 +126,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool PlayWithoutHash(BoardState from, ref Move move)
+        public bool QuickPlay(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
             {
@@ -141,12 +141,8 @@ namespace Leorik.Core
                     return false;
             }
             Eval = from.Eval;
-            //Eval.UpdateMobility(this);
-            Eval.UpdatePawns(this);
-            Eval.UpdateMaterial(this, ref move);
-            Eval.UpdateScore();
-            //UpdateHalfmoveClock(ref move);
-            //UpdateHash(from, ref move);
+            //compared to normal play only parts of the eval are updated, no hash and no half-move clock
+            Eval.QuickUpdate(this, ref move);
             return true;
         }
 
@@ -166,10 +162,7 @@ namespace Leorik.Core
                     return false;
             }
             Eval = from.Eval;
-            Eval.UpdateMobility(this);
-            Eval.UpdatePawns(this);
-            Eval.UpdateMaterial(this, ref move);
-            Eval.UpdateScore();
+            Eval.Update(this, ref move);
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;

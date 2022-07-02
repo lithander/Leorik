@@ -8,25 +8,46 @@ namespace Leorik.Core
         public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
 
         private short _phaseValue;
-        private PawnStructure _pawns;
+        private EvalTerm _pawns;
         private Material _material;
-        private short _mobility;
+        private EvalTerm _positional;
 
         public short Score { get; private set; }
 
         public Evaluation(BoardState board) : this()
         {
-            _pawns.Update(board);
-            _mobility = Mobility.Eval(board);
+            PawnStructure.Update(board, ref _pawns);
+            Mobility.Update(board, ref _positional);
+            KingSafety.Update(board, ref _positional);
             AddPieces(board);
+            UpdateScore();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void QuickUpdate(BoardState board, ref Move move)
+        {
+            PawnStructure.Update(board, ref _pawns);
+            UpdateMaterial(board, ref move);
+            UpdateScore();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Update(BoardState board, ref Move move)
+        {
+            _positional = default;
+            Mobility.Update(board, ref _positional);
+            KingSafety.Update(board, ref _positional);
+            PawnStructure.Update(board, ref move, ref _pawns);
+            UpdateMaterial(board, ref move);
             UpdateScore();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore()
         {
-            int mg = _pawns.Base + _material.Base + _mobility;
-            int eg = _pawns.Endgame + _material.Endgame;
+            //TODO: use operator overloading to make this readable
+            int mg = _pawns.Base + _material.Base + _positional.Base;
+            int eg = _pawns.Endgame + _material.Endgame + _positional.Endgame;
             Score = (short)(mg + Phase(_phaseValue) * eg);
         }
 
@@ -43,21 +64,8 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void UpdateMobility(BoardState board)
+        private void UpdateMaterial(BoardState board, ref Move move)
         {
-            _mobility = Mobility.Eval(board);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void UpdatePawns(BoardState board)
-        {
-            _pawns.Update(board);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void UpdateMaterial(BoardState board, ref Move move)
-        {
-
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);
 
@@ -133,7 +141,6 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Checkmate(int ply) => (ply - CheckmateScore);
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Phase(short phaseValue)

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 5;
+int ITERATIONS = 20;
 int MATERIAL_ALPHA = 200;
 int PHASE_ALPHA = 200;
 int MATERIAL_BATCH = 50;
@@ -13,7 +13,7 @@ int PHASE_BATCH = 1;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v14 ");
+Console.WriteLine(" Leorik Tuning v15 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
@@ -21,7 +21,7 @@ Console.WriteLine();
 //ReplCurves();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
-//RenderFeatures(data);
+RenderFeatures(data);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -59,8 +59,7 @@ for (int it = 0; it < ITERATIONS; it++)
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-PrintMaterialCoefficients(cFeatures);
-PrintPhaseCoefficients(cPhase);
+PrintCoefficients(cFeatures);
 
 Console.ReadKey();
 /*
@@ -93,17 +92,11 @@ void TunePhaseBatch(int batchSize, float alpha)
     {
         PhaseTuner.MinimizeParallel(tuningData, cPhase, MSE_SCALING, alpha);
     }
-    Tuner.SyncPhaseChanges(tuningData, cPhase);
+    Tuner.SyncPhaseChanges(tuningData, cPhase, true);
     long t_1 = Stopwatch.GetTimestamp();
     double msePost = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
     Console.Write($"Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s ");
-    PrintPhaseCoefficients(cPhase);
-}
-
-void PrintPhaseCoefficients(float[] c)
-{
-    float R(int i) => (int)Math.Round(c[i]);
-    Console.WriteLine($"N:{R(0),4} B:{R(1),4} R:{R(2),4} Q:{R(3),4}");
+    PhaseTuner.Report(cPhase);
 }
 
 void TestLeorikMSE()
@@ -148,7 +141,7 @@ List<Data> LoadData(string epdFile)
     return data;
 }
 
-void PrintMaterialCoefficients(float[] coefficients)
+void PrintCoefficients(float[] coefficients)
 {
     Console.WriteLine("MIDGAME");
     for (int i = 0; i < 6; i++)
@@ -157,11 +150,26 @@ void PrintMaterialCoefficients(float[] coefficients)
     Console.WriteLine("ENDGAME");
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
-        
-    Console.WriteLine("Mobility - MG");
-    WriteMobilityTable(6 * 128, 2, coefficients);
-    Console.WriteLine("Mobility - EG");
-    WriteMobilityTable(6 * 128 + 1, 2, coefficients);
+
+    //Console.WriteLine("Mobility - MG");
+    //WriteMobilityTable(6 * 128, 2, coefficients);
+    //Console.WriteLine("Mobility - EG");
+    //WriteMobilityTable(6 * 128 + 1, 2, coefficients);
+
+    Console.WriteLine("PawnShield - MG");
+    KingSafetyTuner.Report(6 * 128, 2, coefficients);
+    Console.WriteLine("PawnShield - EG");
+    KingSafetyTuner.Report(6 * 128 + 1, 2, coefficients);
+    Console.WriteLine("KingPawns - MG");
+    KingSafetyTuner.Report(6 * 128 + 20, 2, coefficients);
+    Console.WriteLine("KingPawns - EG");
+    KingSafetyTuner.Report(6 * 128 + 21, 2, coefficients);
+    Console.WriteLine();
+    Console.WriteLine("Phase");
+    PhaseTuner.Report(cPhase);
+
+    double mse = FeatureTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
+    Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 }
 
 void WriteMobilityTable(int offset, int step, float[] coefficients)
@@ -220,8 +228,14 @@ void ReplPawnStructure()
 
 void RenderFeatures(List<Data> data)
 {
-    foreach (var entry in data)
-        RenderFeature(entry.Position);
+    var bs = new BoardState();
+    bs.Pawns = ~0UL;
+    bs.White = ~0UL;
+    bs.Black = ~0UL;
+    bs.Kings = 1UL << 28;
+    RenderFeature(bs);
+    //foreach (var entry in data)
+    //    RenderFeature(entry.Position);
 }
 
 void RenderFeature(BoardState board)
@@ -229,9 +243,11 @@ void RenderFeature(BoardState board)
     Console.WriteLine(Notation.GetFEN(board));
     PrintBitboard(board.Pawns);
     Console.WriteLine();
-    PrintBitboard(Features.GetProtectedPawns(board, Color.Black));
+    PrintBitboard(board.Kings);
     Console.WriteLine();
-    PrintBitboard(Features.GetProtectedPawns(board, Color.White));
+    PrintBitboard(KingSafetyTuner.GetKingPawns(board, Color.Black));
+    Console.WriteLine();
+    PrintBitboard(KingSafetyTuner.GetKingPawns(board, Color.White));
     Console.WriteLine();
 }
 
