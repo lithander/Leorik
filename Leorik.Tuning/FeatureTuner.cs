@@ -11,7 +11,7 @@ namespace Leorik.Tuning
         public const int MaterialWeights = 2 * 6 * 64;
         //Inc Mobility: (Midgame + Endgame) * 88
         public const int MobilityWeights = 2 * 88;
-        public const int KingSafetyWeights = 2 * 2 * 10;
+        public const int KingSafetyWeights = 2 * 20;
         public const int N = MaterialWeights + KingSafetyWeights;
 
         public static float[] GetUntrainedCoefficients()

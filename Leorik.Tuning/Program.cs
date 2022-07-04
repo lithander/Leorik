@@ -4,24 +4,24 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 20;
-int MATERIAL_ALPHA = 200;
-int PHASE_ALPHA = 200;
-int MATERIAL_BATCH = 50;
-int PHASE_BATCH = 1;
+int ITERATIONS = 10;
+int MATERIAL_ALPHA = 1000;
+int PHASE_ALPHA = 100;
+int MATERIAL_BATCH = 100;
+int PHASE_BATCH = 5;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v15 ");
+Console.WriteLine(" Leorik Tuning v16 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
-//ReplPawnStructure();
+ReplKingSafety();
 //ReplCurves();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
-RenderFeatures(data);
+//RenderFeatures(data);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -156,14 +156,10 @@ void PrintCoefficients(float[] coefficients)
     //Console.WriteLine("Mobility - EG");
     //WriteMobilityTable(6 * 128 + 1, 2, coefficients);
 
-    Console.WriteLine("PawnShield - MG");
+    Console.WriteLine("KingSafety - MG");
     KingSafetyTuner.Report(6 * 128, 2, coefficients);
-    Console.WriteLine("PawnShield - EG");
+    Console.WriteLine("KingSafety - EG");
     KingSafetyTuner.Report(6 * 128 + 1, 2, coefficients);
-    Console.WriteLine("KingPawns - MG");
-    KingSafetyTuner.Report(6 * 128 + 20, 2, coefficients);
-    Console.WriteLine("KingPawns - EG");
-    KingSafetyTuner.Report(6 * 128 + 21, 2, coefficients);
     Console.WriteLine();
     Console.WriteLine("Phase");
     PhaseTuner.Report(cPhase);
@@ -213,7 +209,42 @@ void PrintBitboard(ulong bits)
     }
 }
 
-void ReplPawnStructure()
+void PrintPosition(BoardState board)
+{
+    Console.WriteLine("   A B C D E F G H");
+    Console.WriteLine(" .----------------.");
+    for (int rank = 7; rank >= 0; rank--)
+    {
+        Console.Write($"{rank + 1}|"); //ranks aren't zero-indexed
+        for (int file = 0; file < 8; file++)
+        {
+            int square = rank * 8 + file;
+            Piece piece = board.GetPiece(square);
+            SetColor(piece, rank, file);
+            Console.Write(Notation.GetChar(piece));
+            Console.Write(' ');
+        }
+        Console.ResetColor();
+        Console.WriteLine($"|{rank + 1}"); //ranks aren't zero-indexed
+    }
+    Console.WriteLine(" '----------------'");
+}
+
+
+void SetColor(Piece piece, int rank, int file)
+{
+    if ((rank + file) % 2 == 1)
+        Console.BackgroundColor = ConsoleColor.DarkGray;
+    else
+        Console.BackgroundColor = ConsoleColor.Black;
+
+    if ((piece & Piece.ColorMask) == Piece.White)
+        Console.ForegroundColor = ConsoleColor.White;
+    else
+        Console.ForegroundColor = ConsoleColor.Gray;
+}
+
+void ReplKingSafety()
 {
     while (true)
     {
@@ -228,27 +259,15 @@ void ReplPawnStructure()
 
 void RenderFeatures(List<Data> data)
 {
-    var bs = new BoardState();
-    bs.Pawns = ~0UL;
-    bs.White = ~0UL;
-    bs.Black = ~0UL;
-    bs.Kings = 1UL << 28;
-    RenderFeature(bs);
-    //foreach (var entry in data)
-    //    RenderFeature(entry.Position);
+    foreach (var entry in data)
+        RenderFeature(entry.Position);
 }
 
 void RenderFeature(BoardState board)
 {
     Console.WriteLine(Notation.GetFEN(board));
-    PrintBitboard(board.Pawns);
-    Console.WriteLine();
-    PrintBitboard(board.Kings);
-    Console.WriteLine();
-    PrintBitboard(KingSafetyTuner.GetKingPawns(board, Color.Black));
-    Console.WriteLine();
-    PrintBitboard(KingSafetyTuner.GetKingPawns(board, Color.White));
-    Console.WriteLine();
+    PrintPosition(board);
+    KingSafetyTuner.Print(board);
 }
 
 void ReplCurves()

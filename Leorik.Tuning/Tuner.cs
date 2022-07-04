@@ -124,23 +124,23 @@ namespace Leorik.Tuning
             };
         }
 
-        //public static Data ParseEntry(string line)
-        //{
-        //    const string WHITE = "[1.0]";
-        //    const string DRAW = "[0.5]";
-        //    const string BLACK = "[0.0]";
-        //
-        //    int iLabel = line.IndexOf('[');
-        //    string fen = line.Substring(0, iLabel - 1);
-        //    string label = line.Substring(iLabel, 5);
-        //    Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
-        //    int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
-        //    return new Data
-        //    {
-        //        Position = Notation.GetBoardState(fen),
-        //        Result = (sbyte)result
-        //    };
-        //}
+        public static Data ParseEntry2(string line)
+        {
+            const string WHITE = "[1.0]";
+            const string DRAW = "[0.5]";
+            const string BLACK = "[0.0]";
+        
+            int iLabel = line.IndexOf('[');
+            string fen = line.Substring(0, iLabel - 1);
+            string label = line.Substring(iLabel, 5);
+            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
+            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
+            return new Data
+            {
+                Position = Notation.GetBoardState(fen),
+                Result = (sbyte)result
+            };
+        }
 
         internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cFeatures)
         {
@@ -149,12 +149,12 @@ namespace Leorik.Tuning
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
             //Feature[] mobilityFeatures = MobilityTuner.GetFeatures(input.Position, phase);
             //features = Merge(features, mobilityFeatures, FeatureTuner.M);
-            Feature[] kingSafetyFeatures = KingSafetyTuner.GetPawnShieldFeatures(input.Position, phase);
-            features = Merge(features, kingSafetyFeatures, FeatureTuner.MaterialWeights);
+            //Feature[] kingSafetyFeatures = KingSafetyTuner.GetKingThreatsFeatures(input.Position, phase);
+            //features = Merge(features, kingSafetyFeatures, FeatureTuner.MaterialWeights);
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             EvalTerm pawns = PawnStructure.Eval(input.Position);
-            //KingSafety.Update(input.Position, ref pawns);
+            KingSafety.Update(input.Position, ref pawns);
             short mobility = Mobility.Eval(input.Position);
 
             return new TuningData

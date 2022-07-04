@@ -5,35 +5,29 @@ namespace Leorik.Core
 {
     public static class KingSafety
     {
-        //- - - - - - - -
-        //- - - - - - - -
-        //- - - - - - - -
-        //- - - O O O - -
-        //- - - - K - - -
-        //- - - - - - - -
-        //- - - - - - - -
-        //- - - - - - - -
-        //
         //KingSafety - MG
-        //-19, -1, 8, 12, 0, 0, 0, 0, 0, 0,
+        //-56, -50, -48, -51, -47, -36, -27, 1, 8, 37, 81, 42, 51, 91, 4, 0, 0, 0, 0, 0,
         //KingSafety - EG
-        //, 0, 0, 0, 0, 0, 0,
+        //
+        //
+        //Phase
+        //N:  77 B: 292 R: 368 Q:1026
+        //MSE(cFeatures) with MSE_SCALING = 100 on the dataset: 0,23599683749768358
 
-        //MSE(cFeatures) with MSE_SCALING = 100 on the dataset: 0,23613431332171486 (Ref: 0,23643727955169666)
-
-        static short[] PawnShieldBase = new short[4] { -19, -1, 8, 12 };
-        static short[] PawnShieldEndgame = new short[4] { 40, 15, -7, -48 };
+        static short[] KingThreatsBase = new short[20] { -56, -50, -48, -51, -47, -36, -27, 1, 8, 37, 81, 42, 51, 91, 4, 0, 0, 0, 0, 0, };
+        static short[] KingThreatsEndgame = new short[20] { 45, 39, 23, 37, 34, 15, 14, -23, -29, -66, -94, -34, 22, 15, 0, 0, 0, 0, 0, 0, };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Update(BoardState board, ref EvalTerm eval)
         {
-            //int count = PopCount(Features.GetPawnShield(board, Color.White));
-            //eval.Base += PawnShieldBase[count];
-            //eval.Endgame += PawnShieldEndgame[count];
-            //
-            //count = PopCount(Features.GetPawnShield(board, Color.Black));
-            //eval.Base -= PawnShieldBase[count];
-            //eval.Endgame -= PawnShieldEndgame[count];
+            //White
+            int count = Math.Min(19, Features.CountBlackKingThreats(board));
+            eval.Base += KingThreatsBase[count];
+            eval.Endgame += KingThreatsEndgame[count];
+            //Black
+            count = Math.Min(19, Features.CountWhiteKingThreats(board));
+            eval.Base -= KingThreatsBase[count];
+            eval.Endgame -= KingThreatsEndgame[count];
         }
     }
 }
