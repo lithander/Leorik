@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 10;
-int MATERIAL_ALPHA = 1000;
+int ITERATIONS = 20;
+int MATERIAL_ALPHA = 500;
 int PHASE_ALPHA = 100;
 int MATERIAL_BATCH = 100;
 int PHASE_BATCH = 5;
@@ -17,11 +17,7 @@ Console.WriteLine(" Leorik Tuning v16 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 
-ReplKingSafety();
-//ReplCurves();
-
 List<Data> data = LoadData("data/quiet-labeled.epd");
-//RenderFeatures(data);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -151,15 +147,10 @@ void PrintCoefficients(float[] coefficients)
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
 
-    //Console.WriteLine("Mobility - MG");
-    //WriteMobilityTable(6 * 128, 2, coefficients);
-    //Console.WriteLine("Mobility - EG");
-    //WriteMobilityTable(6 * 128 + 1, 2, coefficients);
-
-    Console.WriteLine("KingSafety - MG");
-    KingSafetyTuner.Report(6 * 128, 2, coefficients);
-    Console.WriteLine("KingSafety - EG");
-    KingSafetyTuner.Report(6 * 128 + 1, 2, coefficients);
+    //Console.WriteLine("KingSafety - MG");
+    //FeatureTuner.Report(6 * 128, 20, 2, coefficients);
+    //Console.WriteLine("KingSafety - EG");
+    //FeatureTuner.Report(6 * 128 + 1, 20, 2, coefficients);
     Console.WriteLine();
     Console.WriteLine("Phase");
     PhaseTuner.Report(cPhase);
@@ -167,18 +158,6 @@ void PrintCoefficients(float[] coefficients)
     double mse = FeatureTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
     Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 }
-
-void WriteMobilityTable(int offset, int step, float[] coefficients)
-{
-    MobilityTuner.Report(Piece.Pawn, offset, step, coefficients);
-    MobilityTuner.Report(Piece.Knight, offset, step, coefficients);
-    MobilityTuner.Report(Piece.Bishop, offset, step, coefficients);
-    MobilityTuner.Report(Piece.Rook, offset, step, coefficients);
-    MobilityTuner.Report(Piece.Queen, offset, step, coefficients);
-    MobilityTuner.Report(Piece.King, offset, step, coefficients);
-    Console.WriteLine();
-}
-
 
 void WriteTable(int offset, int step, float[] coefficients)
 {
@@ -193,114 +172,5 @@ void WriteTable(int offset, int step, float[] coefficients)
         Console.WriteLine();
     }
     Console.WriteLine();
-}
-
-void PrintBitboard(ulong bits)
-{
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            int sq = (7-i) * 8 + j;
-            bool bit = (bits & (1UL << sq)) != 0;
-            Console.Write(bit ? "O " : "- ");
-        }
-        Console.WriteLine();
-    }
-}
-
-void PrintPosition(BoardState board)
-{
-    Console.WriteLine("   A B C D E F G H");
-    Console.WriteLine(" .----------------.");
-    for (int rank = 7; rank >= 0; rank--)
-    {
-        Console.Write($"{rank + 1}|"); //ranks aren't zero-indexed
-        for (int file = 0; file < 8; file++)
-        {
-            int square = rank * 8 + file;
-            Piece piece = board.GetPiece(square);
-            SetColor(piece, rank, file);
-            Console.Write(Notation.GetChar(piece));
-            Console.Write(' ');
-        }
-        Console.ResetColor();
-        Console.WriteLine($"|{rank + 1}"); //ranks aren't zero-indexed
-    }
-    Console.WriteLine(" '----------------'");
-}
-
-
-void SetColor(Piece piece, int rank, int file)
-{
-    if ((rank + file) % 2 == 1)
-        Console.BackgroundColor = ConsoleColor.DarkGray;
-    else
-        Console.BackgroundColor = ConsoleColor.Black;
-
-    if ((piece & Piece.ColorMask) == Piece.White)
-        Console.ForegroundColor = ConsoleColor.White;
-    else
-        Console.ForegroundColor = ConsoleColor.Gray;
-}
-
-void ReplKingSafety()
-{
-    while (true)
-    {
-        string fen = Console.ReadLine();
-        if (fen == "")
-            break;
-        //fen = "8/8/7p/1P2Pp1P/2Pp1PP1/8/8/8 w - - 0 1";
-        BoardState board = Notation.GetBoardState(fen);
-        RenderFeature(board);
-    }
-}
-
-void RenderFeatures(List<Data> data)
-{
-    foreach (var entry in data)
-        RenderFeature(entry.Position);
-}
-
-void RenderFeature(BoardState board)
-{
-    Console.WriteLine(Notation.GetFEN(board));
-    PrintPosition(board);
-    KingSafetyTuner.Print(board);
-}
-
-void ReplCurves()
-{
-    Console.WriteLine("Curve(0..'width') = 'a' + x * 'b')");
-    while (true)
-    {
-        string input = Console.ReadLine();
-        if (input == "")
-            break;
-
-        string[] tokens = input.Trim().Split();
-        
-        int width = int.Parse(tokens[0]);
-        int a = int.Parse(tokens[1]);
-        int b = int.Parse(tokens[2]);
-        PrintCurve(width, a, b);
-    }
-}
-
-void PrintCurve(int width, int a, int b)
-{
-    for (int i = 0; i <= width; i++)
-    {
-        Console.Write(a + b * i);
-        Console.Write(" ");
-    }
-    Console.WriteLine();
-}
-
-int Arc(int x, int width, int height)
-{
-    //Looks like an inverted parabola with Arc(0) = 0 Arc(width) = 0 and Arc(width/2) = height
-    return height * 4 * (width * x - x * x) / (width * width);
 }
 

@@ -9,10 +9,9 @@ namespace Leorik.Tuning
     {
         //(Midgame + Endgame) * (6 Pieces + Doubled + Isolated + Passed + ...) * 64 = ??? coefficients
         public const int MaterialWeights = 2 * 6 * 64;
-        //Inc Mobility: (Midgame + Endgame) * 88
-        public const int MobilityWeights = 2 * 88;
-        public const int KingSafetyWeights = 2 * 20;
-        public const int N = MaterialWeights + KingSafetyWeights;
+        //public const int MobilityWeights = 2 * 88;
+        //public const int KingSafetyWeights = 2 * 120;
+        public const int N = MaterialWeights;
 
         public static float[] GetUntrainedCoefficients()
         {
@@ -117,6 +116,17 @@ namespace Leorik.Tuning
                 midgame += feature.Value * coefficients[feature.Index];
                 endgame += feature.Value * coefficients[feature.Index + 1];
             }
+        }
+
+        internal static void Report(int offset, int count, int step, float[] coefficients)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int c = (int)Math.Round(coefficients[offset + i * step]);
+                Console.Write(c);
+                Console.Write(", ");
+            }
+            Console.WriteLine();
         }
 
         public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)

@@ -5,6 +5,9 @@ namespace Leorik.Core
     //TODO: consider removing the color enum and using two dedicated functions instead
     public class Features
     {
+        public const ulong WhiteSquares = 0x55AA55AA55AA55AAUL;
+        public const ulong BlackSquares = 0xAA55AA55AA55AA55UL;
+
         public static readonly ulong[] NeighbourFiles =
         {
             0x0202020202020202UL, 0x0505050505050505UL,
@@ -79,92 +82,6 @@ namespace Leorik.Core
                 ulong whitePawns = board.White & board.Pawns;
                 return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
             }
-        }
-
-        internal static ulong GetKingZone(BoardState board, Color color)
-        {
-            if (color == Color.Black)
-            {
-                int square = Bitboard.LSB(board.Kings & board.Black);
-                return (board.Kings & board.Black) | Bitboard.KingTargets[square];
-            }
-            else //White
-            {
-                int square = Bitboard.LSB(board.White & board.Kings);
-                return (board.White & board.Kings) | Bitboard.KingTargets[square];
-            }
-        }
-
-        public static int CountWhiteKingThreats(BoardState board)
-        {
-            ulong kingZone = GetKingZone(board, Color.White);
-            ulong occupied = 0;// board.Black | board.White;
-            int square;
-            int sum = 0;
-            //Knights
-            for (ulong knights = board.Knights & board.Black; knights != 0; knights = Bitboard.ClearLSB(knights))
-            {
-                square = Bitboard.LSB(knights);
-                sum += Bitboard.PopCount(Bitboard.KnightTargets[square] & kingZone);
-            }
-
-            //Bishops
-            for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
-            {
-                square = Bitboard.LSB(bishops);
-                sum += Bitboard.PopCount(Bitboard.GetBishopTargets(occupied, square) & kingZone);
-            }
-
-            //Rooks
-            for (ulong rooks = board.Rooks & board.Black; rooks != 0; rooks = Bitboard.ClearLSB(rooks))
-            {
-                square = Bitboard.LSB(rooks);
-                sum += Bitboard.PopCount(Bitboard.GetRookTargets(occupied, square) & kingZone);
-            }
-
-            //Queens
-            for (ulong queens = board.Queens & board.Black; queens != 0; queens = Bitboard.ClearLSB(queens))
-            {
-                square = Bitboard.LSB(queens);
-                sum += Bitboard.PopCount(Bitboard.GetQueenTargets(occupied, square) & kingZone);
-            }
-            return sum;
-        }
-
-        public static int CountBlackKingThreats(BoardState board)
-        {
-            ulong kingZone = GetKingZone(board, Color.Black);
-            ulong occupied = 0;// board.Black | board.White;
-            int square;
-            int sum = 0;
-            //Knights
-            for (ulong knights = board.Knights & board.White; knights != 0; knights = Bitboard.ClearLSB(knights))
-            {
-                square = Bitboard.LSB(knights);
-                sum += Bitboard.PopCount(Bitboard.KnightTargets[square] & kingZone);
-            }
-
-            //Bishops
-            for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = Bitboard.ClearLSB(bishops))
-            {
-                square = Bitboard.LSB(bishops);
-                sum += Bitboard.PopCount(Bitboard.GetBishopTargets(occupied, square) & kingZone);
-            }
-
-            //Rooks
-            for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = Bitboard.ClearLSB(rooks))
-            {
-                square = Bitboard.LSB(rooks);
-                sum += Bitboard.PopCount(Bitboard.GetRookTargets(occupied, square) & kingZone);
-            }
-
-            //Queens
-            for (ulong queens = board.Queens & board.White; queens != 0; queens = Bitboard.ClearLSB(queens))
-            {
-                square = Bitboard.LSB(queens);
-                sum += Bitboard.PopCount(Bitboard.GetQueenTargets(occupied, square) & kingZone);
-            }
-            return sum;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

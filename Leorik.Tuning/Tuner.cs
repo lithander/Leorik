@@ -154,7 +154,7 @@ namespace Leorik.Tuning
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
             EvalTerm pawns = PawnStructure.Eval(input.Position);
-            KingSafety.Update(input.Position, ref pawns);
+            //KingSafety.Update(input.Position, ref pawns);
             short mobility = Mobility.Eval(input.Position);
 
             return new TuningData
