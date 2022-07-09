@@ -18,7 +18,7 @@ namespace Leorik.Core
         {
             PawnStructure.Update(board, ref _pawns);
             Mobility.Update(board, ref _positional);
-            //KingSafety.Update(board, ref _positional);
+            BishopPair.Update(board, ref _material);
             AddPieces(board);
             UpdateScore();
         }
@@ -27,7 +27,8 @@ namespace Leorik.Core
         internal void QuickUpdate(BoardState board, ref Move move)
         {
             PawnStructure.Update(board, ref _pawns);
-            UpdateMaterial(board, ref move);
+            BishopPair.UpdateIncremental(board, ref move, ref _material);
+            UpdateMaterial(ref move);
             UpdateScore();
         }
 
@@ -36,9 +37,9 @@ namespace Leorik.Core
         {
             _positional = default;
             Mobility.Update(board, ref _positional);
-            //KingSafety.Update(board, ref _positional);
+            BishopPair.UpdateIncremental(board, ref move, ref _material);
             PawnStructure.Update(board, ref move, ref _pawns);
-            UpdateMaterial(board, ref move);
+            UpdateMaterial(ref move);
             UpdateScore();
         }
 
@@ -65,7 +66,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateMaterial(BoardState board, ref Move move)
+        private void UpdateMaterial(ref Move move)
         {
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);

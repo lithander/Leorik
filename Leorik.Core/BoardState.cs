@@ -163,6 +163,8 @@ namespace Leorik.Core
             }
             Eval = from.Eval;
             Eval.Update(this, ref move);
+            //if (Eval.Score != new Evaluation(this).Score)
+            //    throw new Exception();
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;
