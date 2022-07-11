@@ -5,7 +5,7 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 121, 36, 382, 823, 0 };
 
         private short _phaseValue;
         private EvalTerm _pawns;
@@ -17,8 +17,8 @@ namespace Leorik.Core
         public Evaluation(BoardState board) : this()
         {
             PawnStructure.Update(board, ref _pawns);
-            Mobility.Update(board, ref _positional);
-            BishopPair.Update(board, ref _material);
+            Mobility.Set(board, ref _positional);
+            BishopPair.Add(board, ref _positional);
             AddPieces(board);
             UpdateScore();
         }
@@ -27,19 +27,17 @@ namespace Leorik.Core
         internal void QuickUpdate(BoardState board, ref Move move)
         {
             PawnStructure.Update(board, ref _pawns);
-            BishopPair.UpdateIncremental(board, ref move, ref _material);
-            UpdateMaterial(ref move);
+            UpdateMaterial(board, ref move);
             UpdateScore();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
-            _positional = default;
-            Mobility.Update(board, ref _positional);
-            BishopPair.UpdateIncremental(board, ref move, ref _material);
+            Mobility.Set(board, ref _positional);
+            BishopPair.Add(board, ref _positional);
             PawnStructure.Update(board, ref move, ref _pawns);
-            UpdateMaterial(ref move);
+            UpdateMaterial(board, ref move);
             UpdateScore();
         }
 
@@ -66,7 +64,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateMaterial(ref Move move)
+        private void UpdateMaterial(BoardState board, ref Move move)
         {
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);

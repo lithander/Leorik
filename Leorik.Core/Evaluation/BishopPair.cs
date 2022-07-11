@@ -3,42 +3,61 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
+using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core
 {
-    static class BishopPair
+    public static class BishopPair
     {
+        const int BALANCE = 5;
         const int BISHOP_PAIR = 25;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Update(BoardState board, ref Material eval)
+        public static void Add(BoardState board, ref EvalTerm eval)
         {
-            //A weakspot is that this awards the bonus for two bishops on same-colored squares (but these are rare enough to ignore)
-            if (Bitboard.PopCount(board.Black & board.Bishops) > 1)
-                eval.Base -= BISHOP_PAIR;
-
-            if (Bitboard.PopCount(board.White & board.Bishops) > 1)
-                eval.Base += BISHOP_PAIR;
+            AddBlack(board, ref eval);
+            AddWhite(board, ref eval);
         }
 
-        internal static void UpdateIncremental(BoardState board, ref Move move, ref Material eval)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void AddWhite(BoardState board, ref EvalTerm eval)
         {
-            if (move.Flags == (Piece.Black | Piece.BishopPromotion))
-                if (Bitboard.PopCount(board.Black & board.Bishops) == 2)
-                    eval.Base -= BISHOP_PAIR;
+            ulong blackSquaredBishop = board.White & board.Bishops & Features.BlackSquares;
+            ulong whiteSquaredBishop = board.White & board.Bishops & Features.WhiteSquares;
 
-            if (move.Flags == (Piece.White | Piece.BishopPromotion))
-                if(Bitboard.PopCount(board.White & board.Bishops) == 2)
-                    eval.Base += BISHOP_PAIR;
-
-            //if there's only one BLACK bishop left lose the Bishop-Pair bonus
-            if (move.CapturedPiece() == Piece.BlackBishop && Bitboard.PopCount(board.Black & board.Bishops) == 1)
+            if (blackSquaredBishop > 0 && whiteSquaredBishop > 0)
+            {
                 eval.Base += BISHOP_PAIR;
+                return;
+            }
 
-            //if there's only one WHITE bishop left lose the Bishop-Pair bonus
-            if (move.CapturedPiece() == Piece.WhiteBishop && Bitboard.PopCount(board.White & board.Bishops) == 1)
+            ulong pieces = board.Black & ~board.Pawns & ~board.Knights;
+            int blackVsWhite = PopCount(Features.BlackSquares & pieces) - PopCount(Features.WhiteSquares & pieces);
+
+            if (blackSquaredBishop > 0)
+                eval.Base += (short)(BALANCE * blackVsWhite);
+            else if (whiteSquaredBishop > 0)
+                eval.Base -= (short)(BALANCE * blackVsWhite);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void AddBlack(BoardState board, ref EvalTerm eval)
+        {
+            ulong blackSquaredBishop = board.Black & board.Bishops & Features.BlackSquares;
+            ulong whiteSquaredBishop = board.Black & board.Bishops & Features.WhiteSquares;
+
+            if (blackSquaredBishop > 0 && whiteSquaredBishop > 0)
+            {
                 eval.Base -= BISHOP_PAIR;
+                return;
+            }
+
+            ulong pieces = board.White & ~board.Pawns & ~board.Knights;
+            int blackVsWhite = PopCount(Features.BlackSquares & pieces) - PopCount(Features.WhiteSquares & pieces);
+            if (blackSquaredBishop > 0)
+                eval.Base -= (short)(BALANCE * blackVsWhite);
+            else if (whiteSquaredBishop > 0)
+                eval.Base += (short)(BALANCE * blackVsWhite);
         }
     }
 }

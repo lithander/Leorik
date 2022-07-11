@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.1.11c (Bishop-Pair in QSearch)";
+        const string NAME_VERSION = "Leorik 2.1.11d (BP and Color-Balance)";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();

@@ -19,7 +19,14 @@ namespace Leorik.Core
         static int King(int moves) => moves * -5;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Update(BoardState board, ref EvalTerm eval)
+        public static void Set(BoardState board, ref EvalTerm eval)
+        {
+            eval.Base = Eval(board);
+            eval.Endgame = 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Add(BoardState board, ref EvalTerm eval)
         {
             eval.Base += Eval(board);
         }
