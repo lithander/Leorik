@@ -44,7 +44,7 @@ Version:   2.2
 Size:      1162 LOC
 Strength:  2700 Elo 
 ```
-[__Version 2.2__](https://github.com/lithander/Leorik/releases/tag/2.2) adds a mobility term to the evaluation: Each  non-pawn piece receives bonus cp based on the number of non-capture moves it can make (up to a cap) multiplied with a small, constant cp value. The other changes address irregularities observed with the last version: Null-Move pruning in pawn endgames has been disabled because of the increased risk of missing Zugzwang. The replacement scheme of the transposition table has been rewritten to better protect deep nodes against being overwritten which should improve the time-to-depth in long time-control games. The time-control logic has been completely rewritten to improve performance in matches without per-move increment. 
+[__Version 2.2__](https://github.com/lithander/Leorik/releases/tag/2.2) adds a mobility term to the evaluation: Each  non-pawn piece receives bonus cp based on the number of non-capture moves it can make (up to a cap) multiplied with a small, constant cp value. Other changes address irregularities observed with the last version: Null-Move pruning in pawn endgames has been disabled because of the increased risk of missing Zugzwang. The replacement scheme of the Transposition Table has been rewritten to better protect deep nodes in matches using long time-control settings. The time-control logic has been completely rewritten to improve performance in matches without per-move increment. 
 Leorik 2.2 gains about 100 Elo in strength.
 
 ```
