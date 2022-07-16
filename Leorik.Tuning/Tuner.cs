@@ -23,7 +23,8 @@ namespace Leorik.Tuning
         public BoardState Position;
         public sbyte Result;
 
-        public EvalTerm Fixed;
+        public short Mobility;
+        public EvalTerm Pawns;
         public Feature[] Features;
 
         public float MidgameEval;
@@ -152,17 +153,17 @@ namespace Leorik.Tuning
             //features = Merge(features, kingSafetyFeatures, FeatureTuner.MaterialWeights);
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
-
-            EvalTerm eval = PawnStructure.Eval(input.Position);
-            BishopPair.Add(input.Position, ref eval);
-            Mobility.Add(input.Position, ref eval);
+            EvalTerm pawns = PawnStructure.Eval(input.Position);
+            //KingSafety.Update(input.Position, ref pawns);
+            short mobility = Mobility.Eval(input.Position);
 
             return new TuningData
             {
                 Position = input.Position,
                 Result = input.Result,               
                 Features = features,
-                Fixed = eval,
+                Pawns = pawns,
+                Mobility = mobility,
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,

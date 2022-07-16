@@ -91,7 +91,8 @@ namespace Leorik.Tuning
         public static float Evaluate(TuningData entry, float phase)
         {
             return entry.MidgameEval + phase * entry.EndgameEval +
-                   entry.Fixed.Eval(entry.Phase);
+                   entry.Pawns.Eval(entry.Phase) +
+                   entry.Mobility;
         }
 
         internal static void Report(float[] cPhase)

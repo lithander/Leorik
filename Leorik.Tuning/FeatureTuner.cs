@@ -145,7 +145,8 @@ namespace Leorik.Tuning
         public static float Evaluate(TuningData entry, float[] coefficients)
         {
             return Tuner.Evaluate(entry.Features, coefficients) +
-                   entry.Fixed.Eval(entry.Phase);
+                   entry.Pawns.Eval(entry.Phase) +
+                   entry.Mobility;
         }
 
         public static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
