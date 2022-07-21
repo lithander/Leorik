@@ -14,6 +14,8 @@ namespace Leorik.Engine
 
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
+        public string GetFen() => Notation.GetFen(_board);
+        public Evaluation GetEval() => _board.Eval;
 
         public void Init()
         {

@@ -116,7 +116,7 @@ namespace Leorik.Core
             return result;
         }
 
-        public static string GetFEN(BoardState board)
+        public static string GetFen(BoardState board)
         {
             //Startpos in FEN looks like this: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             //https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation

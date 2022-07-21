@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2";
+        const string NAME_VERSION = "Leorik 2.2.1";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -59,10 +59,28 @@ namespace Leorik.Engine
                 case "setoption":
                     UciSetOption(tokens);
                     break;
+                //inofficial commands
+                case "fen":
+                    Console.WriteLine(_engine.GetFen());
+                    break;
+                case "eval":
+                    PrintEval(_engine.GetEval());
+                    break;
                 default:
-                    Console.WriteLine("UNKNOWN INPUT " + input);
+                    Console.WriteLine($"Unknown command: {input}");
                     return;
             }
+        }
+
+        private static void PrintEval(Evaluation eval)
+        {
+            float phase = Evaluation.Phase(eval.PhaseValue);
+            Console.WriteLine($"             MG  +  EG");
+            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {phase:0.##}");
+            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {phase:0.##}");
+            Console.WriteLine($"Mobility: {eval.Positional.Base,5}");
+            Console.WriteLine($"--------+------------------------");
+            Console.WriteLine($"   White: {eval.Score, 5}");
         }
 
         private static void UciSetOption(string[] tokens)
@@ -74,8 +92,13 @@ namespace Leorik.Engine
         private static void UciPosition(string[] tokens)
         {
             //position [fen <fenstring> | startpos ]  moves <move1> .... <movei>
+            if (tokens.Length <= 1)
+                return;
+            
             if (tokens[1] == "startpos")
+            {
                 _engine.SetupPosition(Notation.GetStartingPosition());
+            }
             else if (tokens[1] == "fen") //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
             {
                 string fen = string.Join(' ', tokens[2..]);
@@ -83,8 +106,8 @@ namespace Leorik.Engine
             }
             else
             {
-                Uci.Log("'position' parameters missing or not understood. Assuming 'startpos'.");
-                _engine.SetupPosition(Notation.GetStartingPosition());
+                Console.WriteLine($"Unknown parameter: {tokens[1]}");
+                return;
             }
 
             int firstMove = Array.IndexOf(tokens, "moves") + 1;

@@ -7,17 +7,17 @@ namespace Leorik.Core
         public static readonly int PhaseSum = 5000;
         public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
 
-        private short _phaseValue;
-        private EvalTerm _pawns;
-        private Material _material;
-        private EvalTerm _positional;
+        public short PhaseValue;
+        public EvalTerm Pawns;
+        public Material Material;
+        public EvalTerm Positional;
 
         public short Score { get; private set; }
 
         public Evaluation(BoardState board) : this()
         {
-            PawnStructure.Update(board, ref _pawns);
-            Mobility.Update(board, ref _positional);
+            PawnStructure.Update(board, ref Pawns);
+            Mobility.Update(board, ref Positional);
             //KingSafety.Update(board, ref _positional);
             AddPieces(board);
             UpdateScore();
@@ -26,7 +26,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void QuickUpdate(BoardState board, ref Move move)
         {
-            PawnStructure.Update(board, ref _pawns);
+            PawnStructure.Update(board, ref Pawns);
             UpdateMaterial(board, ref move);
             UpdateScore();
         }
@@ -34,10 +34,10 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
-            _positional = default;
-            Mobility.Update(board, ref _positional);
+            Positional = default;
+            Mobility.Update(board, ref Positional);
             //KingSafety.Update(board, ref _positional);
-            PawnStructure.Update(board, ref move, ref _pawns);
+            PawnStructure.Update(board, ref move, ref Pawns);
             UpdateMaterial(board, ref move);
             UpdateScore();
         }
@@ -46,9 +46,9 @@ namespace Leorik.Core
         public void UpdateScore()
         {
             //TODO: use operator overloading to make this readable
-            int mg = _pawns.Base + _material.Base + _positional.Base;
-            int eg = _pawns.Endgame + _material.Endgame + _positional.Endgame;
-            Score = (short)(mg + Phase(_phaseValue) * eg);
+            int mg = Pawns.Base + Material.Base + Positional.Base;
+            int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
+            Score = (short)(mg + Phase(PhaseValue) * eg);
             //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
         }
 
@@ -104,22 +104,22 @@ namespace Leorik.Core
         private void AddPiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            _phaseValue += PhaseValues[pieceIndex];
+            PhaseValue += PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                _material.AddScore(pieceIndex, squareIndex ^ 56);
+                Material.AddScore(pieceIndex, squareIndex ^ 56);
             else
-                _material.SubtractScore(pieceIndex, squareIndex);
+                Material.SubtractScore(pieceIndex, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RemovePiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            _phaseValue -= PhaseValues[pieceIndex];
+            PhaseValue -= PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                _material.SubtractScore(pieceIndex, squareIndex ^ 56);
+                Material.SubtractScore(pieceIndex, squareIndex ^ 56);
             else
-                _material.AddScore(pieceIndex, squareIndex);
+                Material.AddScore(pieceIndex, squareIndex);
         }
 
         public const int CheckmateBase = 9000;

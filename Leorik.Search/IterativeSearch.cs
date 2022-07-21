@@ -369,7 +369,6 @@ namespace Leorik.Search
 
             return alpha;
         }
-
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;
