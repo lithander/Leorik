@@ -9,7 +9,30 @@ namespace Leorik.Tuning
 {
     static class BitboardUtils
     {
-        static void PrintBitboard(ulong bits)
+        public static void Repl()
+        {
+            while (true)
+            {
+                Console.Write("Fen: ");
+                string fen = Console.ReadLine();
+                if (fen == "")
+                    break;
+                //fen = "8/8/7p/1P2Pp1P/2Pp1PP1/8/8/8 w - - 0 1";
+                void Print(ulong bits, string label)
+                {
+                    Console.WriteLine(label);
+                    PrintBitboard(bits);
+                    Console.WriteLine();
+                }
+                BoardState board = Notation.GetBoardState(fen);
+                //Console.WriteLine(Notation.GetFen(board));
+                Print(board.Pawns, "All Pawns");
+                Print(Features.GetBackwardWhitePawns(board), "BackwardWhitePawns");
+                Print(Features.GetBackwardBlackPawns(board), "BackwardBlackPawns");
+            }
+        }
+
+        public static void PrintBitboard(ulong bits)
         {
             for (int i = 0; i < 8; i++)
             {
@@ -23,7 +46,7 @@ namespace Leorik.Tuning
             }
         }
 
-        static void PrintPosition(BoardState board)
+        public static void PrintPosition(BoardState board)
         {
             Console.WriteLine("   A B C D E F G H");
             Console.WriteLine(" .----------------.");

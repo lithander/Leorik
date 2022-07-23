@@ -23,10 +23,8 @@ namespace Leorik.Core
             return (pawns & NeighbourFiles[file]) == 0;
         }
 
-        public static ulong GetIsolatedPawns(BoardState board, Color color)
+        private static ulong GetIsolatedPawns(ulong pawns)
         {
-            ulong mask = color == Color.Black ? board.Black : board.White;
-            ulong pawns = mask & board.Pawns;
             ulong result = 0;
             for (ulong bits = pawns; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
@@ -37,51 +35,70 @@ namespace Leorik.Core
             return result;
         }
 
-        public static ulong GetPassedPawns(BoardState board, Color color)
+        public static ulong GetIsolatedBlackPawns(BoardState board)
         {
-            if (color == Color.Black)
-            {
-                ulong whiteFront = Up(FillUp(board.White & board.Pawns));
-                return board.Black & board.Pawns & ~(whiteFront | Left(whiteFront) | Right(whiteFront));
-            }
-            else //White
-            {
-                ulong blackFront = Down(FillDown(board.Black & board.Pawns));
-                return board.White & board.Pawns & ~(blackFront | Left(blackFront) | Right(blackFront));
-            }
+            return GetIsolatedPawns(board.Black & board.Pawns);
         }
 
-        public static ulong GetProtectedPawns(BoardState board, Color color)
+        public static ulong GetIsolatedWhitePawns(BoardState board)
         {
-            if (color == Color.Black)
-            {
-                ulong blackPawns = board.Black & board.Pawns;
-                //capture left
-                ulong captureLeft = (blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9;
-                ulong captureRight = (blackPawns & 0x7F7F7F7F7F7F7F7FUL) >> 7;
-                return (captureLeft | captureRight) & blackPawns;
-            }
-            else //White
-            {
-                ulong whitePawns = board.White & board.Pawns;
-                ulong captureRight = (whitePawns & 0x7F7F7F7F7F7F7F7FUL) << 9;
-                ulong captureLeft = (whitePawns & 0xFEFEFEFEFEFEFEFEUL) << 7;
-                return (captureRight | captureLeft) & whitePawns;
-            }
+            return GetIsolatedPawns(board.White & board.Pawns);
         }
 
-        public static ulong GetConnectedPawns(BoardState board, Color color)
+        public static ulong GetPassedBlackPawns(BoardState board)
         {
-            if (color == Color.Black)
-            {
-                ulong blackPawns = board.Black & board.Pawns;
-                return (Left(blackPawns) | Right(blackPawns)) & blackPawns;
-            }
-            else //White
-            {
-                ulong whitePawns = board.White & board.Pawns;
-                return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
-            }
+            ulong whiteFront = Up(FillUp(board.White & board.Pawns));
+            return board.Black & board.Pawns & ~(whiteFront | Left(whiteFront) | Right(whiteFront));
+        }
+
+        public static ulong GetPassedWhitePawns(BoardState board)
+        {
+            ulong blackFront = Down(FillDown(board.Black & board.Pawns));
+            return board.White & board.Pawns & ~(blackFront | Left(blackFront) | Right(blackFront));
+        }
+
+        public static ulong GetProtectedBlackPawns(BoardState board)
+        {
+            ulong blackPawns = board.Black & board.Pawns;
+            return (LeftDown(blackPawns) | RightDown(blackPawns)) & blackPawns;
+        }
+
+        public static ulong GetProtectedWhitePawns(BoardState board)
+        {
+            ulong whitePawns = board.White & board.Pawns;
+            return (LeftUp(whitePawns) | RightUp(whitePawns)) & whitePawns;
+        }
+
+        public static ulong GetConnectedBlackPawns(BoardState board)
+        {
+            ulong blackPawns = board.Black & board.Pawns;
+            return (Left(blackPawns) | Right(blackPawns)) & blackPawns;
+        }
+
+        public static ulong GetConnectedWhitePawns(BoardState board)
+        {
+            ulong whitePawns = board.White & board.Pawns;
+            return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
+        }
+
+        public static ulong GetBackwardBlackPawns(BoardState board)
+        {
+            ulong blackPawns = board.Black & board.Pawns;
+            ulong whitePawns = board.White & board.Pawns;
+            ulong blackAttacks = LeftDown(blackPawns) | RightDown(blackPawns);
+            ulong whiteAttacks = LeftUp(whitePawns) | RightUp(whitePawns);
+            //black pawns behind all friendly adjacent pawns whose down-square is attacked by white pawns are backward
+            return Up(Down(blackPawns) & whiteAttacks & ~FillDown(blackAttacks));
+        }
+
+        public static ulong GetBackwardWhitePawns(BoardState board)
+        {
+            ulong blackPawns = board.Black & board.Pawns;
+            ulong whitePawns = board.White & board.Pawns;
+            ulong blackAttacks = LeftDown(blackPawns) | RightDown(blackPawns);
+            ulong whiteAttacks = LeftUp(whitePawns) | RightUp(whitePawns);
+            //white pawns behind all friendly adjacent pawns whose up-square is attacked by black pawns are backward
+            return Down(Up(whitePawns) & blackAttacks & ~FillUp(whiteAttacks));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -113,5 +130,17 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong Right(ulong bits) => (bits & 0x7F7F7F7F7F7F7F7FUL) << 1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong LeftDown(ulong bits) => (bits & 0xFEFEFEFEFEFEFEFEUL) >> 9;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong RightDown(ulong bits) => (bits & 0x7F7F7F7F7F7F7F7FUL) >> 7;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong LeftUp(ulong bits) => (bits & 0xFEFEFEFEFEFEFEFEUL) << 7;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ulong RightUp(ulong bits) => (bits & 0x7F7F7F7F7F7F7F7FUL) << 9;
     }
 }

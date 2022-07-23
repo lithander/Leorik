@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 20;
+int ITERATIONS = 5;
 int MATERIAL_ALPHA = 500;
 int PHASE_ALPHA = 100;
 int MATERIAL_BATCH = 100;
@@ -13,9 +13,11 @@ int PHASE_BATCH = 5;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v16 ");
+Console.WriteLine(" Leorik Tuning v17 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
+
+BitboardUtils.Repl();
 
 List<Data> data = LoadData("data/quiet-labeled.epd");
 
@@ -147,10 +149,11 @@ void PrintCoefficients(float[] coefficients)
     for (int i = 0; i < 6; i++)
         WriteTable(i * 128 + 1, 2, coefficients);
 
-    //Console.WriteLine("KingSafety - MG");
-    //FeatureTuner.Report(6 * 128, 20, 2, coefficients);
-    //Console.WriteLine("KingSafety - EG");
-    //FeatureTuner.Report(6 * 128 + 1, 20, 2, coefficients);
+    //Console.WriteLine("BackwardPawns - MG");
+    //WriteTable(6 * 128, 2, coefficients);
+    //Console.WriteLine("BackwardPawns - EG");
+    //WriteTable(6 * 128 + 1, 2, coefficients);
+
     Console.WriteLine();
     Console.WriteLine("Phase");
     PhaseTuner.Report(cPhase);
@@ -173,4 +176,3 @@ void WriteTable(int offset, int step, float[] coefficients)
     }
     Console.WriteLine();
 }
-

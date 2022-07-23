@@ -100,6 +100,9 @@ namespace Leorik.Tuning
             IteratePieces(pos, pos.Queens,  AddFeature, 4);
             IteratePieces(pos, pos.Kings,   AddFeature, 5);
 
+            //ulong backwardPawns = Features.GetBackwardWhitePawns(pos) | Features.GetBackwardBlackPawns(pos);
+            //IteratePieces(pos, backwardPawns, AddFeature, 6);
+
             return result;
         }
 
