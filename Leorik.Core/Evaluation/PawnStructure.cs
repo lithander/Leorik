@@ -26,10 +26,9 @@ namespace Leorik.Core
         const int HASH_TABLE_SIZE = 4999; //prime!
         static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
 
-        const short BACKWARD_PAWN = -5;
-        const short ISOLATED_PAWN = -7;
+        const short ISOLATED_PAWN = -8;
         const short CONNECTED_PAWN = 6;
-        const short PROTECTED_PAWN = 13;
+        const short PROTECTED_PAWN = 14;
         const short PASSED_RANK = 16;
         const short PASSED_CENTER = -12;
 
@@ -58,7 +57,6 @@ namespace Leorik.Core
         public static EvalTerm Eval(BoardState pos)
         {
             EvalTerm eval = default;
-            AddBackwardPawns(pos, ref eval);
             AddIsolatedPawns(pos, ref eval);
             AddPassedPawns(pos, ref eval);
             AddProtectedPawns(pos, ref eval);
@@ -103,13 +101,6 @@ namespace Leorik.Core
             int white = Bitboard.PopCount(Features.GetProtectedWhitePawns(pos));
             int black = Bitboard.PopCount(Features.GetProtectedBlackPawns(pos));
             eval.Base += (short)(PROTECTED_PAWN * (white - black));
-        }
-
-        private static void AddBackwardPawns(BoardState pos, ref EvalTerm eval)
-        {
-            int white = Bitboard.PopCount(Features.GetBackwardWhitePawns(pos));
-            int black = Bitboard.PopCount(Features.GetBackwardBlackPawns(pos));
-            eval.Base += (short)(BACKWARD_PAWN * (white - black));
         }
     }
 }
