@@ -43,6 +43,18 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsPromotion()
+        {
+            return Flags >= Piece.KnightPromotion && Flags < Piece.CastleShort;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsEnPassant()
+        {
+            return (Flags & ~Piece.ColorMask) == Piece.EnPassant;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int MvvLvaScore()
         {
             //Most valuable Victim, Least valuable Attacker

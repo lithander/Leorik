@@ -20,9 +20,10 @@ namespace Leorik.Test
                 Console.WriteLine("sizeof(Move) = " + sizeof(Move));
                 Console.WriteLine("sizeof(HashEntry) = " + sizeof(Transpositions.HashEntry));
                 Console.WriteLine("sizeof(Evaluation) = " + sizeof(Evaluation));
-                //Console.WriteLine("sizeof(BoardStateProxy) = " + sizeof(BoardStateProxy));
                 Console.WriteLine();
             }
+
+            RunSeeTests();
 
             Console.WriteLine("Depth:");
             if (!int.TryParse(Console.ReadLine(), out int depth))
@@ -241,6 +242,100 @@ namespace Leorik.Test
             Console.WriteLine($"Mate found in {foundMate} / {count} positions!");
             Console.WriteLine();
         }
+
+        /*********************/
+        /***    Search     ***/
+        /*********************/
+
+
+        private static void RunSeeTests()
+        {
+            string QLabel(int sign)
+            {
+                if (sign > 0) return "GOOD";
+                if (sign < 0) return "BAD";
+                return "NEUTRAL";
+            }
+
+            StreamReader file = File.OpenText("see.epd");
+            int count = 0;
+            int correct = 0;
+            while (!file.EndOfStream)
+            {
+                //Example: 2r1r1k1/pp1bppbp/3p1np1/q3P3/2P2P2/1P2B3/P1N1B1PP/2RQ1RK1 b - -; dxe5; 100; Pawn;
+                string line = file.ReadLine();
+                if (line.Length == 0)
+                    break;
+                if (line.StartsWith("//"))
+                    continue;
+
+                count++;
+                var tokens = line.Split(';');
+                string fen = tokens[0];
+                BoardState position = Notation.GetBoardState(fen);
+
+                string moveString = tokens[1].Trim();
+                Move move = Notation.GetMove(position, moveString);
+                Print(position, move);
+                Console.WriteLine(fen);
+                int seeRef = int.Parse(tokens[2]);
+                int seeValue = (int)position.SideToMove * See.Evaluate(position, move);
+                int sign = Math.Sign(seeValue);
+                int sign2 = (int)position.SideToMove * See.EvaluateSign(position, move);
+                Debug.Assert(seeRef == seeValue);
+                Debug.Assert(sign == sign2);
+                Console.WriteLine($"{count,4}. [{(seeRef == seeValue ? "X" : " ")}] {QLabel(sign)}, SEE({move}) = {seeValue} Solution: {seeRef} ({tokens[3]})");
+                if (seeRef == seeValue)
+                    correct++;
+                Console.WriteLine();
+            }
+            Console.WriteLine($"Correct SEE in {correct} / {count} positions!");
+        }
+
+        private static void Print(BoardState board, Move move = default)
+        {
+            Console.WriteLine("   A B C D E F G H");
+            Console.WriteLine(" .----------------.");
+            for (int rank = 7; rank >= 0; rank--)
+            {
+                Console.Write($"{rank + 1}|"); //ranks aren't zero-indexed
+                for (int file = 0; file < 8; file++)
+                {
+                    int square = rank * 8 + file;
+                    Piece piece = board.GetPiece(square);
+                    SetColor(piece, rank, file, move);
+                    Console.Write(Notation.GetChar(piece));
+                    Console.Write(' ');
+                }
+                Console.ResetColor();
+                Console.WriteLine($"|{rank + 1}"); //ranks aren't zero-indexed
+            }
+            Console.WriteLine(" '----------------'");
+        }
+
+        private static void SetColor(Piece piece, int rank, int file, Move move)
+        {
+            if ((rank + file) % 2 == 1)
+                Console.BackgroundColor = ConsoleColor.DarkGray;
+            else
+                Console.BackgroundColor = ConsoleColor.Black;
+
+            if (move != default)
+            {
+                int index = rank * 8 + file;
+                //highlight squares if they belong to the move
+                if (move.FromSquare == index)
+                    Console.BackgroundColor = ConsoleColor.DarkCyan;
+                else if(move.ToSquare == index)
+                    Console.BackgroundColor = ConsoleColor.DarkRed;
+            }
+
+            if ((piece & Piece.ColorMask) == Piece.White)
+                Console.ForegroundColor = ConsoleColor.White;
+            else
+                Console.ForegroundColor = ConsoleColor.Gray;
+        }
+
 
         /*********************/
         /***    Search     ***/
