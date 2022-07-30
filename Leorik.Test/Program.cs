@@ -279,9 +279,9 @@ namespace Leorik.Test
                 Print(position, move);
                 Console.WriteLine(fen);
                 int seeRef = int.Parse(tokens[2]);
-                int seeValue = (int)position.SideToMove * See.Evaluate(position, move);
+                int seeValue = (int)position.SideToMove * StaticExchange.Evaluate(position, move);
                 int sign = Math.Sign(seeValue);
-                int sign2 = (int)position.SideToMove * See.EvaluateSign(position, move);
+                int sign2 = (int)position.SideToMove * StaticExchange.EvaluateSign(position, move);
                 Debug.Assert(seeRef == seeValue);
                 Debug.Assert(sign == sign2);
                 Console.WriteLine($"{count,4}. [{(seeRef == seeValue ? "X" : " ")}] {QLabel(sign)}, SEE({move}) = {seeValue} Solution: {seeRef} ({tokens[3]})");

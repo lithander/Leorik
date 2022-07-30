@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Leorik.Core
 {
-    public class See
+    public class StaticExchange
     {
         public static readonly int[] PieceValues = new int[14]
         {
@@ -39,7 +40,51 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EvaluateSign(BoardState position, Move move)
         {
-            return Math.Sign(Evaluate(position, move));
+            //return Math.Sign(Evaluate(position, move));
+            return _EvaluateSign(position, move);
+            //Debug.Assert(a == b);
+            //return a;
+        }
+
+        public static int _EvaluateSign(BoardState position, Move move)
+        {
+            position = position.Clone();
+            int square = move.ToSquare;
+            int alpha = -1;
+            int beta = 1;
+            int see = move.IsEnPassant() ? PieceValue(move.MovingPiece()) : 0;
+
+            while (true)
+            {
+                if ((move.CapturedPiece() & Piece.TypeMask) == Piece.King)
+                    return Math.Sign(position.SideToMove == Color.White ? beta : alpha);
+
+                see -= PieceValue(move.CapturedPiece());
+
+                if (move.IsPromotion())
+                {
+                    see -= PieceValue(move.MovingPiece());
+                    see += PieceValue(move.NewPiece());
+                }
+
+                if (position.SideToMove == Color.White)
+                {
+                    if (see < alpha)
+                        return alpha; //move would be too bad for white, white uses stand-pat
+                    beta = Math.Min(beta, see); //new stand-pat option for black
+                }
+                else
+                {
+                    if (see > beta)
+                        return beta; //move would be too bad for black, black uses stand-pat
+                    alpha = Math.Max(alpha, see); //new stand-pat option for white
+                }
+
+                position.Play(move);
+
+                if (!GetLeastValuableAttack(position, square, ref move))
+                    return Math.Sign(position.SideToMove == Color.White ? alpha : beta);
+            }
         }
 
         public static int Evaluate(BoardState position, Move move)
@@ -63,15 +108,23 @@ namespace Leorik.Core
                     see += PieceValue(move.NewPiece());
                 }
 
+                if (position.SideToMove == Color.White)
+                {
+                    if (see < alpha)
+                        return alpha; //move would be too bad for white, white uses stand-pat
+                    beta = Math.Min(beta, see); //new stand-pat option for black
+                }
+                else
+                {
+                    if (see > beta)
+                        return beta; //move would be too bad for black, black uses stand-pat
+                    alpha = Math.Max(alpha, see); //new stand-pat option for white
+                }
+
                 position.Play(move);
 
-                if (position.SideToMove == Color.Black)
-                    beta = Math.Min(beta, see); //Black can chose stand-put and keep this
-                else
-                    alpha = Math.Max(alpha, see); //White can chose stand-put and keep this
-
                 if (!GetLeastValuableAttack(position, square, ref move))
-                    return position.SideToMove == Color.White ? alpha : beta;
+                    return position.SideToMove == Color.White ? alpha : beta; //Assert(alpha <= beta)
             }
         }
 
@@ -94,24 +147,16 @@ namespace Leorik.Core
             //capture left
             ulong blackPawns = board.Black & board.Pawns;
             ulong left = (blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9;
-            if((left & target) > 0)
+            if((left & target & 0xFFFFFFFFFFFFFF00UL) > 0)
             {
-                if ((target & 0x00000000000000FFUL) > 0)
-                    move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 9, toSquare, targetPiece);
-                else
-                    move = new Move(Piece.BlackPawn, toSquare + 9, toSquare, targetPiece);
-
+                move = new Move(Piece.BlackPawn, toSquare + 9, toSquare, targetPiece);
                 return true;
             }
 
             ulong right = (blackPawns & 0x7F7F7F7F7F7F7F7FUL) >> 7;
-            if ((right & target) > 0)
+            if ((right & target & 0xFFFFFFFFFFFFFF00UL) > 0)
             {
-                if ((target & 0x00000000000000FFUL) > 0)
-                    move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 7, toSquare, targetPiece);
-                else
-                    move = new Move(Piece.BlackPawn, toSquare + 7, toSquare, targetPiece);
-
+                move = new Move(Piece.BlackPawn, toSquare + 7, toSquare, targetPiece);
                 return true;
             }
 
@@ -147,6 +192,18 @@ namespace Leorik.Core
                 }
             }
 
+            if ((left & target & 0x00000000000000FFUL) > 0)
+            {
+                move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 9, toSquare, targetPiece);
+                return true;
+            }
+
+            if ((right & target & 0x00000000000000FFUL) > 0)
+            {
+                move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 7, toSquare, targetPiece);
+                return true;
+            }
+
             pieces = board.Black & board.Queens;
             if (pieces > 0 && (pieces & (Bitboard.DiagonalMask[toSquare] | Bitboard.OrthogonalMask[toSquare])) > 0)
             {
@@ -176,27 +233,18 @@ namespace Leorik.Core
             ulong target = 1UL << toSquare;
             Piece targetPiece = board.GetPiece(toSquare);
 
-            //capture left
             ulong whitePawns = board.Pawns & board.White;
             ulong left = (whitePawns & 0xFEFEFEFEFEFEFEFEUL) << 7;
-            if ((left & target) > 0)
+            if ((left & target & 0x00FFFFFFFFFFFFFFUL) > 0)
             {
-                if ((target & 0xFF00000000000000UL) > 0)
-                    move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 7, toSquare, targetPiece);
-                else
-                    move = new Move(Piece.WhitePawn, toSquare - 7, toSquare, targetPiece);
-
+                move = new Move(Piece.WhitePawn, toSquare - 7, toSquare, targetPiece);
                 return true;
             }
 
             ulong right = (whitePawns & 0x7F7F7F7F7F7F7F7FUL) << 9;
-            if ((right & target) > 0)
+            if ((right & target & 0x00FFFFFFFFFFFFFFUL) > 0)
             {
-                if ((target & 0xFF00000000000000UL) > 0)
-                    move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 9, toSquare, targetPiece);
-                else
-                    move = new Move(Piece.WhitePawn, toSquare - 9, toSquare, targetPiece);
-
+                move = new Move(Piece.WhitePawn, toSquare - 9, toSquare, targetPiece);
                 return true;
             }
 
@@ -230,6 +278,17 @@ namespace Leorik.Core
                     move = new Move(Piece.WhiteRook, from, toSquare, targetPiece);
                     return true;
                 }
+            }
+
+            if ((left & target & 0xFF00000000000000UL) > 0)
+            {
+                move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 7, toSquare, targetPiece);
+                return true;
+            }
+            if ((right & target & 0xFF00000000000000UL) > 0)
+            {
+                move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 9, toSquare, targetPiece);
+                return true;
             }
 
             pieces = board.White & board.Queens;
