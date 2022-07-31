@@ -35,96 +35,52 @@ namespace Leorik.Core
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PieceValue(Piece piece) => PieceValues[(int)piece >> 1];
+        public static int PieceValue(int sign, Piece piece) => sign * PieceValues[(int)piece >> 1];
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EvaluateSign(BoardState position, Move move)
         {
-            //return Math.Sign(Evaluate(position, move));
-            return _EvaluateSign(position, move);
-            //Debug.Assert(a == b);
-            //return a;
+            return Math.Sign(Evaluate(position, move, -1, 1));
         }
 
-        public static int _EvaluateSign(BoardState position, Move move)
-        {
-            position = position.Clone();
-            int square = move.ToSquare;
-            int alpha = -1;
-            int beta = 1;
-            int see = move.IsEnPassant() ? PieceValue(move.MovingPiece()) : 0;
-
-            while (true)
-            {
-                if ((move.CapturedPiece() & Piece.TypeMask) == Piece.King)
-                    return Math.Sign(position.SideToMove == Color.White ? beta : alpha);
-
-                see -= PieceValue(move.CapturedPiece());
-
-                if (move.IsPromotion())
-                {
-                    see -= PieceValue(move.MovingPiece());
-                    see += PieceValue(move.NewPiece());
-                }
-
-                if (position.SideToMove == Color.White)
-                {
-                    if (see < alpha)
-                        return alpha; //move would be too bad for white, white uses stand-pat
-                    beta = Math.Min(beta, see); //new stand-pat option for black
-                }
-                else
-                {
-                    if (see > beta)
-                        return beta; //move would be too bad for black, black uses stand-pat
-                    alpha = Math.Max(alpha, see); //new stand-pat option for white
-                }
-
-                position.Play(move);
-
-                if (!GetLeastValuableAttack(position, square, ref move))
-                    return Math.Sign(position.SideToMove == Color.White ? alpha : beta);
-            }
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Evaluate(BoardState position, Move move)
         {
+            return Evaluate(position, move, -Evaluation.CheckmateScore, Evaluation.CheckmateScore);
+        }
+
+        public static int Evaluate(BoardState position, Move move, int alpha, int beta)
+        {
             position = position.Clone();
+            int sign = (int)position.SideToMove;
             int square = move.ToSquare;
-            int alpha = -Evaluation.CheckmateScore;
-            int beta = Evaluation.CheckmateScore;
-            int see = move.IsEnPassant() ? PieceValue(move.MovingPiece()) : 0;
+            int see = move.IsEnPassant() ? PieceValue(sign, move.MovingPiece()) : 0;
 
             while (true)
             {
                 if ((move.CapturedPiece() & Piece.TypeMask) == Piece.King)
-                    return position.SideToMove == Color.White ? beta : alpha;
+                    return sign * beta;
 
-                see -= PieceValue(move.CapturedPiece());
+                see -= PieceValue(sign, move.CapturedPiece());
 
                 if (move.IsPromotion())
                 {
-                    see -= PieceValue(move.MovingPiece());
-                    see += PieceValue(move.NewPiece());
+                    see -= PieceValue(sign, move.MovingPiece());
+                    see += PieceValue(sign, move.NewPiece());
                 }
 
-                if (position.SideToMove == Color.White)
-                {
-                    if (see < alpha)
-                        return alpha; //move would be too bad for white, white uses stand-pat
-                    beta = Math.Min(beta, see); //new stand-pat option for black
-                }
-                else
-                {
-                    if (see > beta)
-                        return beta; //move would be too bad for black, black uses stand-pat
-                    alpha = Math.Max(alpha, see); //new stand-pat option for white
-                }
+                if (see < alpha)
+                    return sign * alpha; //move would be too bad, stm uses stand-pat
+                beta = Math.Min(beta, see); //new stand-pat option for opponent
 
                 position.Play(move);
+                //swap the side like a negamax without recursion
+                sign *= -1;
+                see *= -1;
+                (alpha, beta) = (-beta, -alpha);
 
                 if (!GetLeastValuableAttack(position, square, ref move))
-                    return position.SideToMove == Color.White ? alpha : beta; //Assert(alpha <= beta)
+                    return sign * alpha; //Assert(alpha <= beta)
             }
         }
 
@@ -147,7 +103,7 @@ namespace Leorik.Core
             //capture left
             ulong blackPawns = board.Black & board.Pawns;
             ulong left = (blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9;
-            if((left & target & 0xFFFFFFFFFFFFFF00UL) > 0)
+            if ((left & target & 0xFFFFFFFFFFFFFF00UL) > 0)
             {
                 move = new Move(Piece.BlackPawn, toSquare + 9, toSquare, targetPiece);
                 return true;
@@ -172,7 +128,7 @@ namespace Leorik.Core
             if (pieces > 0 && (pieces & Bitboard.DiagonalMask[toSquare]) > 0)
             {
                 pieces &= Bitboard.GetBishopTargets(board.Black | board.White, toSquare);
-                if(pieces > 0)
+                if (pieces > 0)
                 {
                     int from = Bitboard.LSB(pieces);
                     move = new Move(Piece.BlackBishop, from, toSquare, targetPiece);
