@@ -179,6 +179,10 @@ namespace Leorik.Core
             ulong targets;
             ulong blackPawns = board.Pawns & board.Black;
 
+            //move to first rank and promote
+            for (targets = (blackPawns >> 8) & ~occupied & 0x00000000000000FFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
+                PawnPromotions(Piece.BlackPawn, targets, +8);
+
             //capture left
             ulong captureLeft = ((blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9) & board.White;
             for (targets = captureLeft & 0xFFFFFFFFFFFFFF00UL; targets != 0; targets = Bitboard.ClearLSB(targets))
@@ -253,10 +257,6 @@ namespace Leorik.Core
             for (targets = oneStep & 0xFFFFFFFFFFFFFF00UL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.BlackPawn, targets, +8);
 
-            //move to first rank and promote
-            for (targets = oneStep & 0x00000000000000FFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnPromotions(Piece.BlackPawn, targets, +8);
-
             //move two squares down
             ulong twoStep = (oneStep >> 8) & ~occupied;
             for (targets = twoStep & 0x000000FF00000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
@@ -311,6 +311,10 @@ namespace Leorik.Core
             //Pawns                
             ulong targets;
             ulong whitePawns = board.Pawns & board.White;
+
+            //move to last rank and promote
+            for (targets = (whitePawns << 8) & ~occupied & 0xFF00000000000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
+                PawnPromotions(Piece.WhitePawn, targets, -8);
 
             //capture left
             ulong captureLeft = ((whitePawns & 0xFEFEFEFEFEFEFEFEUL) << 7) & board.Black;
@@ -382,13 +386,10 @@ namespace Leorik.Core
             ulong targets;
             ulong whitePawns = board.Pawns & board.White;
             ulong oneStep = (whitePawns << 8) & ~occupied;
+
             //move one square up
             for (targets = oneStep & 0x00FFFFFFFFFFFFFFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.WhitePawn, targets, -8);
-
-            //move to last rank and promote
-            for (targets = oneStep & 0xFF00000000000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnPromotions(Piece.WhitePawn, targets, -8);
 
             //move two squares up
             ulong twoStep = (oneStep << 8) & ~occupied;

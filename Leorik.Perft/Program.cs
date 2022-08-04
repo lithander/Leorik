@@ -66,10 +66,10 @@ namespace Leorik.Perft
         private static long Perft(BoardState pos, int depth)
         {
             Positions[0].Copy(pos);
-            return Perft(0, depth, new PerftMoveGen(Moves, 0));
+            return Perft(0, depth, new MoveGen(Moves, 0));
         }
 
-        private static long Perft(int depth, int remaining, PerftMoveGen moves)
+        private static long Perft(int depth, int remaining, MoveGen moves)
         {
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
