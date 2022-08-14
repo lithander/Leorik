@@ -8,7 +8,7 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-        private const float HISTORY_THRESHOLD_BASE = 0.2f;
+        private const float HISTORY_THRESHOLD_BASE = 0.1f;
         private const float HISTORY_THRESHOLD_INC = 0.02f;
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
@@ -23,6 +23,7 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
+        private KillerMoves _badCaptures;
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
@@ -37,6 +38,7 @@ namespace Leorik.Search
         {
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
+            _badCaptures = new KillerMoves(3);
             _history = new History();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
@@ -100,6 +102,7 @@ namespace Leorik.Search
         {
             Depth++;
             _killers.Expand(Depth);
+            _badCaptures.Expand(Depth);
             _history.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
@@ -131,6 +134,39 @@ namespace Leorik.Search
                 Moves[best] = Moves[first];
                 Moves[first] = temp;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PickBestCapture(int first, int end, int ply)
+        {
+            //find the best move...
+            int best = first;
+            int bestScore = ScoreCapture(first, ply);
+            for (int i = first + 1; i < end; i++)
+            {
+                int score = ScoreCapture(i, ply);
+                if (score >= bestScore)
+                {
+                    best = i;
+                    bestScore = score;
+                }
+            }
+            //...swap best with first
+            if (best != first)
+            {
+                Move temp = Moves[best];
+                Moves[best] = Moves[first];
+                Moves[first] = temp;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        int ScoreCapture(int index, int ply)
+        {
+            int bad = 0;
+            if (_badCaptures.Contains(ply, ref Moves[index]))
+                bad = 0;
+            return Moves[index].MvvLvaScore() - bad;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -208,26 +244,16 @@ namespace Leorik.Search
                             state.Next = moveGen.CollectCaptures(current);
                             state.Stage = Stage.Captures;
                             StripMove(state.Next, ref moveGen, ref state.HashMove);
-                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
-                                throw new Exception();
                             continue;
                         case Stage.Captures:
                             state.Next = moveGen.CollectPlayableQuiets(current, _killers.GetSpan(ply));
                             state.Stage = Stage.Killers;
                             StripMove(state.Next, ref moveGen, ref state.HashMove);
-                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
-                                throw new Exception();
                             continue;
                         case Stage.Killers:
                             state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.SortedQuiets;
                             StripMoves(state.Next, ref moveGen, ref state.HashMove, _killers.GetSpan(ply));
-                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
-                                throw new Exception();
-                            if (Contains(state.Next, ref moveGen, ref _killers.GetSpan(ply)[0]))
-                                throw new Exception();
-                            if (Contains(state.Next, ref moveGen, ref _killers.GetSpan(ply)[1]))
-                                throw new Exception();
                             continue;
                         case Stage.SortedQuiets:
                         case Stage.Quiets:
@@ -237,12 +263,12 @@ namespace Leorik.Search
 
                 if (state.Stage == Stage.Captures)
                 {
-                    PickBestCapture(state.Next, moveGen.Next);
+                    PickBestCapture(state.Next, moveGen.Next, ply);
                 }
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves)
+                    if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * (state.PlayedMoves + ply))
                         state.Stage = Stage.Quiets;
                 }
 
@@ -252,18 +278,6 @@ namespace Leorik.Search
                     return true;
                 }
             }
-        }
-
-        private bool Contains(int first, ref MoveGen moveGen, ref Move hashMove)
-        {
-            //find the best move...
-            for (int i = first; i < moveGen.Next; i++)
-            {
-                ref Move current = ref Moves[i];
-                if (current == hashMove)
-                    return true;
-            }
-            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -350,11 +364,25 @@ namespace Leorik.Search
                     return beta;
             }
 
+            //if(ply == 4)
+            //    Console.Write('|');
+
+
             //init staged move generation and play all moves
             PlayState playState = InitPlay(ref moveGen, ref bestMove);
             while (Play(ply, ref playState, ref moveGen))
             {
                 bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
+                ref Move move = ref Moves[playState.Next - 1];
+                bool badCapture = playState.Stage == Stage.Captures && _badCaptures.Contains(ply, ref move);
+
+                //if(ply == 4 && playState.Stage == Stage.Captures)
+                //{
+                //    if (badCapture)
+                //        Console.Write('?');
+                //    else
+                //        Console.Write('O');
+                //}
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
                 if (remaining <= FUTILITY_RANGE && !interesting)
@@ -362,7 +390,16 @@ namespace Leorik.Search
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
                     if (next.RelativeScore(current.SideToMove) < futilityMargin)
+                    {
+                        _history.Bad(remaining, ref move);
+                        if (playState.Stage == Stage.Captures)
+                            _badCaptures.Add(ply, move);
+
+                        //if (badCapture)
+                        //    Console.Write('!');
+
                         continue;
+                    }
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
@@ -371,8 +408,19 @@ namespace Leorik.Search
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
                     int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
+                    if (R == 0 && badCapture && !interesting)
+                        R = 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
+                    {
+                        _history.Bad(remaining, ref move);
+                        if (R == 0 && playState.Stage == Stage.Captures)
+                            _badCaptures.Add(ply, move);
+
+                        //if (badCapture)
+                        //    Console.Write('!');
+
                         continue;
+                    }
                 }
 
                 //...but if it does not we have to research it!
@@ -380,13 +428,22 @@ namespace Leorik.Search
 
                 if (score <= alpha)
                 {
-                    _history.Bad(remaining, ref Moves[playState.Next - 1]);
+                    _history.Bad(remaining, ref move);
+                    if(playState.Stage == Stage.Captures)
+                        _badCaptures.Add(ply, move);
+
+                    //if (badCapture)
+                    //    Console.Write('!');
+
                     continue;
                 }
 
                 alpha = score;
                 bestMove = Moves[playState.Next - 1];
                 ExtendPV(ply, bestMove);
+
+                //if (badCapture)
+                //    Console.Write('#');
 
                 if (playState.Stage >= Stage.Killers)
                 {
