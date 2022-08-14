@@ -405,13 +405,13 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CollectPlayableKillers(BoardState current, Span<Move> killers)
+        public int CollectPlayableQuiets(BoardState current, Span<Move> moves)
         {
             int oldNext = Next;
-            for (int j = 0; j < killers.Length; j++)
+            for (int j = 0; j < moves.Length; j++)
             {
-                if (IsPlayableQuiet(current, ref killers[j]))
-                    _moves[Next++] = killers[j];
+                if (IsPlayableQuiet(current, ref moves[j]))
+                    _moves[Next++] = moves[j];
             }
             return oldNext;
         }

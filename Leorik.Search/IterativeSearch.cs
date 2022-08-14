@@ -11,7 +11,6 @@ namespace Leorik.Search
         private const float HISTORY_THRESHOLD_BASE = 0.2f;
         private const float HISTORY_THRESHOLD_INC = 0.02f;
 
-
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_PLY = 99;
@@ -181,6 +180,7 @@ namespace Leorik.Search
         struct PlayState
         {
             public Stage Stage;
+            public Move HashMove;
             public int Next;
             public byte PlayedMoves;
         }
@@ -189,7 +189,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PlayState InitPlay(ref MoveGen moveGen, ref Move pvMove)
         {
-            return new PlayState { Stage = Stage.New, Next = moveGen.Collect(pvMove) };
+            return new PlayState { Stage = Stage.New, Next = moveGen.Collect(pvMove), HashMove = pvMove };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -207,15 +207,27 @@ namespace Leorik.Search
                         case Stage.New:
                             state.Next = moveGen.CollectCaptures(current);
                             state.Stage = Stage.Captures;
+                            StripMove(state.Next, ref moveGen, ref state.HashMove);
+                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
+                                throw new Exception();
                             continue;
                         case Stage.Captures:
-                            state.Next = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply));
+                            state.Next = moveGen.CollectPlayableQuiets(current, _killers.GetSpan(ply));
                             state.Stage = Stage.Killers;
+                            StripMove(state.Next, ref moveGen, ref state.HashMove);
+                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
+                                throw new Exception();
                             continue;
                         case Stage.Killers:
                             state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.SortedQuiets;
-                            StripKillers(state.Next, ref moveGen, _killers.GetSpan(ply));
+                            StripMoves(state.Next, ref moveGen, ref state.HashMove, _killers.GetSpan(ply));
+                            if (Contains(state.Next, ref moveGen, ref state.HashMove))
+                                throw new Exception();
+                            if (Contains(state.Next, ref moveGen, ref _killers.GetSpan(ply)[0]))
+                                throw new Exception();
+                            if (Contains(state.Next, ref moveGen, ref _killers.GetSpan(ply)[1]))
+                                throw new Exception();
                             continue;
                         case Stage.SortedQuiets:
                         case Stage.Quiets:
@@ -242,6 +254,18 @@ namespace Leorik.Search
             }
         }
 
+        private bool Contains(int first, ref MoveGen moveGen, ref Move hashMove)
+        {
+            //find the best move...
+            for (int i = first; i < moveGen.Next; i++)
+            {
+                ref Move current = ref Moves[i];
+                if (current == hashMove)
+                    return true;
+            }
+            return false;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsRepetition(int ply)
         {
@@ -253,15 +277,27 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void StripKillers(int first, ref MoveGen moveGen, Span<Move> span)
+        private void StripMoves(int next, ref MoveGen moveGen, ref Move move, Span<Move> span)
         {
             //find the best move...
-            for (int i = first; i < moveGen.Next; i++)
+            for (; next < moveGen.Next; next++)
             {
-                ref Move move = ref Moves[i];
-                if (span[0] == move || span[1] == move)
-                    Moves[i--] = Moves[--moveGen.Next];
+                ref Move current = ref Moves[next];
+                if (current == move || span[0] == current || span[1] == current)
+                    Moves[next--] = Moves[--moveGen.Next];
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void StripMove(int next, ref MoveGen moveGen, ref Move move)
+        {
+            //find the best move...
+            for (; next < moveGen.Next; next++)
+                if (Moves[next] == move)
+                {
+                    Moves[next--] = Moves[--moveGen.Next];
+                    return;
+                }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

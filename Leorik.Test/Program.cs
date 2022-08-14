@@ -76,6 +76,9 @@ namespace Leorik.Test
             int foundBest = 0;
             while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
             {
+                count++;
+                //if (count < 138)
+                //    continue;
                 //Transpositions.Clear();
                 Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
@@ -83,7 +86,6 @@ namespace Leorik.Test
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
-                count++;
                 totalTime += dt;
                 totalNodes += NodesVisited;
                 string pvString = string.Join(' ', pv.ToArray());

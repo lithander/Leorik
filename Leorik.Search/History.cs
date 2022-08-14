@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
-    public class History : IComparer<Move>
+    public class History
     {
         private const int Squares = 64;
         private const int Pieces = 12;
@@ -47,13 +47,6 @@ namespace Leorik.Search
             float a = Positive[move.ToSquare, iPiece];
             float b = Negative[move.ToSquare, iPiece];
             return a / (a + b + 1);//ratio of good increments normalized to the range of [0..1]
-        }
-
-        public int Compare(Move x, Move y)
-        {
-            float a = Value(ref x);
-            float b = Value(ref y);
-            return a.CompareTo(b);
         }
     }
 }

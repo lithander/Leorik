@@ -49,6 +49,12 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsUnderpromotion()
+        {
+            return Flags >= Piece.KnightPromotion && Flags < Piece.QueenPromotion;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEnPassant()
         {
             return (Flags & ~Piece.ColorMask) == Piece.EnPassant;
