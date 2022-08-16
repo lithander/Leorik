@@ -8,9 +8,8 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-        private const float HISTORY_THRESHOLD_BASE = 0.2f;
-        private const float HISTORY_THRESHOLD_INC = 0.02f;
-
+        private const float HISTORY_THRESHOLD_BASE = 2f; //was 2 in D^2 and D^3 with good results
+        private const float HISTORY_THRESHOLD_INC = 0.25f; //was 0.25 in D^2 and D^3 with good results
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
@@ -24,6 +23,7 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
+        private Statistics _stats = new Statistics();
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
@@ -56,6 +56,8 @@ namespace Leorik.Search
         {
             while (Depth < maxDepth)
                 SearchDeeper();
+
+            _stats.PrintLog();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -108,6 +110,8 @@ namespace Leorik.Search
             int score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, ref bestMove);
 
             Score = (int)Positions[0].SideToMove * score;
+            //_history.Log(Depth);
+
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -176,7 +180,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { New, Captures, Killers, SortedQuiets, Quiets }
+        public enum Stage { New, Captures, Killers, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -230,12 +234,13 @@ namespace Leorik.Search
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves)
+                    if (historyValue < _history.Avg() * (HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves))
                         state.Stage = Stage.Quiets;
                 }
 
                 if (next.Play(current, ref Moves[state.Next++]))
                 {
+                    _stats.LogMove(ply, state.Stage, Moves[state.Next - 1]);
                     state.PlayedMoves++;
                     return true;
                 }
@@ -326,7 +331,10 @@ namespace Leorik.Search
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
                     if (next.RelativeScore(current.SideToMove) < futilityMargin)
+                    {
+                        _history.Bad(remaining, ref Moves[playState.Next - 1]);
                         continue;
+                    }
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
@@ -336,7 +344,10 @@ namespace Leorik.Search
                     //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
                     int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
+                    {
+                        _history.Bad(remaining - R, ref Moves[playState.Next - 1]);
                         continue;
+                    }
                 }
 
                 //...but if it does not we have to research it!
