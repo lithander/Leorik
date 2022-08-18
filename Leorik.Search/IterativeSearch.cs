@@ -302,6 +302,17 @@ namespace Leorik.Search
             return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ulong MoveHash(int ply)
+        {
+            if (ply <= 0)
+                return 0;
+            BoardState before = Positions[ply - 1];
+            BoardState after = Positions[ply];
+            return before.ZobristHash ^ after.ZobristHash;
+        }
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -380,6 +391,7 @@ namespace Leorik.Search
 
             return alpha;
         }
+
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;
