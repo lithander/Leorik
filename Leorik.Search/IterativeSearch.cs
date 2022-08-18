@@ -23,7 +23,7 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
-        private Statistics _stats = new Statistics();
+        private static Statistics _stats = new Statistics();
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
@@ -187,6 +187,7 @@ namespace Leorik.Search
             public Stage Stage;
             public int Next;
             public byte PlayedMoves;
+            public byte SortedQuiets;
         }
 
 
@@ -234,7 +235,8 @@ namespace Leorik.Search
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    if (historyValue < _history.Avg() * (HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves))
+                    float threshold = ++state.SortedQuiets;
+                    if (historyValue < threshold)
                         state.Stage = Stage.Quiets;
                 }
 
@@ -335,6 +337,7 @@ namespace Leorik.Search
             while (Play(ply, ref playState, ref moveGen))
             {
                 bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
+                _history.Played(remaining, ref Moves[playState.Next - 1]);
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
                 if (remaining <= FUTILITY_RANGE && !interesting)
@@ -342,10 +345,7 @@ namespace Leorik.Search
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
                     if (next.RelativeScore(current.SideToMove) < futilityMargin)
-                    {
-                        _history.Bad(remaining, ref Moves[playState.Next - 1]);
                         continue;
-                    }
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
@@ -355,20 +355,14 @@ namespace Leorik.Search
                     //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
                     int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
-                    {
-                        _history.Bad(remaining - R, ref Moves[playState.Next - 1]);
                         continue;
-                    }
                 }
 
                 //...but if it does not we have to research it!
                 int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                 if (score <= alpha)
-                {
-                    _history.Bad(remaining, ref Moves[playState.Next - 1]);
                     continue;
-                }
 
                 alpha = score;
                 bestMove = Moves[playState.Next - 1];

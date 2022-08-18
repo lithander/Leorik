@@ -3,40 +3,30 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
-    public class History : IComparer<Move>
+    public class History
     {
-        private const int Plies = 100;
         private const int Squares = 64;
         private const int Pieces = 12;
 
-        private long TotalPositive = 0;
-        private long TotalNegative = 0;
+        private ulong TotalPositive = 0;
+        private ulong TotalPlayed = 0;
 
-        private int TotalEntries = 0;
-        private int[] EntriesPerDepth = new int[Plies];
+        private readonly ulong[,] Positive = new ulong[Squares, Pieces];
+        private readonly ulong[,] All = new ulong[Squares, Pieces];
 
-        private readonly long[,] Positive = new long[Squares, Pieces];
-        private readonly long[,] Negative = new long[Squares, Pieces];
-
-        public void Scale(int scaleFactor = 2)
+        public void Scale()
         {
-            TotalEntries = 0;
-            for (int i = 0; i < Plies; i++)
-            {
-                EntriesPerDepth[i] /= scaleFactor;
-                TotalEntries += EntriesPerDepth[i];
-            }
-
             TotalPositive = 0;
-            TotalNegative = 0;
+            TotalPlayed = 0;
+
             for (int square = 0; square < Squares; square++)
                 for (int piece = 0; piece < Pieces; piece++)
                 {
-                    Positive[square, piece] /= scaleFactor;
+                    Positive[square, piece] /= 4;
                     TotalPositive += Positive[square, piece];
 
-                    Negative[square, piece] /= scaleFactor;
-                    TotalNegative += Negative[square, piece];
+                    All[square, piece] /= 4;
+                    TotalPlayed += All[square, piece];
                 }
         }
 
@@ -46,33 +36,22 @@ namespace Leorik.Search
             return ((byte)piece >> 1) - 2; //BlackPawn = 0...
         }
 
-        private int Inc(int depth)
-        {
-            return TotalEntries / (EntriesPerDepth[depth] + 1);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int depth, ref Move move)
         {
             int iPiece = PieceIndex(move.MovingPiece());
-            EntriesPerDepth[depth]++;
-            TotalEntries++;
-
-            int d = Inc(depth);
-            TotalPositive += d;
-            Positive[move.ToSquare, iPiece] += d;
+            ulong inc = Inc(depth);
+            TotalPositive += inc;
+            Positive[move.ToSquare, iPiece] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Bad(int depth, ref Move move)
+        public void Played(int depth, ref Move move)
         {
             int iPiece = PieceIndex(move.MovingPiece());
-            EntriesPerDepth[depth]++;
-            TotalEntries++;
-
-            int d = Inc(depth);
-            TotalNegative += d;
-            Negative[move.ToSquare, iPiece] += d;
+            ulong inc = Inc(depth);
+            TotalPlayed += inc;
+            All[move.ToSquare, iPiece] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -80,27 +59,16 @@ namespace Leorik.Search
         {
             int iPiece = PieceIndex(move.MovingPiece());
             float a = Positive[move.ToSquare, iPiece];
-            float b = Negative[move.ToSquare, iPiece];
-            return a / (a + b + 1);//ratio of good increments normalized to the range of [0..1]
+            float b = All[move.ToSquare, iPiece];
+            //local-ratio / average-ratio
+            return TotalPlayed  * a / (b * TotalPositive + 1);
         }
 
-        public void Log(int depth)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ulong Inc(int depth)
         {
-            for (int i = 0; i < depth; i++)
-                Console.WriteLine($"Depth: {i} Entries {EntriesPerDepth[i]} Inc: {Inc(i)}");
-            Console.WriteLine();
+            return (ulong)(depth * depth);
         }
 
-        public float Avg()
-        {
-            return TotalPositive / (float)(TotalPositive + TotalNegative + 1);
-        }
-
-        public int Compare(Move x, Move y)
-        {
-            float a = Value(ref x);
-            float b = Value(ref y);
-            return a.CompareTo(b);
-        }
     }
 }
