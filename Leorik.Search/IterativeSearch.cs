@@ -23,6 +23,7 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
+        private MoveHistory _cmh;
         private static Statistics _stats = new Statistics();
 
         public static int MaxDepth => MAX_PLY;
@@ -39,6 +40,7 @@ namespace Leorik.Search
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
             _history = new History();
+            _cmh = new MoveHistory();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -104,6 +106,7 @@ namespace Leorik.Search
             Depth++;
             _killers.Expand(Depth);
             _history.Scale();
+            _cmh.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -234,7 +237,8 @@ namespace Leorik.Search
                 }
                 else if (state.Stage == Stage.SortedQuiets)
                 {
-                    float historyValue = PickBestHistory(state.Next, moveGen.Next);
+                    float historyValue = PickBestHistory(ply, state.Next, moveGen.Next);
+                    //Console.WriteLine(historyValue);
                     float threshold = ++state.SortedQuiets;
                     if (historyValue < threshold)
                         state.Stage = Stage.Quiets;
@@ -272,14 +276,15 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private float PickBestHistory(int first, int end)
+        private float PickBestHistory(int ply, int first, int end)
         {
+            ulong moveBefore = MoveHash(ply);
             //find the best move...
             int best = first;
-            float bestScore = _history.Value(ref Moves[first]);
+            float bestScore = _history.Value(ref Moves[first]) + _cmh.Value(moveBefore, ref Moves[first]);
             for (int i = first + 1; i < end; i++)
             {
-                float score = _history.Value(ref Moves[i]);
+                float score = _history.Value(ref Moves[i]) + +_cmh.Value(moveBefore, ref Moves[i]);
                 if (score > bestScore)
                 {
                     best = i;
@@ -372,6 +377,7 @@ namespace Leorik.Search
                 {
                     _history.Good(remaining, ref bestMove);
                     _killers.Add(ply, bestMove);
+                    _cmh.Good(MoveHash(ply), remaining, ref bestMove);
                 }
 
                 //beta cutoff?
