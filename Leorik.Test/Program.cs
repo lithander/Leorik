@@ -23,7 +23,7 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            RunSeeTests();
+            //RunSeeTests();
 
             Console.WriteLine("Depth:");
             if (!int.TryParse(Console.ReadLine(), out int depth))

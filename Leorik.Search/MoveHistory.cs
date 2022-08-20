@@ -42,6 +42,7 @@ namespace Leorik.Search
         public int Value(ulong moveHash, ref Move move)
         {
             int value = Positive[Index(moveHash, ref move)];
+            //return 0;
             //if(value > 0)
             //    Console.WriteLine($"HIT! Prev: {moveHash}:{moveHash & (MoveHashes - 1)} => {move.MovingPiece()}-{move} = {value}");
             return value;

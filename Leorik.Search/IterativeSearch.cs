@@ -21,9 +21,8 @@ namespace Leorik.Search
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
         private long _maxNodes;
-        private History _history;
+        private History2 _history;
         private KillerMoves _killers;
-        private MoveHistory _cmh;
         private static Statistics _stats = new Statistics();
 
         public static int MaxDepth => MAX_PLY;
@@ -39,8 +38,7 @@ namespace Leorik.Search
         {
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
-            _history = new History();
-            _cmh = new MoveHistory();
+            _history = new History2();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -106,7 +104,6 @@ namespace Leorik.Search
             Depth++;
             _killers.Expand(Depth);
             _history.Scale();
-            _cmh.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -217,7 +214,7 @@ namespace Leorik.Search
                             state.Stage = Stage.Captures;
                             continue;
                         case Stage.Captures:
-                            state.Next = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply));
+                            state.Next = moveGen.CollectPlayableQuiets(current, _killers.GetSpan(ply));
                             state.Stage = Stage.Killers;
                             continue;
                         case Stage.Killers:
@@ -238,15 +235,13 @@ namespace Leorik.Search
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(ply, state.Next, moveGen.Next);
-                    //Console.WriteLine(historyValue);
-                    float threshold = ++state.SortedQuiets;
-                    if (historyValue < threshold)
+                    if (historyValue < ++state.SortedQuiets)
                         state.Stage = Stage.Quiets;
                 }
 
                 if (next.Play(current, ref Moves[state.Next++]))
                 {
-                    _stats.LogMove(ply, state.Stage, Moves[state.Next - 1]);
+                    _stats.LogMove(ply, state.Stage);
                     state.PlayedMoves++;
                     return true;
                 }
@@ -278,13 +273,14 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private float PickBestHistory(int ply, int first, int end)
         {
-            ulong moveBefore = MoveHash(ply);
+            ulong cm = MoveHash(ply);
+            ulong fu = MoveHash(ply - 1);
             //find the best move...
             int best = first;
-            float bestScore = _history.Value(ref Moves[first]) + _cmh.Value(moveBefore, ref Moves[first]);
+            float bestScore = _history.Value(cm, fu, ref Moves[first]);
             for (int i = first + 1; i < end; i++)
             {
-                float score = _history.Value(ref Moves[i]) + +_cmh.Value(moveBefore, ref Moves[i]);
+                float score = _history.Value(cm, fu, ref Moves[i]);
                 if (score > bestScore)
                 {
                     best = i;
@@ -375,14 +371,16 @@ namespace Leorik.Search
 
                 if (playState.Stage >= Stage.Killers)
                 {
-                    _history.Good(remaining, ref bestMove);
+                    _history.Good(remaining, MoveHash(ply), MoveHash(ply-1), ref bestMove);
                     _killers.Add(ply, bestMove);
-                    _cmh.Good(MoveHash(ply), remaining, ref bestMove);
                 }
 
                 //beta cutoff?
                 if (score >= beta)
+                {
+                    _stats.LogBetaCutoff(ply, playState.Stage);
                     return beta;
+                }
             }
 
             //checkmate or draw?
