@@ -18,14 +18,14 @@ namespace Leorik.Search
         {
             TotalPositive = 0;
             TotalPlayed = 0;
-
+        
             for (int square = 0; square < Squares; square++)
                 for (int piece = 0; piece < Pieces; piece++)
                 {
-                    Positive[square, piece] /= 4;
+                    Positive[square, piece] /= 2;
                     TotalPositive += Positive[square, piece];
-
-                    All[square, piece] /= 4;
+        
+                    All[square, piece] /= 2;
                     TotalPlayed += All[square, piece];
                 }
         }

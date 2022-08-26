@@ -8,8 +8,6 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-        private const float HISTORY_THRESHOLD_BASE = 2f; //was 2 in D^2 and D^3 with good results
-        private const float HISTORY_THRESHOLD_INC = 0.25f; //was 0.25 in D^2 and D^3 with good results
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
@@ -21,9 +19,9 @@ namespace Leorik.Search
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
         private long _maxNodes;
-        private History2 _history;
+        private History _history;
         private KillerMoves _killers;
-        private static Statistics _stats = new Statistics();
+        //private static Statistics _stats = new Statistics();
 
         public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
@@ -38,7 +36,7 @@ namespace Leorik.Search
         {
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
-            _history = new History2();
+            _history = new History();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -57,7 +55,7 @@ namespace Leorik.Search
             while (Depth < maxDepth)
                 SearchDeeper();
 
-            _stats.PrintLog();
+            //_stats.PrintLog();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,7 +101,7 @@ namespace Leorik.Search
         {
             Depth++;
             _killers.Expand(Depth);
-            _history.Scale();
+            //_history.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -111,7 +109,6 @@ namespace Leorik.Search
 
             Score = (int)Positions[0].SideToMove * score;
             //_history.Log(Depth);
-
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -143,7 +140,6 @@ namespace Leorik.Search
         {
             return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen) <= alpha;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool FailHigh(int ply, int remaining, int beta, MoveGen moveGen)
@@ -187,7 +183,6 @@ namespace Leorik.Search
             public Stage Stage;
             public int Next;
             public byte PlayedMoves;
-            public byte SortedQuiets;
         }
 
 
@@ -235,13 +230,14 @@ namespace Leorik.Search
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(ply, state.Next, moveGen.Next);
-                    if (historyValue < ++state.SortedQuiets)
+                    float threshold = (float)Math.Sqrt(state.PlayedMoves);
+                    if (historyValue < threshold)
                         state.Stage = Stage.Quiets;
                 }
 
                 if (next.Play(current, ref Moves[state.Next++]))
                 {
-                    _stats.LogMove(ply, state.Stage);
+                    //_stats.LogMove(ply, state.Stage);
                     state.PlayedMoves++;
                     return true;
                 }
@@ -277,10 +273,10 @@ namespace Leorik.Search
             ulong fu = MoveHash(ply - 1);
             //find the best move...
             int best = first;
-            float bestScore = _history.Value(cm, fu, ref Moves[first]);
+            float bestScore = _history.Value(ref Moves[first]);
             for (int i = first + 1; i < end; i++)
             {
-                float score = _history.Value(cm, fu, ref Moves[i]);
+                float score = _history.Value(ref Moves[i]);
                 if (score > bestScore)
                 {
                     best = i;
@@ -371,14 +367,14 @@ namespace Leorik.Search
 
                 if (playState.Stage >= Stage.Killers)
                 {
-                    _history.Good(remaining, MoveHash(ply), MoveHash(ply-1), ref bestMove);
+                    _history.Good(remaining, ref bestMove);
                     _killers.Add(ply, bestMove);
                 }
 
                 //beta cutoff?
                 if (score >= beta)
                 {
-                    _stats.LogBetaCutoff(ply, playState.Stage);
+                    //_stats.LogBetaCutoff(ply, playState.Stage);
                     return beta;
                 }
             }
