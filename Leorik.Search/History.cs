@@ -3,22 +3,17 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
-    public class History : IComparer<Move>
+    public class History
     {
         private const int Squares = 64;
         private const int Pieces = 12;
-        private readonly int[,] Positive = new int[Squares, Pieces];
-        private readonly int[,] Negative = new int[Squares, Pieces];
 
-        public void Scale()
-        {
-            for (int square = 0; square < Squares; square++)
-                for (int piece = 0; piece < Pieces; piece++)
-                {
-                    Positive[square, piece] /= 2;
-                    Negative[square, piece] /= 2;
-                }
-        }
+        private ulong TotalPositive = 0;
+        private ulong TotalPlayed = 0;
+
+        private readonly ulong[,] Positive = new ulong[Squares, Pieces];
+        private readonly ulong[,] All = new ulong[Squares, Pieces];
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int PieceIndex(Piece piece)
@@ -30,14 +25,18 @@ namespace Leorik.Search
         public void Good(int depth, ref Move move)
         {
             int iPiece = PieceIndex(move.MovingPiece());
-            Positive[move.ToSquare, iPiece] += depth * depth;
+            ulong inc = Inc(depth);
+            TotalPositive += inc;
+            Positive[move.ToSquare, iPiece] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Bad(int depth, ref Move move)
+        public void Played(int depth, ref Move move)
         {
             int iPiece = PieceIndex(move.MovingPiece());
-            Negative[move.ToSquare, iPiece] += depth * depth;
+            ulong inc = Inc(depth);
+            TotalPlayed += inc;
+            All[move.ToSquare, iPiece] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -45,15 +44,16 @@ namespace Leorik.Search
         {
             int iPiece = PieceIndex(move.MovingPiece());
             float a = Positive[move.ToSquare, iPiece];
-            float b = Negative[move.ToSquare, iPiece];
-            return a / (a + b + 1);//ratio of good increments normalized to the range of [0..1]
+            float b = All[move.ToSquare, iPiece];
+            //local-ratio / average-ratio
+            return TotalPlayed * a / (b * TotalPositive + 1);
         }
 
-        public int Compare(Move x, Move y)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ulong Inc(int depth)
         {
-            float a = Value(ref x);
-            float b = Value(ref y);
-            return a.CompareTo(b);
+            return (ulong)(depth * depth);
         }
+
     }
 }

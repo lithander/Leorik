@@ -8,9 +8,6 @@ namespace Leorik.Search
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-        private const float HISTORY_THRESHOLD_BASE = 0.2f;
-        private const float HISTORY_THRESHOLD_INC = 0.02f;
-
 
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
@@ -101,7 +98,6 @@ namespace Leorik.Search
         {
             Depth++;
             _killers.Expand(Depth);
-            _history.Scale();
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
@@ -209,7 +205,7 @@ namespace Leorik.Search
                             state.Stage = Stage.Captures;
                             continue;
                         case Stage.Captures:
-                            state.Next = moveGen.CollectPlayableKillers(current, _killers.GetSpan(ply));
+                            state.Next = moveGen.CollectPlayableQuiets(current, _killers.GetSpan(ply));
                             state.Stage = Stage.Killers;
                             continue;
                         case Stage.Killers:
@@ -230,7 +226,8 @@ namespace Leorik.Search
                 else if (state.Stage == Stage.SortedQuiets)
                 {
                     float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    if (historyValue < HISTORY_THRESHOLD_BASE + HISTORY_THRESHOLD_INC * state.PlayedMoves)
+                    double historyThreshold = Math.Sqrt(state.PlayedMoves);
+                    if (historyValue < historyThreshold)
                         state.Stage = Stage.Quiets;
                 }
 
@@ -318,6 +315,9 @@ namespace Leorik.Search
             PlayState playState = InitPlay(ref moveGen, ref bestMove);
             while (Play(ply, ref playState, ref moveGen))
             {
+                ref Move move = ref Moves[playState.Next - 1];
+                _history.Played(remaining, ref move);
+
                 bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
@@ -343,13 +343,10 @@ namespace Leorik.Search
                 int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
 
                 if (score <= alpha)
-                {
-                    _history.Bad(remaining, ref Moves[playState.Next - 1]);
                     continue;
-                }
 
                 alpha = score;
-                bestMove = Moves[playState.Next - 1];
+                bestMove = move;
                 ExtendPV(ply, bestMove);
 
                 if (playState.Stage >= Stage.Killers)
