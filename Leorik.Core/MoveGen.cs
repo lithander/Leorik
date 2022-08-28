@@ -52,18 +52,6 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void PawnPromotions(Piece flags, ulong moveTargets, int offset)
-        {
-            int to = Bitboard.LSB(moveTargets);
-            int from = to + offset;
-            Add(flags | Piece.QueenPromotion, from, to);
-            Add(flags | Piece.RookPromotion, from, to);
-            Add(flags | Piece.BishopPromotion, from, to);
-            Add(flags | Piece.KnightPromotion, from, to);
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddAllCaptures(Piece piece, int square, ulong targets, BoardState board)
         {
             for (; targets != 0; targets = Bitboard.ClearLSB(targets))
@@ -205,6 +193,10 @@ namespace Leorik.Core
             captureRight = ((blackPawns & 0x000000007F000000UL) >> 7) & board.EnPassant;
             if (captureRight != 0)
                 PawnMove(Piece.BlackPawn | Piece.EnPassant, captureRight, +7);
+
+            //move up and promote to Queen
+            for (targets = (blackPawns >> 8) & ~occupied & 0x00000000000000FFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
+                PawnMove(Piece.Black | Piece.QueenPromotion, targets, +8);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -253,9 +245,13 @@ namespace Leorik.Core
             for (targets = oneStep & 0xFFFFFFFFFFFFFF00UL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.BlackPawn, targets, +8);
 
-            //move to first rank and promote
+            //move to first rank and under-promote
             for (targets = oneStep & 0x00000000000000FFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnPromotions(Piece.BlackPawn, targets, +8);
+            {
+                PawnMove(Piece.Black | Piece.RookPromotion, targets, +8);
+                PawnMove(Piece.Black | Piece.BishopPromotion, targets, +8);
+                PawnMove(Piece.Black | Piece.KnightPromotion, targets, +8);
+            }
 
             //move two squares down
             ulong twoStep = (oneStep >> 8) & ~occupied;
@@ -338,6 +334,10 @@ namespace Leorik.Core
             captureRight = ((whitePawns & 0x000007F00000000UL) << 9) & board.EnPassant;
             if (captureRight != 0)
                 PawnMove(Piece.WhitePawn | Piece.EnPassant, captureRight, -9);
+
+            //move up and promote Queen
+            for (targets = (whitePawns << 8) & ~occupied & 0xFF00000000000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
+                PawnMove(Piece.White | Piece.QueenPromotion, targets, -8);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -386,9 +386,13 @@ namespace Leorik.Core
             for (targets = oneStep & 0x00FFFFFFFFFFFFFFUL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.WhitePawn, targets, -8);
 
-            //move to last rank and promote
+            //move to first rank and under-promote
             for (targets = oneStep & 0xFF00000000000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
-                PawnPromotions(Piece.WhitePawn, targets, -8);
+            {
+                PawnMove(Piece.White | Piece.RookPromotion, targets, -8);
+                PawnMove(Piece.White | Piece.BishopPromotion, targets, -8);
+                PawnMove(Piece.White | Piece.KnightPromotion, targets, -8);
+            }
 
             //move two squares up
             ulong twoStep = (oneStep << 8) & ~occupied;
