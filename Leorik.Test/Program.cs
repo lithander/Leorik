@@ -623,7 +623,6 @@ namespace Leorik.Test
             return new Span<Move>(Moves, best, 1);
         }
 
-
         private static int QSearch(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
         {
             if (remaining == 0)

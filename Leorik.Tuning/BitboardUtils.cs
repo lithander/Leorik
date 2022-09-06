@@ -25,10 +25,13 @@ namespace Leorik.Tuning
                     Console.WriteLine();
                 }
                 BoardState board = Notation.GetBoardState(fen);
+                Console.WriteLine("EndgameClass: " + Notation.GetEndgameClass(board));
+                Console.WriteLine("Eval.Score: " + board.Eval.Score);
+                Console.WriteLine("Scaled: " + board.RelativeScore());
                 //Console.WriteLine(Notation.GetFen(board));
-                Print(board.Pawns, "All Pawns");
-                Print(Features.GetBackwardWhitePawns(board), "BackwardWhitePawns");
-                Print(Features.GetBackwardBlackPawns(board), "BackwardBlackPawns");
+                //Print(board.Pawns, "All Pawns");
+                //Print(Features.GetBackwardWhitePawns(board), "BackwardWhitePawns");
+                //Print(Features.GetBackwardBlackPawns(board), "BackwardBlackPawns");
             }
         }
 

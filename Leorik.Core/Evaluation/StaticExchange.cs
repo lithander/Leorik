@@ -37,6 +37,17 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int PieceValue(int sign, Piece piece) => sign * PieceValues[(int)piece >> 1];
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsBad(BoardState position, Move move)
+        {
+            if (Move.Order(move.CapturedPiece()) >= Move.Order(move.MovingPiece()))
+                return false;
+
+            int see = EvaluateSign(position, move);
+            return position.SideToMove == Color.White ? see < 0 : see > 0;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EvaluateSign(BoardState position, Move move)
         {
