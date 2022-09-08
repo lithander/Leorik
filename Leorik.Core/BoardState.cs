@@ -116,26 +116,13 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int RelativeScore()
         {
-            return (int)SideToMove * ScaleEndgame(Eval.Score);
+            return (int)SideToMove * Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int RelativeScore(Color sideToMove)
         {
-            return (int)sideToMove * ScaleEndgame(Eval.Score);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int ScaleEndgame(int score)
-        {
-            int cnt = PopCount(Black | White);
-            if (cnt > 5)
-                return score;
-
-            if (Endgame.Drawn.Contains(Notation.GetEndgameClass(this)))
-                return score >> 3;
-            else
-                return score;
+            return (int)sideToMove * Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
