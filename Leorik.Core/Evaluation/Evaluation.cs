@@ -4,21 +4,32 @@ namespace Leorik.Core
 {
     public struct Evaluation
     {
+        //MSE_SCALING = 100;
+        //ITERATIONS = 100;
+        //MATERIAL_ALPHA = 500;
+        //PHASE_ALPHA = 100;
+        //MATERIAL_BATCH = 100;
+        //PHASE_BATCH = 5;
+        //~~~Phase~~~
+        //N: 143 B: 278 R: 394 Q: 869
+        //MSE(cFeatures) with MSE_SCALING = 100 on the dataset: 0,23595433788678255
+
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 143, 278, 394, 869, 0 };
 
         public short PhaseValue;
+        public short Positional;
+        public short BishopPairs;
         public EvalTerm Pawns;
         public Material Material;
-        public EvalTerm Positional;
 
         public short Score { get; private set; }
 
         public Evaluation(BoardState board) : this()
         {
+            Positional = Mobility.Eval(board);
+            BishopPairs = BishopPair.Eval(board);
             PawnStructure.Update(board, ref Pawns);
-            Mobility.Update(board, ref Positional);
-            //KingSafety.Update(board, ref _positional);
             AddPieces(board);
             UpdateScore();
         }
@@ -27,6 +38,7 @@ namespace Leorik.Core
         internal void QuickUpdate(BoardState board, ref Move move)
         {
             PawnStructure.Update(board, ref Pawns);
+            BishopPairs = BishopPair.Eval(board);
             UpdateMaterial(board, ref move);
             UpdateScore();
         }
@@ -34,9 +46,8 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
-            Positional = default;
-            Mobility.Update(board, ref Positional);
-            //KingSafety.Update(board, ref _positional);
+            Positional = Mobility.Eval(board);
+            BishopPairs = BishopPair.Eval(board);
             PawnStructure.Update(board, ref move, ref Pawns);
             UpdateMaterial(board, ref move);
             UpdateScore();
@@ -46,10 +57,9 @@ namespace Leorik.Core
         public void UpdateScore()
         {
             //TODO: use operator overloading to make this readable
-            int mg = Pawns.Base + Material.Base + Positional.Base;
-            int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
+            int mg = Pawns.Base + Material.Base + Positional + BishopPairs;
+            int eg = Pawns.Endgame + Material.Endgame;
             Score = (short)(mg + Phase(PhaseValue) * eg);
-            //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
