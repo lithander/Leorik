@@ -4,11 +4,11 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 5;
-int MATERIAL_ALPHA = 500;
+int ITERATIONS = 200;
+int MATERIAL_ALPHA = 1000;
 int PHASE_ALPHA = 100;
 int MATERIAL_BATCH = 100;
-int PHASE_BATCH = 5;
+int PHASE_BATCH = 25;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
@@ -24,11 +24,11 @@ List<Data> data = LoadData("data/quiet-labeled.epd");
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 
-//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -50,8 +50,8 @@ t0 = Stopwatch.GetTimestamp();
 for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
-    TunePhaseBatch(PHASE_BATCH, PHASE_ALPHA);
     TuneMaterialBatch(MATERIAL_BATCH, MATERIAL_ALPHA);
+    TunePhaseBatch(PHASE_BATCH, PHASE_ALPHA);
     Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 }
 t1 = Stopwatch.GetTimestamp();
