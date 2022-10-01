@@ -10,13 +10,16 @@ namespace Leorik.Tuning
 
         public static float[] GetUntrainedCoefficients()
         {
-            return new float[]
+            var c = new float[]
             {
-                200, //4xKnight
+                300, //4xKnight
                 300, //4xBishop
                 500, //4xRook  
-                700, //2xQueen 
+                900, //2xQueen 
             };
+            //This needs to sum up to Evaluation.PhaseSum .e.g. 5000
+            Normalize(c);
+            return c;
         }
 
         public static float[] GetLeorikPhaseCoefficients()
@@ -60,38 +63,26 @@ namespace Leorik.Tuning
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static float Evaluate(TuningData features, float[] coefficients)
         {
-            float phaseValue = GetPhaseValue(features.PieceCounts, coefficients);
-            float phase = Phase(phaseValue);
+            float phase = GetPhase(features.PieceCounts, coefficients);
             return Evaluate(features, phase);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static float GetPhaseValue(byte[] pieceCounts, float[] cPhase)
-        {
-            float phaseValue = 0;
-            for (int i = 0; i < N; i++)
-                phaseValue += pieceCounts[i] * cPhase[i];
-            return phaseValue;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static float GetPhase(byte[] pieceCounts, float[] cPhase)
         {
-            float phaseValue = GetPhaseValue(pieceCounts, cPhase);
-            return Phase(phaseValue);
-        }
+            float phaseValue = 0;
+            for (int i = 0; i < N; i++)
+                phaseValue += pieceCounts[i] * cPhase[i];
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float Phase(float phaseValue)
-        {
             return Math.Clamp((Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum, 0, 1);
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float phase)
         {
             return entry.MidgameEval + phase * entry.EndgameEval +
-                   entry.Pawns.Eval(entry.Phase) +
+                   entry.Pawns.Eval(phase) +
                    entry.Mobility;
         }
 
@@ -101,36 +92,32 @@ namespace Leorik.Tuning
             Console.WriteLine($"N:{R(0),4} B:{R(1),4} R:{R(2),4} Q:{R(3),4}");
         }
 
-        internal static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
-        {
-            float[] accu = new float[N];
-            foreach (TuningData entry in data)
-            {
-                float phaseValue = 0;
-                for (int i = 0; i < N; i++)
-                    phaseValue += entry.PieceCounts[i] * coefficients[i];
-
-                float phase = Phase(phaseValue);
-                float eval = Evaluate(entry, phase);
-
-                float error = SignedError(entry.Result, eval, scalingCoefficient);
-                float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
-                float delta = error - errorMg;
-
-                //if error is positive a lower eval would have been better
-                //the more positive the 'delta' is the more increasing the phase would increase eval
-                //the higher the feature value the more increasing the coefficient would help
-                for (int i = 0; i < N; i++)
-                {
-                    accu[i] += error * delta * entry.PieceCounts[i];
-                }
-            }
-
-            for (int i = 0; i < N; i++)
-                coefficients[i] += alpha * accu[i] / data.Count;
-
-            Normalize(coefficients);
-        }
+        //internal static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
+        //{
+        //    float[] accu = new float[N];
+        //    foreach (TuningData entry in data)
+        //    {                
+        //        float phase = GetPhase(entry.PieceCounts, coefficients);
+        //        float eval = Evaluate(entry, phase);
+        //
+        //        float error = SignedError(entry.Result, eval, scalingCoefficient);
+        //        float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
+        //        float delta = error - errorMg;
+        //
+        //        //if error is positive a lower eval would have been better
+        //        //the more positive the 'delta' is the more increasing the phase would increase eval
+        //        //the higher the feature value the more increasing the coefficient would help
+        //        for (int i = 0; i < N; i++)
+        //        {
+        //            accu[i] += error * delta * entry.PieceCounts[i];
+        //        }
+        //    }
+        //
+        //    for (int i = 0; i < N; i++)
+        //        coefficients[i] += alpha * accu[i] / data.Count;
+        //
+        //    Normalize(coefficients);
+        //}
 
         private static void Normalize(float[] coefficients)
         {
@@ -156,23 +143,14 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float phaseValue = 0;
-                    for (int i = 0; i < N; i++)
-                        phaseValue += entry.PieceCounts[i] * coefficients[i];
-
-                    float phase = Phase(phaseValue);
+                    float phase = GetPhase(entry.PieceCounts, coefficients);
                     float eval = Evaluate(entry, phase);
+                    float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
+                    float grad = Evaluate(entry, 0) - Evaluate(entry, 1);
 
-                    float error = SignedError(entry.Result, eval, scalingCoefficient);
-                    float errorMg = SignedError(entry.Result, entry.MidgameEval, scalingCoefficient);
-                    float delta = error - errorMg;
-
-                    //if error is positive a lower eval would have been better
-                    //the more positive the 'delta' is the more increasing the phase would increase eval
-                    //the higher the feature value the more increasing the coefficient would help
                     for (int i = 0; i < N; i++)
                     {
-                        accu[i] += error * delta * entry.PieceCounts[i];
+                        accu[i] += error * grad * entry.PieceCounts[i];
                     }
                     return accu;
                 },
@@ -182,12 +160,12 @@ namespace Leorik.Tuning
                     lock (coefficients)
                     {
                         for (int i = 0; i < N; i++)
-                            coefficients[i] += alpha * accu[i] / data.Count;
-
-                        Normalize(coefficients);
+                            coefficients[i] -= alpha * accu[i] / data.Count;
                     }
                 }
             );
+
+            Normalize(coefficients);
         }
     }
 }
