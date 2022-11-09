@@ -12,44 +12,36 @@ namespace Leorik.Tablebase
             Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
             Console.WriteLine();
 
-            string tbPath = GetPath(args);
+            string tbPath = args.Length > 0 ? args[0] : ReadPath();
             Console.WriteLine($"Syzygy Tablebase Path: {tbPath}");
             Syzygy tb = new Syzygy(tbPath);
 
             Console.WriteLine();
-            string fen = GetPosition(args);
-            do
+            string fen = args.Length > 1 ? args[1] : ReadFen();
+            while (!string.IsNullOrEmpty(fen))
             {
                 Probe(tb, fen);
-                fen = Console.ReadLine();
+                fen = ReadFen();
             }
-            while(!string.IsNullOrEmpty(fen));
         }
 
         private static void Probe(Syzygy tb, string fen)
         {
             BoardState pos = Notation.GetBoardState(fen);
             if (tb.ProbeWinDrawLoss(pos, out WinDrawLoss result))
-                Console.WriteLine($"ProbeWinDrawLoss(...) = {(int)result} = {result}");
+                Console.WriteLine($"ProbeWinDrawLoss({fen}) = {(int)result} = {result}");
             else
-                Console.WriteLine("ProbeWinDrawLoss(...) failed!");
+                Console.WriteLine($"ProbeWinDrawLoss({fen}) failed!");
         }
 
-        private static string GetPosition(string[] args)
+        private static string ReadFen()
         {
-            if (args.Length > 1)
-                return args[1];
-
             Console.Write($"Enter FEN: ");
             return Console.ReadLine();
-
         }
 
-        private static string GetPath(string[] args)
+        private static string ReadPath()
         {
-            if (args.Length > 0)
-                return args[0];
-
             Console.Write($"Provide the Syzygy Tablebase Path: ");
             return Console.ReadLine();
         }
