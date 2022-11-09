@@ -13,7 +13,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Search", "Leorik.Sea
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Test", "Leorik.Test\Leorik.Test.csproj", "{3F264074-F3F6-49E4-B2CF-5FFA064E58A0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Leorik.Tuning", "Leorik.Tuning\Leorik.Tuning.csproj", "{3A2D329A-CA3F-4011-8A01-A73F32437F6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Tuning", "Leorik.Tuning\Leorik.Tuning.csproj", "{3A2D329A-CA3F-4011-8A01-A73F32437F6B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Leorik.Tablebase", "Leorik.Tablebase\Leorik.Tablebase.csproj", "{1DE9CCB7-623F-4166-8FF0-609EB63A745B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{3A2D329A-CA3F-4011-8A01-A73F32437F6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A2D329A-CA3F-4011-8A01-A73F32437F6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A2D329A-CA3F-4011-8A01-A73F32437F6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DE9CCB7-623F-4166-8FF0-609EB63A745B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DE9CCB7-623F-4166-8FF0-609EB63A745B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DE9CCB7-623F-4166-8FF0-609EB63A745B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DE9CCB7-623F-4166-8FF0-609EB63A745B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
