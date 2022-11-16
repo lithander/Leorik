@@ -5,7 +5,7 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
+        public static readonly short[] PhaseValues = new short[6] { 0, 149, 354, 398, 698, 0 };
 
         public short PhaseValue;
         public EvalTerm Pawns;
@@ -144,9 +144,9 @@ namespace Leorik.Core
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Phase(short phaseValue)
+        public static float Phase(float phaseValue)
         {
-            return Math.Clamp((float)(PhaseSum - phaseValue) / PhaseSum, 0, 1);
+            return Math.Clamp((PhaseSum - phaseValue) / PhaseSum, 0, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

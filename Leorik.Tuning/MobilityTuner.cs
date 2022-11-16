@@ -57,21 +57,23 @@ namespace Leorik.Tuning
                 Piece piece = position.GetPiece(i);
                 if (piece == Piece.None)
                     continue;
-                if ((piece & Piece.TypeMask) == Piece.Knight)
-                    continue;
-                //if ((piece & Piece.TypeMask) == Piece.Pawn)
+                //if ((piece & Piece.TypeMask) == Piece.Knight)
                 //    continue;
+                if ((piece & Piece.TypeMask) == Piece.Pawn)
+                    continue;
 
                 int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
                 int index = (short)GetIndex(piece, _moveCounts[i]);
-                features.AddFeature(index, value, phase, false);
+                features.AddFeature(index, value, phase);
             }
             return features.ToArray();
         }
                 
-        internal static void Report(Piece piece, int offset, int step, float[] coefficients)
+        internal static void Report(Piece piece, int table, bool endgame, float[] coefficients)
         {
-            Console.Write($"{piece}: ");
+            Console.WriteLine($"//{piece}: ");
+            const int step = 2;
+            int offset = table * 128 + (endgame ? 1 : 0);
             int i0 = Move.Order(piece);
             for (int i = PieceMobilityIndices[i0]; i < PieceMobilityIndices[i0 + 1]; i++)
             {

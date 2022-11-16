@@ -26,11 +26,10 @@ namespace Leorik.Core
         const int HASH_TABLE_SIZE = 4999; //prime!
         static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
 
-        const short ISOLATED_PAWN = -8;
-        const short CONNECTED_PAWN = 6;
-        const short PROTECTED_PAWN = 14;
-        const short PASSED_RANK = 16;
-        const short PASSED_CENTER = -12;
+        const int IsolatedPawns = (6 << 6);
+        const int PassedPawns = (7 << 6);
+        const int ProtectedPawns = (8 << 6);
+        const int ConnectedPawns = (9 << 6);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Update(BoardState board, ref Move move, ref EvalTerm eval)
@@ -67,40 +66,69 @@ namespace Leorik.Core
         private static void AddPassedPawns(BoardState pos, ref EvalTerm eval)
         {
             for (ulong bits = Features.GetPassedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
-                eval.Endgame -= ScorePassedPawn(Bitboard.LSB(bits));
+            {
+                int square = Bitboard.LSB(bits);
+                eval.Base -= Weights.MidgameTables[PassedPawns | square];
+                eval.Endgame -= Weights.EndgameTables[PassedPawns | square];
+            }
 
             for (ulong bits = Features.GetPassedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
-                eval.Endgame += ScorePassedPawn(Bitboard.LSB(bits) ^ 56);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static short ScorePassedPawn(int square)
-        {
-            int rank = 8 - (square >> 3);
-            int file = square & 7;
-            int center = Math.Min(file, 7 - file);
-            return (short)(PASSED_RANK * rank + PASSED_CENTER * center);
+            {
+                int square = Bitboard.LSB(bits) ^ 56;
+                eval.Base += Weights.MidgameTables[PassedPawns | square];
+                eval.Endgame += Weights.EndgameTables[PassedPawns | square];
+            }
         }
 
         private static void AddIsolatedPawns(BoardState pos, ref EvalTerm eval)
         {
-            int white = Bitboard.PopCount(Features.GetIsolatedWhitePawns(pos));
-            int black = Bitboard.PopCount(Features.GetIsolatedBlackPawns(pos));
-            eval.Base += (short)(ISOLATED_PAWN * (white - black));
+            for (ulong bits = Features.GetIsolatedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                eval.Base -= Weights.MidgameTables[IsolatedPawns | square];
+                eval.Endgame -= Weights.EndgameTables[IsolatedPawns | square];
+            }
+
+            for (ulong bits = Features.GetIsolatedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits) ^ 56;
+                eval.Base += Weights.MidgameTables[IsolatedPawns | square];
+                eval.Endgame += Weights.EndgameTables[IsolatedPawns | square];
+            }
         }
 
         private static void AddConnectedPawns(BoardState pos, ref EvalTerm eval)
         {
-            int white = Bitboard.PopCount(Features.GetConnectedWhitePawns(pos));
-            int black = Bitboard.PopCount(Features.GetConnectedBlackPawns(pos));
-            eval.Base += (short)(CONNECTED_PAWN * (white - black));
+            for (ulong bits = Features.GetConnectedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                eval.Base -= Weights.MidgameTables[ConnectedPawns | square];
+                eval.Endgame -= Weights.EndgameTables[ConnectedPawns | square];
+            }
+
+            for (ulong bits = Features.GetConnectedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits) ^ 56;
+                eval.Base += Weights.MidgameTables[ConnectedPawns | square];
+                eval.Endgame += Weights.EndgameTables[ConnectedPawns | square];
+            }
         }
 
         private static void AddProtectedPawns(BoardState pos, ref EvalTerm eval)
         {
-            int white = Bitboard.PopCount(Features.GetProtectedWhitePawns(pos));
-            int black = Bitboard.PopCount(Features.GetProtectedBlackPawns(pos));
-            eval.Base += (short)(PROTECTED_PAWN * (white - black));
+            for (ulong bits = Features.GetProtectedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                eval.Base -= Weights.MidgameTables[ProtectedPawns | square];
+                eval.Endgame -= Weights.EndgameTables[ProtectedPawns | square];
+            }
+
+            for (ulong bits = Features.GetProtectedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits) ^ 56;
+                eval.Base += Weights.MidgameTables[ProtectedPawns | square];
+                eval.Endgame += Weights.EndgameTables[ProtectedPawns | square];
+            }
         }
     }
 }

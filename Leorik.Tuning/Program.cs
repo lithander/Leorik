@@ -4,22 +4,31 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 200;
+int ITERATIONS = 100;
 int MATERIAL_ALPHA = 1000;
-int PHASE_ALPHA = 100;
+int FEATURE_ALPHA = 50;
+int PHASE_ALPHA = 250;
 int MATERIAL_BATCH = 100;
-int PHASE_BATCH = 25;
+int PHASE_BATCH = 10;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v17 ");
+Console.WriteLine(" Leorik Tuning v18 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
+Console.WriteLine($"MSE_SCALING = {MSE_SCALING}");
+Console.WriteLine($"ITERATIONS = {ITERATIONS}");
+Console.WriteLine($"MATERIAL_ALPHA = {MATERIAL_ALPHA}");
+Console.WriteLine($"FEATURE_ALPHA = {FEATURE_ALPHA}");
+Console.WriteLine($"PHASE_ALPHA = {PHASE_ALPHA}");
+Console.WriteLine($"MATERIAL_BATCH = {MATERIAL_BATCH}");
+Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
+Console.WriteLine();
 
-BitboardUtils.Repl();
+//BitboardUtils.Repl();
 
-List<Data> data = LoadData("data/quiet-labeled.epd");
+List<Data> data = LoadData("data/quiet-labeled.v7plus.epd");
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -29,6 +38,8 @@ TestLeorikMSE();
 
 float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
 float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+
+//PrintCoefficients(cFeatures);
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -45,19 +56,23 @@ Console.WriteLine();
 
 TestMaterialMSE(cFeatures);
 TestPhaseMSE(cPhase);
+PhaseTuner.Report(cPhase);
 
 t0 = Stopwatch.GetTimestamp();
 for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
-    TuneMaterialBatch(MATERIAL_BATCH, MATERIAL_ALPHA);
-    TunePhaseBatch(PHASE_BATCH, PHASE_ALPHA);
+    TuneMaterialBatch();
+    TunePhaseBatch();
     Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 }
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
 PrintCoefficients(cFeatures);
+
+double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
+Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 
 Console.ReadKey();
 /*
@@ -66,14 +81,14 @@ Console.ReadKey();
 * 
 */
 
-void TuneMaterialBatch(int batchSize, float alpha)
+void TuneMaterialBatch()
 {
     double msePre = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
-    Console.Write($"  Material MSE={msePre:N12} Alpha={alpha,5} ");
+    Console.Write($"  Material MSE={msePre:N12} Alpha={MATERIAL_ALPHA,5} ");
     long t_0 = Stopwatch.GetTimestamp();
-    for (int i = 0; i < batchSize; i++)
+    for (int i = 0; i < MATERIAL_BATCH; i++)
     {
-        FeatureTuner.MinimizeParallel(tuningData, cFeatures, MSE_SCALING, alpha);
+        FeatureTuner.MinimizeParallel(tuningData, cFeatures, MSE_SCALING, MATERIAL_ALPHA, FEATURE_ALPHA);
     }
     Tuner.SyncFeaturesChanges(tuningData, cFeatures);
     long t_1 = Stopwatch.GetTimestamp();
@@ -81,16 +96,16 @@ void TuneMaterialBatch(int batchSize, float alpha)
     Console.WriteLine($"Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s");
 }
 
-void TunePhaseBatch(int batchSize, float alpha)
+void TunePhaseBatch()
 {
     double msePre = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
-    Console.Write($"     Phase MSE={msePre:N12} Alpha={alpha,5} ");
+    Console.Write($"     Phase MSE={msePre:N12} Alpha={PHASE_ALPHA,5} ");
     long t_0 = Stopwatch.GetTimestamp();
-    for (int i = 0; i < batchSize; i++)
+    for (int i = 0; i < PHASE_BATCH; i++)
     {
-        PhaseTuner.MinimizeParallel(tuningData, cPhase, MSE_SCALING, alpha);
+        PhaseTuner.MinimizeParallel(tuningData, cPhase, MSE_SCALING, PHASE_ALPHA);
     }
-    Tuner.SyncPhaseChanges(tuningData, cPhase, true);
+    Tuner.SyncPhaseChanges(tuningData, cPhase);
     long t_1 = Stopwatch.GetTimestamp();
     double msePost = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
     Console.Write($"Delta={msePre - msePost:N10} Time={(t_1 - t_0) / (double)Stopwatch.Frequency:0.###}s ");
@@ -141,29 +156,46 @@ List<Data> LoadData(string epdFile)
 
 void PrintCoefficients(float[] coefficients)
 {
-    Console.WriteLine("MIDGAME");
-    for (int i = 0; i < 6; i++)
-        WriteTable(i * 128, 2, coefficients);
-    
-    Console.WriteLine("ENDGAME");
-    for (int i = 0; i < 6; i++)
-        WriteTable(i * 128 + 1, 2, coefficients);
+    int Tmax = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
 
-    //Console.WriteLine("BackwardPawns - MG");
-    //WriteTable(6 * 128, 2, coefficients);
-    //Console.WriteLine("BackwardPawns - EG");
-    //WriteTable(6 * 128 + 1, 2, coefficients);
+    Console.WriteLine("MIDGAME");
+    for (int i = 0; i < Tmax; i++)
+        WriteTable(i, false, coefficients);
+
+    Console.WriteLine();
+    Console.WriteLine("ENDGAME");
+    for (int i = 0; i < Tmax; i++)
+        WriteTable(i, true, coefficients);
+
+    Console.WriteLine();
+    Console.WriteLine("Mobility - MG");
+    WriteMobilityTable(Tmax, false, coefficients);
+
+    Console.WriteLine();
+    Console.WriteLine("Mobility - EG");
+    WriteMobilityTable(Tmax, true, coefficients);
 
     Console.WriteLine();
     Console.WriteLine("Phase");
     PhaseTuner.Report(cPhase);
-
-    double mse = FeatureTuner.MeanSquareError(tuningData, coefficients, MSE_SCALING);
-    Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 }
 
-void WriteTable(int offset, int step, float[] coefficients)
+void WriteMobilityTable(int table, bool endgame, float[] coefficients)
 {
+    MobilityTuner.Report(Piece.Pawn, table, endgame, coefficients);
+    MobilityTuner.Report(Piece.Knight, table, endgame, coefficients);
+    MobilityTuner.Report(Piece.Bishop, table, endgame, coefficients);
+    MobilityTuner.Report(Piece.Rook, table, endgame, coefficients);
+    MobilityTuner.Report(Piece.Queen, table, endgame, coefficients);
+    MobilityTuner.Report(Piece.King, table, endgame, coefficients);
+    Console.WriteLine();
+}
+
+void WriteTable(int table, bool endgame, float[] coefficients)
+{
+    Console.WriteLine($"//{FeatureTuner.TableNames[table]}");
+    const int step = 2;
+    int offset = table * 128 + (endgame ? 1 : 0);
     for (int i = 0; i < 8; i++)
     {
         for (int j = 0; j < 8; j++)
@@ -174,5 +206,4 @@ void WriteTable(int offset, int step, float[] coefficients)
         }
         Console.WriteLine();
     }
-    Console.WriteLine();
 }

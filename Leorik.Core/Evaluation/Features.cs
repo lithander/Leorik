@@ -17,7 +17,7 @@ namespace Leorik.Core
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsIsolatedPawn(ulong pawns, int square)
+        private static bool IsIsolatedPawn(ulong pawns, int square)
         {
             int file = square & 7;
             return (pawns & NeighbourFiles[file]) == 0;
@@ -35,6 +35,13 @@ namespace Leorik.Core
             return result;
         }
 
+        //~~~ Isolated Pawns
+
+        public static ulong GetIsolatedPawns(BoardState board)
+        {
+            return GetIsolatedBlackPawns(board) | GetIsolatedWhitePawns(board);
+        }
+
         public static ulong GetIsolatedBlackPawns(BoardState board)
         {
             return GetIsolatedPawns(board.Black & board.Pawns);
@@ -43,6 +50,13 @@ namespace Leorik.Core
         public static ulong GetIsolatedWhitePawns(BoardState board)
         {
             return GetIsolatedPawns(board.White & board.Pawns);
+        }
+
+        //~~~ Passed Pawns
+
+        public static ulong GetPassedPawns(BoardState board)
+        {
+            return GetPassedBlackPawns(board) | GetPassedWhitePawns(board);
         }
 
         public static ulong GetPassedBlackPawns(BoardState board)
@@ -57,6 +71,13 @@ namespace Leorik.Core
             return board.White & board.Pawns & ~(blackFront | Left(blackFront) | Right(blackFront));
         }
 
+        //~~~ Protected Pawns
+
+        public static ulong GetProtectedPawns(BoardState board)
+        {
+            return GetProtectedBlackPawns(board) | GetProtectedWhitePawns(board);
+        }
+
         public static ulong GetProtectedBlackPawns(BoardState board)
         {
             ulong blackPawns = board.Black & board.Pawns;
@@ -69,6 +90,13 @@ namespace Leorik.Core
             return (LeftUp(whitePawns) | RightUp(whitePawns)) & whitePawns;
         }
 
+        //~~~ Connected Pawns
+
+        public static ulong GetConnectedPawns(BoardState board)
+        {
+            return GetConnectedBlackPawns(board) | GetConnectedWhitePawns(board);
+        }
+
         public static ulong GetConnectedBlackPawns(BoardState board)
         {
             ulong blackPawns = board.Black & board.Pawns;
@@ -79,6 +107,13 @@ namespace Leorik.Core
         {
             ulong whitePawns = board.White & board.Pawns;
             return (Left(whitePawns) | Right(whitePawns)) & whitePawns;
+        }
+
+        //~~~ Backward Pawns
+
+        public static ulong GetBackwardPawns(BoardState board)
+        {
+            return GetBackwardBlackPawns(board) | GetBackwardWhitePawns(board);
         }
 
         public static ulong GetBackwardBlackPawns(BoardState board)
@@ -100,6 +135,7 @@ namespace Leorik.Core
             //white pawns behind all friendly adjacent pawns whose up-square is attacked by black pawns are backward
             return Down(Up(whitePawns) & blackAttacks & ~FillUp(whiteAttacks));
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong FillUp(ulong bits)

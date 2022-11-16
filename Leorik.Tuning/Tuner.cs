@@ -23,8 +23,6 @@ namespace Leorik.Tuning
         public BoardState Position;
         public sbyte Result;
 
-        public short Mobility;
-        public EvalTerm Pawns;
         public Feature[] Features;
 
         public float MidgameEval;
@@ -147,23 +145,21 @@ namespace Leorik.Tuning
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
             Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
-            //Feature[] mobilityFeatures = MobilityTuner.GetFeatures(input.Position, phase);
-            //features = Merge(features, mobilityFeatures, FeatureTuner.M);
+            Feature[] mobilityFeatures = MobilityTuner.GetFeatures(input.Position, phase);
+            features = Merge(features, mobilityFeatures, FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights);
             //Feature[] kingSafetyFeatures = KingSafetyTuner.GetKingThreatsFeatures(input.Position, phase);
             //features = Merge(features, kingSafetyFeatures, FeatureTuner.MaterialWeights);
 
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
-            EvalTerm pawns = PawnStructure.Eval(input.Position);
+            //EvalTerm pawns = PawnStructure.Eval(input.Position);
             //KingSafety.Update(input.Position, ref pawns);
-            short mobility = Mobility.Eval(input.Position);
+            //short mobility = Mobility.Eval(input.Position);
 
             return new TuningData
             {
                 Position = input.Position,
                 Result = input.Result,               
                 Features = features,
-                Pawns = pawns,
-                Mobility = mobility,
                 MidgameEval = mgEval,
                 EndgameEval = egEval,
                 PieceCounts = pieceCounts,
@@ -194,7 +190,7 @@ namespace Leorik.Tuning
             return denseFeatures;
         }
 
-        public static void AddFeature(this List<Feature> features, int index, int value, float phase, bool tapered)
+        public static void AddFeature(this List<Feature> features, int index, int value, float phase)
         {
             features.Add(new Feature
             {
@@ -209,7 +205,7 @@ namespace Leorik.Tuning
             features.Add(new Feature
             {
                 Index = (short)(2 * index + 1),
-                Value = tapered ? (value * phase) : 0
+                Value = value * phase
             });
         }
 
@@ -238,7 +234,7 @@ namespace Leorik.Tuning
             }
         }
 
-        internal static void SyncPhaseChanges(List<TuningData> data, float[] cPhase, bool tapered)
+        internal static void SyncPhaseChanges(List<TuningData> data, float[] cPhase)
         {
             //This is called after the phase coefficients have been tuned. Now the material-fatures need to be adjusted
             //so that the phase-eval and material-eval will agree again.
@@ -247,13 +243,6 @@ namespace Leorik.Tuning
                 td.Phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
                 //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
                 td.Features = AdjustPhase(td.Features, td.Phase);
-
-                if(!tapered)
-                {
-                    for (int i = 0; i < td.Features.Length; i++)
-                        if (td.Features[i].Index >= FeatureTuner.MaterialWeights && td.Features[i].Index % 2 == 1)
-                            td.Features[i].Value = 0;
-                }
             }
         }
         

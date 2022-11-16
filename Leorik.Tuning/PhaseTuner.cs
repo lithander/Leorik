@@ -18,7 +18,7 @@ namespace Leorik.Tuning
                 900, //2xQueen 
             };
             //This needs to sum up to Evaluation.PhaseSum .e.g. 5000
-            Normalize(c);
+            Resize(c, Evaluation.PhaseSum);
             return c;
         }
 
@@ -74,16 +74,25 @@ namespace Leorik.Tuning
             for (int i = 0; i < N; i++)
                 phaseValue += pieceCounts[i] * cPhase[i];
 
-            return Math.Clamp((Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum, 0, 1);
+            return Evaluation.Phase(phaseValue);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static float GetPhase2(byte[] pieceCounts, float[] cPhase)
+        {
+            float phaseValue = 0;
+            for (int i = 0; i < N; i++)
+                phaseValue += pieceCounts[i] * cPhase[i];
+
+            return (Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum;
+        }
+
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float phase)
         {
-            return entry.MidgameEval + phase * entry.EndgameEval +
-                   entry.Pawns.Eval(phase) +
-                   entry.Mobility;
+            return entry.MidgameEval + phase * entry.EndgameEval;
         }
 
         internal static void Report(float[] cPhase)
@@ -119,9 +128,9 @@ namespace Leorik.Tuning
         //    Normalize(coefficients);
         //}
 
-        private static void Normalize(float[] coefficients)
+        private static void Resize(float[] coefficients, float total)
         {
-            float nf = Evaluation.PhaseSum / PhaseSum(coefficients);
+            float nf = total / PhaseSum(coefficients);
             for (int i = 0; i < N; i++)
                 coefficients[i] *= nf;
         }
@@ -134,7 +143,7 @@ namespace Leorik.Tuning
                    2 * coefficients[3];  // Q
         }
 
-        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
+        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, float evalScaling, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -143,14 +152,14 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float phase = GetPhase(entry.PieceCounts, coefficients);
+                    float phase = GetPhase2(entry.PieceCounts, coefficients);
                     float eval = Evaluate(entry, phase);
-                    float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
-                    float grad = Evaluate(entry, 0) - Evaluate(entry, 1);
+                    float error = Sigmoid(eval, evalScaling) - entry.Result;
+                    float grad = Sigmoid(Evaluate(entry, 0), evalScaling) - Sigmoid(Evaluate(entry, 1), evalScaling);
 
                     for (int i = 0; i < N; i++)
                     {
-                        accu[i] += error * grad * entry.PieceCounts[i];
+                        accu[i] += error * grad * entry.PieceCounts[i];// * coefficients[i];
                     }
                     return accu;
                 },
@@ -165,7 +174,7 @@ namespace Leorik.Tuning
                 }
             );
 
-            Normalize(coefficients);
+            Resize(coefficients, Evaluation.PhaseSum);
         }
     }
 }

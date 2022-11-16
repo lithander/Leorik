@@ -7,15 +7,24 @@ namespace Leorik.Tuning
 {
     static class FeatureTuner
     {
-        //(Midgame + Endgame) * (6 Pieces + Doubled + Isolated + Passed + ...) * 64 = ??? coefficients
-        public const int MaterialWeights = 2 * 6 * 64;
-        //public const int MobilityWeights = 2 * 88;
-        //public const int KingSafetyWeights = 2 * 120;
-        public const int N = MaterialWeights;
+        //(Midgame + Endgame) * (6 Pieces + Isolated + Passed + Protected + Connected) * 64 = 1280 coefficients
+        public const int MaterialTables = 6;
+        public const int PawnStructureTables = 4;
+        public const int PawnStructureWeights = 2 * PawnStructureTables * 64;
+        public const int MaterialWeights = 2 * MaterialTables * 64;
+        public const int MobilityWeights = 2 * 88;
+        public const int AllWeigths = MaterialWeights + PawnStructureWeights + MobilityWeights;
+
+        public static string[] TableNames = new string[]
+        {
+            "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings",
+            "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns"
+        };
+
 
         public static float[] GetUntrainedCoefficients()
         {
-            float[] c = new float[N];
+            float[] c = new float[AllWeigths];
 
             int index = 0;
             for (int sq = 0; sq < 64; sq++, index += 2)
@@ -34,14 +43,14 @@ namespace Leorik.Tuning
 
         public static float[] GetLeorikCoefficients()
         {
-            float[] result = new float[N];
+            float[] result = new float[AllWeigths];
             int index = 0;
             for (int piece = 0; piece < 6; piece++)
             {
                 for (int sq = 0; sq < 64; sq++)
                 {
-                    result[index++] = Material.MidgameTables[64 * piece + sq];
-                    result[index++] = Material.EndgameTables[64 * piece + sq];
+                    result[index++] = Weights.MidgameTables[64 * piece + sq];
+                    result[index++] = Weights.EndgameTables[64 * piece + sq];
                 }
             }
             return result;
@@ -50,7 +59,7 @@ namespace Leorik.Tuning
         public static float[] GetRandomCoefficients(int min, int max, int seed)
         {
             Random random = new Random(seed);
-            float[] result = new float[N];
+            float[] result = new float[AllWeigths];
             int index = 0;
             for (int piece = 0; piece < 6; piece++)
             {
@@ -82,7 +91,7 @@ namespace Leorik.Tuning
 
         public static float[] GetFeatures(BoardState pos, float phase)
         {
-            float[] result = new float[N];
+            float[] result = new float[AllWeigths];
 
             //phase is used to interpolate between endgame and midgame score but we want to incorporate it into the features vector
             //score = midgameScore + phase * endgameScore
@@ -100,8 +109,11 @@ namespace Leorik.Tuning
             IteratePieces(pos, pos.Queens,  AddFeature, 4);
             IteratePieces(pos, pos.Kings,   AddFeature, 5);
 
-            //ulong backwardPawns = Features.GetBackwardWhitePawns(pos) | Features.GetBackwardBlackPawns(pos);
-            //IteratePieces(pos, backwardPawns, AddFeature, 6);
+            //Pawn Structure
+            IteratePieces(pos, Features.GetIsolatedPawns(pos), AddFeature, 6);
+            IteratePieces(pos, Features.GetPassedPawns(pos), AddFeature, 7);
+            IteratePieces(pos, Features.GetProtectedPawns(pos), AddFeature, 8);
+            IteratePieces(pos, Features.GetConnectedPawns(pos), AddFeature, 9);
 
             return result;
         }
@@ -147,38 +159,36 @@ namespace Leorik.Tuning
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float[] coefficients)
         {
-            return Tuner.Evaluate(entry.Features, coefficients) +
-                   entry.Pawns.Eval(entry.Phase) +
-                   entry.Mobility;
+            return Tuner.Evaluate(entry.Features, coefficients);
         }
 
-        public static void Minimize(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
+        public static void Minimize(List<TuningData> data, float[] coefficients, float evalScaling, float alpha)
         {
-            float[] accu = new float[N];
+            float[] accu = new float[AllWeigths];
             foreach (TuningData entry in data)
             {
                 float eval = Evaluate(entry, coefficients);
-                float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
+                float error = Sigmoid(eval, evalScaling) - entry.Result;
 
                 foreach (Feature f in entry.Features)
                     accu[f.Index] += error * f.Value;
             }
 
-            for (int i = 0; i < N; i++)
+            for (int i = 0; i < AllWeigths; i++)
                 coefficients[i] -= alpha * accu[i] / data.Count;
         }
 
-        public static void MinimizeParallel(List<TuningData> data, float[] coefficients, float scalingCoefficient, float alpha)
+        public static void MinimizeParallel(List<TuningData> data, float[] coefficients, float evalScaling, float materialAlpha, float featureAlpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
                 //initialize the local variable accu
-                () => new float[N],
+                () => new float[AllWeigths],
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
                     float eval = Evaluate(entry, coefficients);
-                    float error = Sigmoid(eval, scalingCoefficient) - entry.Result;
+                    float error = Sigmoid(eval, evalScaling) - entry.Result;
 
                     foreach (Feature f in entry.Features)
                         accu[f.Index] += error * f.Value;
@@ -190,8 +200,11 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        for (int i = 0; i < N; i++)
-                            coefficients[i] -= alpha * accu[i] / data.Count;
+                        for (int i = 0; i < MaterialWeights; i++)
+                            coefficients[i] -= materialAlpha * accu[i] / data.Count;
+
+                        for (int i = MaterialWeights; i < AllWeigths; i++)
+                            coefficients[i] -= featureAlpha * accu[i] / data.Count;
                     }
                 }
             );
