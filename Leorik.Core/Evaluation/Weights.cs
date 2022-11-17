@@ -8,6 +8,8 @@ namespace Leorik.Core
 {
     public static class Weights
     {
+        public static readonly short[] PhaseValues = new short[6] { 0, 153, 346, 402, 698, 0 };
+
         public static readonly short[] MidgameTables = new short[10 * 64]{
         //Pawns
           100,  100,  100,  100,  100,  100,  100,  100,

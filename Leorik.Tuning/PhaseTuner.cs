@@ -26,10 +26,10 @@ namespace Leorik.Tuning
         {
             return new float[]
             {
-                Evaluation.PhaseValues[1], //Knight
-                Evaluation.PhaseValues[2], //Bishop
-                Evaluation.PhaseValues[3], //Rook
-                Evaluation.PhaseValues[4], //Queen
+                Weights.PhaseValues[1], //Knight
+                Weights.PhaseValues[2], //Bishop
+                Weights.PhaseValues[3], //Rook
+                Weights.PhaseValues[4], //Queen
             };
         }
 

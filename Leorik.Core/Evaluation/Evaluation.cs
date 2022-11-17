@@ -5,7 +5,6 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 149, 354, 398, 698, 0 };
 
         public short PhaseValue;
         public EvalTerm Pawns;
@@ -104,7 +103,7 @@ namespace Leorik.Core
         private void AddPiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            PhaseValue += PhaseValues[pieceIndex];
+            PhaseValue += Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
                 Material.AddScore(pieceIndex, squareIndex ^ 56);
             else
@@ -115,7 +114,7 @@ namespace Leorik.Core
         private void RemovePiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            PhaseValue -= PhaseValues[pieceIndex];
+            PhaseValue -= Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
                 Material.SubtractScore(pieceIndex, squareIndex ^ 56);
             else
