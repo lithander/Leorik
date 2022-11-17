@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2.7f - quiet-labeled.v7plus, no HCE, 2 * (75 + 10 * 64) Weights, MSE = 0,247998";
+        const string NAME_VERSION = "Leorik 2.2.7g - quiet-labeled.v7plus, no HCE, no Knight-Mobility, blocked and promo Pawns, MSE = 0,247370";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();

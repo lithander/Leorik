@@ -56,18 +56,18 @@ namespace Leorik.Core
             Add(ref eval, King + moves);
 
             //Knights
-            for (ulong knights = board.Knights & board.Black; knights != 0; knights = ClearLSB(knights))
-            {
-                square = LSB(knights);
-                moves = PopCount(KnightTargets[square] & ~occupied);
-                Sub(ref eval, Knight + moves);
-            }
-            for (ulong knights = board.Knights & board.White; knights != 0; knights = ClearLSB(knights))
-            {
-                square = LSB(knights);
-                moves = PopCount(KnightTargets[square] & ~occupied);
-                Add(ref eval, Knight + moves);
-            }
+            //for (ulong knights = board.Knights & board.Black; knights != 0; knights = ClearLSB(knights))
+            //{
+            //    square = LSB(knights);
+            //    moves = PopCount(KnightTargets[square] & ~occupied);
+            //    Sub(ref eval, Knight + moves);
+            //}
+            //for (ulong knights = board.Knights & board.White; knights != 0; knights = ClearLSB(knights))
+            //{
+            //    square = LSB(knights);
+            //    moves = PopCount(KnightTargets[square] & ~occupied);
+            //    Add(ref eval, Knight + moves);
+            //}
 
             //Bishops
             for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = ClearLSB(bishops))
@@ -112,24 +112,28 @@ namespace Leorik.Core
             }
 
             //Black Pawns
-            //ulong blackPawns = board.Pawns & board.Black;
-            //ulong oneStep = (blackPawns >> 8) & ~occupied;
-            ////not able to move one square down
-            //int blocked = PopCount(blackPawns) - PopCount(oneStep);
-            ////promotion square not blocked?
-            //int promo = PopCount(oneStep & 0x00000000000000FFUL);
-            //result -= promo * PAWN_PROMOTION + PAWN_STUCK * blocked;
-            //
-            ////White Pawns
-            //ulong whitePawns = board.Pawns & board.White;
-            //oneStep = (whitePawns << 8) & ~occupied;
-            ////not able to move one square up
-            //blocked = PopCount(whitePawns) - PopCount(oneStep);
-            ////promotion square not blocked?
-            //promo = PopCount(oneStep & 0xFF00000000000000UL);
-            //result += promo * PAWN_PROMOTION + PAWN_STUCK * blocked;
-            //
-            //return (short)result;
+            ulong blackPawns = board.Pawns & board.Black;
+            ulong oneStep = (blackPawns >> 8) & ~occupied;
+            //not able to move one square down
+            int blocked = PopCount(blackPawns) - PopCount(oneStep);
+            eval.Base -= (short)(blocked * Weights.MidgameMobility[Pawn + 0]);
+            eval.Endgame -= (short)(blocked * Weights.EndgameMobility[Pawn + 0]);
+            //promotion square not blocked?
+            int promo = PopCount(oneStep & 0x00000000000000FFUL);
+            eval.Base -= (short)(promo * Weights.MidgameMobility[Pawn + 4]);
+            eval.Endgame -= (short)(promo * Weights.EndgameMobility[Pawn + 4]);
+            
+            //White Pawns
+            ulong whitePawns = board.Pawns & board.White;
+            oneStep = (whitePawns << 8) & ~occupied;
+            //not able to move one square up
+            blocked = PopCount(whitePawns) - PopCount(oneStep);
+            eval.Base += (short)(blocked * Weights.MidgameMobility[Pawn + 0]);
+            eval.Endgame += (short)(blocked * Weights.EndgameMobility[Pawn + 0]);
+            //promotion square not blocked?
+            promo = PopCount(oneStep & 0xFF00000000000000UL);
+            eval.Base += (short)(promo * Weights.MidgameMobility[Pawn + 4]);
+            eval.Endgame += (short)(promo * Weights.EndgameMobility[Pawn + 4]);
         }
     }
 }
