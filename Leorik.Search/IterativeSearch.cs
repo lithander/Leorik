@@ -5,13 +5,13 @@ namespace Leorik.Search
 {
     public class IterativeSearch
     {
+        public const int MAX_PLY = 99;
+
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
         private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
         private const int FUTILITY_RANGE = 4;
-
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
-        private const int MAX_PLY = 99;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
 
         private BoardState[] Positions;
@@ -21,8 +21,9 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
+        private byte _rootRandomness = 0;
+        private Random _rng = new Random();
 
-        public static int MaxDepth => MAX_PLY;
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
         public int Score { get; private set; }
@@ -31,8 +32,9 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearch(BoardState board, long maxNodes = long.MaxValue)
+        public IterativeSearch(BoardState board, byte randomness = 0, long maxNodes = long.MaxValue)
         {
+            _rootRandomness = randomness;
             _maxNodes = maxNodes;
             _killers = new KillerMoves(2);
             _history = new History();
@@ -101,7 +103,7 @@ namespace Leorik.Search
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
             MoveGen moveGen = new MoveGen(Moves, 0);
-            int score = Evaluate(0, Depth, MIN_ALPHA, MAX_BETA, moveGen, ref bestMove);
+            int score = EvaluateRoot(Depth, moveGen, ref bestMove);
 
             Score = (int)Positions[0].SideToMove * score;
         }
@@ -180,7 +182,6 @@ namespace Leorik.Search
             public int Next;
             public byte PlayedMoves;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PlayState InitPlay(ref MoveGen moveGen, ref Move pvMove)
@@ -294,6 +295,56 @@ namespace Leorik.Search
             return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
         }
 
+        private int EvaluateRoot(int depth, MoveGen moveGen, ref Move bestMove)
+        {
+            NodesVisited++;
+
+            int alpha = MIN_ALPHA;
+            BoardState root = Positions[0];
+            BoardState next = Positions[1];
+            bool inCheck = root.InCheck();
+
+            //init staged move generation and play all moves
+            PlayState playState = InitPlay(ref moveGen, ref bestMove);
+            while (Play(0, ref playState, ref moveGen))
+            {
+                ref Move move = ref Moves[playState.Next - 1];
+                _history.Played(depth, ref move);
+
+                //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                if (depth >= 2 && playState.PlayedMoves > 1)
+                {
+                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
+                    int R = (inCheck || next.InCheck() || playState.Stage < Stage.Quiets) ? 0 : 2;
+                    if (FailLow(0, depth - R, alpha, moveGen))
+                        continue;
+                }
+
+                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
+                int bonus = _rng.Next(_rootRandomness);
+                int score = bonus - EvaluateTT(1, depth - 1, bonus - MAX_BETA, bonus - alpha, moveGen);
+
+                if (score > alpha)
+                {
+                    alpha = score;
+                    bestMove = move;
+                    ExtendPV(0, bestMove);
+
+                    if (playState.Stage >= Stage.Killers)
+                    {
+                        _history.Good(depth, ref bestMove);
+                        _killers.Add(0, bestMove);
+                    }
+                }
+            }
+
+            //checkmate or draw?
+            if (playState.PlayedMoves == 0)
+                return inCheck ? Evaluation.Checkmate(0) : 0;
+
+            return alpha;
+        }
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -366,6 +417,7 @@ namespace Leorik.Search
 
             return alpha;
         }
+
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;

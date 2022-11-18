@@ -6,18 +6,6 @@ namespace Leorik.Core
 {
     public static class Mobility
     {
-        const int PAWN_STUCK = -9;
-        const int PAWN_PROMOTION = 74;
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //static int Bishop(int moves) => Math.Min(7, moves) * 5;
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //static int Rook(int moves) => Math.Min(11, moves) * 5;
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        //static int Queen(int moves) => Math.Min(25, moves) * 3;
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        //static int King(int moves) => moves * -5;
-
         const int Pawn = 0;
         const int Knight = 13;
         const int Bishop = 22;

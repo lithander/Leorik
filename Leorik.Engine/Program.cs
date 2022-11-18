@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2.7g - quiet-labeled.v7plus, no HCE, no Knight-Mobility, blocked and promo Pawns, MSE = 0,247368";
+        const string NAME_VERSION = "Leorik 2.2.7i - like 2.2.7g but with UCI setable 'randomness' in cp";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -36,6 +36,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"id name {NAME_VERSION}");
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
+                    Console.WriteLine($"option name Randomness type spin default {0} min 0 max 255");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
@@ -87,6 +88,8 @@ namespace Leorik.Engine
         {
             if (tokens[1] == "name" && tokens[2] == "Hash" && tokens[3] == "value" && int.TryParse(tokens[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
+            else if (tokens[1] == "name" && tokens[2] == "Randomness" && tokens[3] == "value" && byte.TryParse(tokens[4], out byte randomness))
+                _engine.SetRootRandomness(randomness);
         }
 
         private static void UciPosition(string[] tokens)
@@ -125,7 +128,7 @@ namespace Leorik.Engine
             //40 Moves in 5 Minutes, 1 second increment per Move =  go wtime 300000 btime 300000 movestogo 40 winc 1000 binc 1000 movestogo 40
             //5 Minutes total, no increment (sudden death) = go wtime 300000 btime 300000
 
-            TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MaxDepth);
+            TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MAX_PLY);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
             TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 40 e.g. spend 1/40th of total budget on the move
