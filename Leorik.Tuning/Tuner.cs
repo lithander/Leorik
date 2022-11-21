@@ -12,12 +12,6 @@ namespace Leorik.Tuning
         public float Value;
     }
 
-    class Data
-    {
-        public BoardState Position;
-        public sbyte Result;
-    }
-
     class TuningData
     {
         public BoardState Position;
@@ -98,46 +92,6 @@ namespace Leorik.Tuning
             }
             double result = squaredErrorSum / data.Count;
             return result;
-        }
-
-        public static Data ParseEntry(string line)
-        {
-            //Expected Format:
-            //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
-            //Labels: "1/2-1/2", "1-0", "0-1"
-
-            const string WHITE = "1-0";
-            const string DRAW = "1/2-1/2";
-            const string BLACK = "0-1";
-
-            int iLabel = line.IndexOf('"');
-            string fen = line.Substring(0, iLabel - 1);
-            string label = line.Substring(iLabel + 1, line.Length - iLabel - 3);
-            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
-            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
-            return new Data
-            {
-                Position = Notation.GetBoardState(fen),
-                Result = (sbyte)result
-            };
-        }
-
-        public static Data ParseEntry2(string line)
-        {
-            const string WHITE = "[1.0]";
-            const string DRAW = "[0.5]";
-            const string BLACK = "[0.0]";
-        
-            int iLabel = line.IndexOf('[');
-            string fen = line.Substring(0, iLabel - 1);
-            string label = line.Substring(iLabel, 5);
-            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
-            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
-            return new Data
-            {
-                Position = Notation.GetBoardState(fen),
-                Result = (sbyte)result
-            };
         }
 
         internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cFeatures)

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 100;
+int ITERATIONS = 0;
 int MATERIAL_ALPHA = 1000;
 int FEATURE_ALPHA = 50;
 int PHASE_ALPHA = 250;
@@ -27,8 +27,11 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
+//DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd");
+DataUtils.ExtractData("data/randomized-material-only-selfplay.pgn", "data/DATA001.epd");
 
-List<Data> data = LoadData("data/quiet-labeled.v7plus.epd");
+
+List<Data> data = DataUtils.LoadData("data/quiet-labeled.v7plus.epd");
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -140,18 +143,6 @@ void TestPhaseMSE(float[] coefficients)
     Console.WriteLine($"MSE(cPhase) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
     Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
     Console.WriteLine();
-}
-
-List<Data> LoadData(string epdFile)
-{
-    List<Data> data = new List<Data>();
-    Console.WriteLine($"Loading DATA from '{epdFile}'");
-    var file = File.OpenText(epdFile);
-    while (!file.EndOfStream)
-        data.Add(Tuner.ParseEntry(file.ReadLine()));
-
-    Console.WriteLine($"{data.Count} labeled positions loaded!");
-    return data;
 }
 
 void PrintCoefficients(float[] coefficients)
