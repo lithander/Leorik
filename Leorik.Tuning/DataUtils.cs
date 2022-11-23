@@ -16,10 +16,13 @@ namespace Leorik.Tuning
         public string Result { get; private set; }
         public IEnumerable<BoardState> Positions => _positions;
 
-        enum PGNParserState { Result, Moves, Stop };
+        enum PGNParserState { Header, MoveNumber, WhiteMove, BlackMove, Stop };
 
         private BoardState _board;
-        private PGNParserState _state = PGNParserState.Result;
+        private PGNParserState _state = PGNParserState.Header;
+        private int _moveNumber;
+        private string _line;
+        private int _index;
         private StreamReader _file;
         private List<BoardState> _positions = new();
 
@@ -28,154 +31,126 @@ namespace Leorik.Tuning
             _file = file;
         }
 
+        private void Reset()
+        {
+            Result = "";
+            _board = Notation.GetStartingPosition();
+            _state = PGNParserState.Header;
+            _positions.Clear();
+            _moveNumber = 0;
+            _line = "";
+        }
+
         public bool NextGame()
         {
             Reset();
             while (_state != PGNParserState.Stop)
             {
-                if (_state == PGNParserState.Result)
-                    ParseResult();
-                else if (_state == PGNParserState.Moves)
-                    ParseMoves();
+                switch(_state)
+                {
+                    case PGNParserState.Header:
+                        ParseHeader(); break;
+                    case PGNParserState.MoveNumber:
+                        ParseMoveNumber(); break;
+                    case PGNParserState.WhiteMove:
+                        ParseWhiteMove(); break;
+                    case PGNParserState.BlackMove:
+                        ParseBlackMove(); break;
+                }
             }
             return !_file.EndOfStream;
         }
 
-        private void Reset()
+        private void ParseHeader()
         {
-            Result = "";
-            _board = Notation.GetStartingPosition();
-            _state = PGNParserState.Result;
-            _positions.Clear();
-        }
-
-        private void ParseResult()
-        {
-            while (true)
+            //reader header blocks [...] skip empty lines, parse the result
+            while (!_file.EndOfStream)
             {
-                string line = _file.ReadLine();
-                if (!string.IsNullOrEmpty(line) && line[0] == '[' && line.StartsWith("[Result "))
+                _line = _file.ReadLine();
+                if (string.IsNullOrEmpty(_line))
+                    continue;
+
+                if (_line[0] != '[')
                 {
-                    int stop = line.IndexOf(']');
-                    Result = line.Substring(8, stop - 8);
-                    //Console.WriteLine(result);
-                    _state = PGNParserState.Moves;
+                    _index = 0;
+                    _state = PGNParserState.MoveNumber;
                     return;
                 }
-            }
-        }
 
-
-        private void ParseMoves()
-        {
-            while (true)
-            {
-                string line = _file.ReadLine();
-                if (!string.IsNullOrEmpty(line) && line.StartsWith("1."))
+                if (_line.StartsWith("[Result "))
                 {
-                    int move = 1;
-                    while (true)
-                    {
-                        string move0 = move.ToString() + '.';
-                        string move1 = (++move).ToString() + '.';
-                        int c0 = line.IndexOf(move0);
-                        int c1 = line.IndexOf(move1);
-                        if (c1 > c0)
-                            ParseMove(line.Substring(c0, c1 - c0), false);
-                        else
-                        {
-                            StringBuilder sb = new StringBuilder();
-                            sb.Append(line.Substring(c0));
-                            sb.Append(' ');
-                            line = _file.ReadLine();
-                            c1 = line.IndexOf(move1);
-                            if (c1 == -1)
-                            {
-                                sb.Append(line);
-                                ParseMove(sb.ToString(), true);
-                                _state = PGNParserState.Stop;
-                                return;
-                            }
-                            else
-                            {
-                                sb.Append(line.Substring(0, c1));
-                                ParseMove(sb.ToString(), false);
-                            }
-                        }
-                    }
+                    int stop = _line.IndexOf(']');
+                    Result = _line.Substring(9, stop - 10);
                 }
             }
+            _state = PGNParserState.Stop;
         }
 
-        private void ParseMove(string move, bool final)
+        private void ParseMoveNumber()
         {
-            //Example: 1. a4 {+0.08/20 0.20s} Nh6 {+0.07/19 0.20s}
-            //we care about the two moves that were being played
-            //"1-0", "0-1", "1/2-1/2" or "*" end the game
-            int c0 = move.IndexOf(' ') + 1;
-            int c1 = move.IndexOf(' ', c0 + 1);
-            string whiteMove = move.Substring(c0, c1 - c0);
-            PlayMove(whiteMove);
+            _moveNumber++;
+            Console.WriteLine($"Move#: {_moveNumber}");
+            string token = $"{_moveNumber}. ";
+            int i = _line.IndexOf(token, _index);
+            _index = i + token.Length;
+            _state = PGNParserState.WhiteMove;
+        }
+        private void ParseWhiteMove()
+        {
+            string moveStr = ParseToken();
+            Console.WriteLine($"White: {moveStr}");
+            PlayMove(moveStr);
+            _state = SkipComment() ? PGNParserState.BlackMove : PGNParserState.Stop;
+        }
+
+        private void ParseBlackMove()
+        {
+            string moveStr = ParseToken();
+            Console.WriteLine($"Black: {moveStr}");
+            PlayMove(moveStr);
+            _state = SkipComment() ? PGNParserState.MoveNumber : PGNParserState.Stop;
+        }
+
+        private string ParseToken()
+        {
+            int end = _line.IndexOf(' ', _index);
+            if(end == -1)
+            {
+                string token = _line.Substring(_index);
+                _line = _file.ReadLine();
+                _index = 0;
+                return token;
+            }
+            else
+            {
+                string token = _line.Substring(_index, end - _index);
+                _index = end;
+                return token;
+            }
+        }
+
+        private bool SkipComment()
+        {
             //now there could follow a comment {}
-            if (move[c1 + 1] == '{')
-                c0 = move.IndexOf('}') + 2;
-            else
-                c0 = c1 + 1;
+            if(_line[_index] == ' ')
+                _index++;
+            if (_line[_index] == '{')
+                _index = _line.IndexOf('}', _index) + 2;
 
-            string blackMove = null;
-            if (final && ParseLastMove(move, c0, ref blackMove))
+            if(_line.Length <= _index)
             {
-                if (blackMove != null)
-                {
-                    PlayMove(blackMove);
-                    Console.WriteLine($"{whiteMove}|{blackMove}[END]");
-                }
-                else
-                    Console.WriteLine($"{whiteMove}[END]");
+                _line = _file.ReadLine();
+                _index = 0;
             }
-            else
-            {
-                if (final)
-                    throw new Exception();
 
-                c1 = move.IndexOf(' ', c0 + 1);
-                blackMove = move.Substring(c0, c1 - c0);
-                PlayMove(blackMove);
-                Console.WriteLine($"{whiteMove}|{blackMove}");
-            }
-        }
+            return _line.IndexOf(Result, _index) == -1;
+        }               
 
         private void PlayMove(string moveNotation)
         {
             Move move = Notation.GetMove(_board, moveNotation);
             _board.Play(move);
             Console.WriteLine(Notation.GetFen(_board));
-        }
-
-        private static bool ParseLastMove(string move, int head, ref string blackMove)
-        {
-            return ParseLastMove(move, head, ref blackMove, "1-0") ||
-            ParseLastMove(move, head, ref blackMove, "0-1") ||
-            ParseLastMove(move, head, ref blackMove, "1/2-1/2") ||
-            ParseLastMove(move, head, ref blackMove, "*");
-        }
-
-        private static bool ParseLastMove(string move, int head, ref string blackMove, string token)
-        {
-            int end = move.IndexOf(token);
-            if (end == -1)
-                return false;
-
-            int comment = move.IndexOf('{', head);
-            if (comment > 0)
-                end = comment;
-
-            int count = end - head - 1;
-            if (count < 0)
-                return true;
-
-            blackMove = move.Substring(head, count);
-            return true;
         }
     }
 
