@@ -44,7 +44,7 @@ namespace Leorik.Tuning
         private void Reset()
         {
             Result = "";
-            _board = new BoardState();
+            _board = Notation.GetStartingPosition();
             _state = PGNParserState.Result;
             _positions.Clear();
         }
@@ -112,34 +112,44 @@ namespace Leorik.Tuning
             //Example: 1. a4 {+0.08/20 0.20s} Nh6 {+0.07/19 0.20s}
             //we care about the two moves that were being played
             //"1-0", "0-1", "1/2-1/2" or "*" end the game
-            int c0 = move.IndexOf(' ');
+            int c0 = move.IndexOf(' ') + 1;
             int c1 = move.IndexOf(' ', c0 + 1);
             string whiteMove = move.Substring(c0, c1 - c0);
+            PlayMove(whiteMove);
             //now there could follow a comment {}
             if (move[c1 + 1] == '{')
                 c0 = move.IndexOf('}') + 2;
             else
-                c0 = c1 + 2;
+                c0 = c1 + 1;
 
             string blackMove = null;
             if (final && ParseLastMove(move, c0, ref blackMove))
             {
                 if (blackMove != null)
+                {
+                    PlayMove(blackMove);
                     Console.WriteLine($"{whiteMove}|{blackMove}[END]");
+                }
                 else
                     Console.WriteLine($"{whiteMove}[END]");
             }
             else
             {
+                if (final)
+                    throw new Exception();
+
                 c1 = move.IndexOf(' ', c0 + 1);
                 blackMove = move.Substring(c0, c1 - c0);
+                PlayMove(blackMove);
                 Console.WriteLine($"{whiteMove}|{blackMove}");
             }
         }
 
-        private void PlayMove(Move move)
+        private void PlayMove(string moveNotation)
         {
-
+            Move move = Notation.GetMove(_board, moveNotation);
+            _board.Play(move);
+            Console.WriteLine(Notation.GetFen(_board));
         }
 
         private static bool ParseLastMove(string move, int head, ref string blackMove)

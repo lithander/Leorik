@@ -315,6 +315,11 @@ namespace Leorik.Core
                     continue;
                 if (fileOrRank != null && !GetSquareName(move.FromSquare).Contains(fileOrRank.Value))
                     continue;
+                //make sure the move isn't illegal
+                BoardState clone = board.Clone();
+                clone.PlayWithoutHashAndEval(board, ref move);
+                if (clone.InCheck(board.SideToMove))
+                    continue;
 
                 return move; //this is the move!
             }

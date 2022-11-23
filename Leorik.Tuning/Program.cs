@@ -27,8 +27,8 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-//DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd");
-DataUtils.ExtractData("data/randomized-material-only-selfplay.pgn", "data/DATA001.epd");
+DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd");
+//DataUtils.ExtractData("data/randomized-material-only-selfplay.pgn", "data/DATA001.epd");
 
 
 List<Data> data = DataUtils.LoadData("data/quiet-labeled.v7plus.epd");
