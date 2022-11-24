@@ -89,7 +89,7 @@ namespace Leorik.Tuning
         private void ParseMoveNumber()
         {
             _moveNumber++;
-            Console.WriteLine($"Move#: {_moveNumber}");
+            //Console.WriteLine($"Move#: {_moveNumber}");
             string token = $"{_moveNumber}. ";
             int i = _line.IndexOf(token, _index);
             _index = i + token.Length;
@@ -98,7 +98,7 @@ namespace Leorik.Tuning
         private void ParseWhiteMove()
         {
             string moveStr = ParseToken();
-            Console.WriteLine($"White: {moveStr}");
+            //Console.WriteLine($"White: {moveStr}");
             PlayMove(moveStr);
             _state = SkipComment() ? PGNParserState.BlackMove : PGNParserState.Stop;
         }
@@ -106,7 +106,7 @@ namespace Leorik.Tuning
         private void ParseBlackMove()
         {
             string moveStr = ParseToken();
-            Console.WriteLine($"Black: {moveStr}");
+            //Console.WriteLine($"Black: {moveStr}");
             PlayMove(moveStr);
             _state = SkipComment() ? PGNParserState.MoveNumber : PGNParserState.Stop;
         }
@@ -150,7 +150,8 @@ namespace Leorik.Tuning
         {
             Move move = Notation.GetMove(_board, moveNotation);
             _board.Play(move);
-            Console.WriteLine(Notation.GetFen(_board));
+            _positions.Add(_board.Clone());
+            //Console.WriteLine(Notation.GetFen(_board));
         }
     }
 
@@ -190,14 +191,34 @@ namespace Leorik.Tuning
             return data;
         }
 
-        public static void ExtractData(string pgnFile, string epdFile)
-        {            
-            var file = File.OpenText(pgnFile);
-            PgnParser parser = new PgnParser(file);
-            while (parser.NextGame())
+        public static void ExtractData(string pgnFile, string epdFile, int posCount)
+        {
+            //Output Format Example:
+            //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
+            var output = File.CreateText(epdFile);
+            var input = File.OpenText(pgnFile);
+            PgnParser parser = new PgnParser(input);
+            int games = 0;
+            int positions = 0;
+            while (parser.NextGame() && positions < posCount)
             {
+                games++;
+                if (parser.Result == "*")
+                    continue;
 
+                foreach(var pos in parser.Positions)
+                {                    
+                    positions++;
+                    output.WriteLine($"{Notation.GetFen(pos)} c9 \"{parser.Result}\";");
+                    if (positions >= posCount)
+                        break;
+                }
+
+                if (games % 100 == 0)
+                    Console.WriteLine($"{games} games, {positions} positions");
             }
+            output.Close();
+            input.Close();
         }        
     }
 }

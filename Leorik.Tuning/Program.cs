@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 0;
+int ITERATIONS = 50;
 int MATERIAL_ALPHA = 1000;
 int FEATURE_ALPHA = 50;
 int PHASE_ALPHA = 250;
@@ -27,11 +27,11 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd");
-//DataUtils.ExtractData("data/randomized-material-only-selfplay.pgn", "data/DATA001.epd");
+//DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd", 1000000);
+//DataUtils.ExtractData("data/leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn", "data/DATA001.epd", 2000000);
 
 
-List<Data> data = DataUtils.LoadData("data/quiet-labeled.v7plus.epd");
+List<Data> data = DataUtils.LoadData("data/DATA001.epd");
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
