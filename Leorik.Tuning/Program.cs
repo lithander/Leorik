@@ -4,18 +4,27 @@ using System.Diagnostics;
 using System.Globalization;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 50;
-int MATERIAL_ALPHA = 1000;
+int ITERATIONS = 100;
+int MATERIAL_ALPHA = 700;
 int FEATURE_ALPHA = 50;
-int PHASE_ALPHA = 250;
+int PHASE_ALPHA = 100;
 int MATERIAL_BATCH = 100;
-int PHASE_BATCH = 10;
+int PHASE_BATCH = 5;
+
+string DATA_PATH = "D:/Projekte/Chess/Leorik/TD/";
+string PGN_FILE = "leorik228b_startpos_RND25_100Hash_5s_200ms_selfplay_all.pgn";
+string EPD_FILE = "DATA001.epd";
+int FEN_COUNT = 2000000;
 
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine(" Leorik Tuning v18 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
+Console.WriteLine();
+Console.WriteLine($"PGN_FILE = {PGN_FILE}");
+Console.WriteLine($"EPD_FILE = {EPD_FILE}");
+Console.WriteLine($"FEN_COUNT = {FEN_COUNT}"); 
 Console.WriteLine();
 Console.WriteLine($"MSE_SCALING = {MSE_SCALING}");
 Console.WriteLine($"ITERATIONS = {ITERATIONS}");
@@ -28,10 +37,9 @@ Console.WriteLine();
 
 //BitboardUtils.Repl();
 //DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd", 1000000);
-//DataUtils.ExtractData("data/leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn", "data/DATA001.epd", 2000000);
+//DataUtils.ExtractData(DATA_PATH+PGN_FILE, DATA_PATH+EPD_FILE, FEN_COUNT);
 
-
-List<Data> data = DataUtils.LoadData("data/DATA001.epd");
+List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
