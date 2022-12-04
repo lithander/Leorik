@@ -1,31 +1,46 @@
 ﻿using Leorik.Core;
 using Leorik.Tuning;
 using System.Diagnostics;
-using System.Globalization;
 
 float MSE_SCALING = 100;
 int ITERATIONS = 100;
-int MATERIAL_ALPHA = 700;
+int MATERIAL_ALPHA = 500;
 int FEATURE_ALPHA = 50;
 int PHASE_ALPHA = 100;
 int MATERIAL_BATCH = 100;
 int PHASE_BATCH = 5;
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD/";
-string PGN_FILE = "leorik228b_startpos_RND25_100Hash_5s_200ms_selfplay_all.pgn";
-string EPD_FILE = "DATA001.epd";
-int FEN_COUNT = 2000000;
-
+string[] PGN_FILES = {
+    //"leorik2X3_selfplay_startpos_5s_200ms_50mb_12112020.pgn",
+    //"leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn",
+    //"leorik228a_startpos_RND25_100Hash_5s_200ms_selfplay.pgn",
+    //"leorik228a_startpos_RND25_100Hash_5s_200ms_selfplay_2.pgn",
+    //"leorik228a_startpos_RND25_100Hash_5s_200ms_selfplay_3.pgn",
+    //"leorik228alpha_selfplay_startpos_RND25_100Hash_5s_200ms.pgn",
+    //"leorik228alpha_selfplay_startpos_RND25_100Hash_5s_200ms_2.pgn",
+    "leorik228beta_vs_leorik228alpha_varied_RND30_100Hash_5s_200ms.pgn",
+    "leorik228beta_selfplay_startpos_RND30_100Hash_5s_200ms.pgn",
+    "leorik228gamma_vs_leorik228beta_startpos_RND30_100Hash_5s_200ms.pgn",
+    "leorik228gamma_selfplay_startpos_RND30_100Hash_5s_200ms.pgn",
+    "leorik228gamma_selfplay_varied_RND30_100Hash_5s_200ms.pgn",
+    "leorik228delta_vs_leorik228gamma_startpos_RND30_100Hash_5s_200ms.pgn",
+    "leorik228delta_selfplay_startpos_RND30_100Hash_5s_200ms.pgn",
+    "leorik228delta_selfplay_varied_RND30_100Hash_5s_200ms.pgn",
+};
+string EPD_FILE = "DATA-ZETA001.epd";
+int FEN_PER_GAME = 15;
+int SKIP_FIRST = 5;
+int SKIP_LAST = 5;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v18 ");
+Console.WriteLine(" Leorik Tuning v20 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
-Console.WriteLine($"PGN_FILE = {PGN_FILE}");
-Console.WriteLine($"EPD_FILE = {EPD_FILE}");
-Console.WriteLine($"FEN_COUNT = {FEN_COUNT}"); 
-Console.WriteLine();
+Console.WriteLine($"SKIP_START = {SKIP_FIRST}");
+Console.WriteLine($"SKIP_END = {SKIP_LAST}");
+Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
 Console.WriteLine($"MSE_SCALING = {MSE_SCALING}");
 Console.WriteLine($"ITERATIONS = {ITERATIONS}");
 Console.WriteLine($"MATERIAL_ALPHA = {MATERIAL_ALPHA}");
@@ -36,9 +51,7 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-//DataUtils.ExtractData("data/parser_test.pgn", "data/DATA001.epd", 1000000);
-//DataUtils.ExtractData(DATA_PATH+PGN_FILE, DATA_PATH+EPD_FILE, FEN_COUNT);
-
+//PrepareData(FEN_PER_GAME, SKIP_FIRST, SKIP_LAST);
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
@@ -91,6 +104,20 @@ Console.ReadKey();
 * FUNCTIONS 
 * 
 */
+
+void PrepareData(int positionsPerGame, int skipFirst, int skipLast)
+{
+    Console.WriteLine($"Extracting {positionsPerGame} positions per game skipping the {skipFirst} first and {skipLast} last moves...");
+    var output = File.CreateText(DATA_PATH + EPD_FILE);
+    foreach (string pgnFile in PGN_FILES)
+    {
+        var input = File.OpenText(DATA_PATH + pgnFile);
+        Console.WriteLine($"{pgnFile} -> {EPD_FILE}");
+        DataUtils.ExtractData(input, output, positionsPerGame, skipFirst, skipLast);
+        input.Close();
+    }
+    output.Close();
+}
 
 void TuneMaterialBatch()
 {

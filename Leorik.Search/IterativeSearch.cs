@@ -21,7 +21,7 @@ namespace Leorik.Search
         private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
-        private byte _rootRandomness = 0;
+        private int _rootRandomness = 0;
         private Random _rng = new Random();
 
         public long NodesVisited { get; private set; }
@@ -32,7 +32,7 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearch(BoardState board, byte randomness = 0, long maxNodes = long.MaxValue)
+        public IterativeSearch(BoardState board, int randomness = 0, long maxNodes = long.MaxValue)
         {
             _rootRandomness = randomness;
             _maxNodes = maxNodes;

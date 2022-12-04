@@ -14,7 +14,7 @@ namespace Leorik.Tuning
     {
         public bool EndOfStream => _file.EndOfStream;
         public string Result { get; private set; }
-        public IEnumerable<BoardState> Positions => _positions;
+        public IReadOnlyList<BoardState> Positions => _positions;
 
         enum PGNParserState { Header, MoveNumber, WhiteMove, BlackMove, Stop };
 
@@ -191,39 +191,36 @@ namespace Leorik.Tuning
             return data;
         }
 
-        public static void ExtractData(string pgnFile, string epdFile, int posCount)
+        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipFirst, int skipLast)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
             Quiesce quiesce = new();
-            var output = File.CreateText(epdFile);
-            var input = File.OpenText(pgnFile);
             PgnParser parser = new PgnParser(input);
             int games = 0;
             int positions = 0;
-            while (parser.NextGame() && positions < posCount)
+            while (parser.NextGame())
             {
                 games++;
                 if (parser.Result == "*")
                     continue;
 
-                foreach (var pos in parser.Positions)
+                int p0 = skipFirst;
+                int p1 = parser.Positions.Count - skipLast;
+                for (int i = 0; i < posPerGame; i++)
                 {
-                    var quiet = quiesce.GetQuiet(pos);
+                    int pi = p0 + (p1 - p0) * i / (posPerGame-1);
+                    var quiet = quiesce.GetQuiet(parser.Positions[pi]);
                     if (quiet == null)
                         continue;
 
                     positions++;
                     output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
-                    if (positions >= posCount)
-                        break;
                 }
 
-                if (games % 100 == 0)
+                if (games % 1000 == 0)
                     Console.WriteLine($"{games} games, {positions} positions");
             }
-            output.Close();
-            input.Close();
         }
     }
 

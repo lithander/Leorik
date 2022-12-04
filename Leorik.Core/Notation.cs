@@ -295,6 +295,13 @@ namespace Leorik.Core
                 int toSquare = GetSquare(notation.Substring(2, 2));
                 return SelectMove(board, piece, toSquare, promotion, notation[1]);
             }
+            else if(notation.Length == 5)
+            {
+                //move with disambiguation e.g Ra1a2
+                int fromSquare = GetSquare(notation.Substring(1, 2));
+                int toSquare = GetSquare(notation.Substring(3, 2));
+                return new Move(piece, fromSquare, toSquare, promotion);
+            }
 
             throw new ArgumentException($"Move notation {notation} could not be parsed!");
         }
