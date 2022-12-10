@@ -74,7 +74,7 @@ namespace Leorik.Tuning
             for (int i = 0; i < N; i++)
                 phaseValue += pieceCounts[i] * cPhase[i];
 
-            return Evaluation.Phase(phaseValue);
+            return Evaluation.NormalizePhase(phaseValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

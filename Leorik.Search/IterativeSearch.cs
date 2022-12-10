@@ -3,6 +3,18 @@ using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
 {
+    public struct SearchOptions
+    {
+        public byte MidgameRandomness;
+        public byte EndgameRandomness;
+        public long MaxNodes = long.MaxValue;
+
+        internal int Randomness(float phase)
+        {
+            return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
+        }
+    }
+
     public class IterativeSearch
     {
         public const int MAX_PLY = 99;
@@ -18,11 +30,11 @@ namespace Leorik.Search
         private Move[] Moves;
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
-        private long _maxNodes;
         private History _history;
         private KillerMoves _killers;
-        private int _rootRandomness = 0;
-        private Random _rng = new Random();
+        private Random _random = new Random();
+
+        SearchOptions _options;
 
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
@@ -32,10 +44,9 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearch(BoardState board, int randomness = 0, long maxNodes = long.MaxValue)
+        public IterativeSearch(BoardState board, SearchOptions options = default)
         {
-            _rootRandomness = randomness;
-            _maxNodes = maxNodes;
+            _options = options;
             _killers = new KillerMoves(2);
             _history = new History();
 
@@ -60,7 +71,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ForcedCut(int depth)
         {
-            return depth >= MAX_PLY - 1 || NodesVisited >= _maxNodes || _killSwitch.Get();
+            return depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get();
         }
 
         private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
@@ -299,10 +310,12 @@ namespace Leorik.Search
         {
             NodesVisited++;
 
-            int alpha = MIN_ALPHA;
             BoardState root = Positions[0];
             BoardState next = Positions[1];
             bool inCheck = root.InCheck();
+            int alpha = MIN_ALPHA;
+            int maxRandomCpBonus = _options.Randomness(root.Eval.Phase);
+            //Console.WriteLine($"Lerp({root.Eval.Phase}, {_options.MidgameRandomness}, {_options.EndgameRandomness}) = {maxRandomCpBonus}");
 
             //init staged move generation and play all moves
             PlayState playState = InitPlay(ref moveGen, ref bestMove);
@@ -321,7 +334,7 @@ namespace Leorik.Search
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = _rng.Next(_rootRandomness);
+                int bonus = _random.Next(maxRandomCpBonus);
                 int score = bonus - EvaluateTT(1, depth - 1, bonus - MAX_BETA, bonus - alpha, moveGen);
 
                 if (score > alpha)

@@ -11,6 +11,8 @@ namespace Leorik.Core
         public Material Material;
         public EvalTerm Positional;
 
+        public float Phase => NormalizePhase(PhaseValue);
+
         public short Score { get; private set; }
 
         public Evaluation(BoardState board) : this()
@@ -47,7 +49,7 @@ namespace Leorik.Core
             //TODO: use operator overloading to make this readable
             int mg = Pawns.Base + Material.Base + Positional.Base;
             int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
-            Score = (short)(mg + Phase(PhaseValue) * eg);
+            Score = (short)(mg + NormalizePhase(PhaseValue) * eg);
             //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
         }
 
@@ -143,7 +145,7 @@ namespace Leorik.Core
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Phase(float phaseValue)
+        public static float NormalizePhase(float phaseValue)
         {
             return Math.Clamp((PhaseSum - phaseValue) / PhaseSum, 0, 1);
         }

@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2.7i - like 2.2.7g but with UCI setable 'randomness' in cp";
+        const string NAME_VERSION = "Leorik 2.2.8zeta - 1674108 positions";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -36,7 +36,8 @@ namespace Leorik.Engine
                     Console.WriteLine($"id name {NAME_VERSION}");
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
-                    Console.WriteLine($"option name Randomness type spin default {0} min 0 max 255");//consider gcAllowVeryLargeObjects if larger TT is needed
+                    Console.WriteLine($"option name Midgame Randomness type spin default 0 min 0 max 255");
+                    Console.WriteLine($"option name Endgame Randomness type spin default 0 min 0 max 255");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
@@ -75,34 +76,35 @@ namespace Leorik.Engine
 
         private static void PrintEval(Evaluation eval)
         {
-            float phase = Evaluation.Phase(eval.PhaseValue);
             Console.WriteLine($"             MG  +  EG");
-            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {phase:0.##}");
-            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {phase:0.##}");
+            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {eval.Phase:0.##}");
+            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {eval.Phase:0.##}");
             Console.WriteLine($"Mobility: {eval.Positional.Base,5}");
             Console.WriteLine($"--------+------------------------");
             Console.WriteLine($"   White: {eval.Score, 5}");
+            Console.WriteLine();
         }
 
-        private static void UciSetOption(string[] tokens)
+        private static void UciSetOption(string[] token)
         {
-            if (tokens[1] == "name" && tokens[2] == "Hash" && tokens[3] == "value" && int.TryParse(tokens[4], out int hashSizeMBytes))
+            if (token[1] == "name" && token[2] == "Hash" && token[3] == "value" && int.TryParse(token[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
-            else if (tokens[1] == "name" && tokens[2] == "Randomness" && tokens[3] == "value" && byte.TryParse(tokens[4], out byte randomness))
-                _engine.SetRootRandomness(randomness);
+            else if (token[1] == "name" && token[2] == "Midgame" && token[3] == "Randomness" && token[4] == "value" && byte.TryParse(token[5], out byte mgRandomness))
+                _engine.MidgameRandomness = mgRandomness;
+            else if (token[1] == "name" && token[2] == "Endgame" && token[3] == "Randomness" && token[4] == "value" && byte.TryParse(token[5], out byte egRandomness))
+                _engine.EndgameRandomness = egRandomness;
+            else
+                Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
 
         private static void UciPosition(string[] tokens)
         {
             //position [fen <fenstring> | startpos ]  moves <move1> .... <movei>
-            if (tokens.Length <= 1)
-                return;
-            
-            if (tokens[1] == "startpos")
+            if (tokens.Length > 1 && tokens[1] == "startpos")
             {
                 _engine.SetupPosition(Notation.GetStartingPosition());
             }
-            else if (tokens[1] == "fen") //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+            else if (tokens.Length > 1 && tokens[1] == "fen") //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
             {
                 string fen = string.Join(' ', tokens[2..]);
                 _engine.SetupPosition(Notation.GetBoardState(fen));
@@ -114,11 +116,11 @@ namespace Leorik.Engine
             }
 
             int firstMove = Array.IndexOf(tokens, "moves") + 1;
-            if (firstMove == 0)
-                return;
-
-            for (int i = firstMove; i < tokens.Length; i++)
-                _engine.Play(tokens[i]);
+            if (firstMove > 0)
+            {
+                for (int i = firstMove; i < tokens.Length; i++)
+                    _engine.Play(tokens[i]);
+            }
         }
 
         private static void UciGo(string[] tokens)

@@ -11,7 +11,12 @@ namespace Leorik.Engine
         TimeControl _time = new TimeControl();
         BoardState _board = Notation.GetStartingPosition();
         List<BoardState> _history = new List<BoardState>();
-        byte _rootRandomness = 0;
+
+        //each root move receives a random bonus between [0..maxRandomCpBonus] so good moves
+        //within 'maxRandomCpBonus' centipawns of the bestmove have a chance to be played instead
+        //the exact value of 'maxRandomCpBonus' depends on the phase of the position
+        public byte MidgameRandomness { get; set; }
+        public byte EndgameRandomness { get; set; }
 
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
@@ -51,13 +56,6 @@ namespace Leorik.Engine
             _board = board.Clone();
             _history.Clear();
             _history.Add(_board.Clone());
-        }
-
-        internal void SetRootRandomness(byte maxRandomCpBonus)
-        {
-            //each root move receives a random bonus between [0..maxRandomCpBonus] so good moves
-            //within 'maxRandomCpBonus' centipawns of the bestmove have a chance to be played instead
-            _rootRandomness = maxRandomCpBonus;
         }
 
         internal void Play(string moveNotation)
@@ -111,7 +109,14 @@ namespace Leorik.Engine
             foreach (var position in _history)
                 Transpositions.StoreHistory(position);
 
-            _search = new IterativeSearch(_board, _rootRandomness, maxNodes);
+            SearchOptions options = new()
+            {
+                MaxNodes = maxNodes,
+                MidgameRandomness = MidgameRandomness,
+                EndgameRandomness = EndgameRandomness,
+            };
+
+            _search = new IterativeSearch(_board, options);
             _time.StartInterval();
             _search.SearchDeeper();
             Collect();
