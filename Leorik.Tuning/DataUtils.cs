@@ -157,15 +157,15 @@ namespace Leorik.Tuning
 
     static class DataUtils
     {
+        const string WHITE = "1-0";
+        const string DRAW = "1/2-1/2";
+        const string BLACK = "0-1";
+
         public static Data ParseEntry(string line)
         {
             //Expected Format:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
             //Labels: "1/2-1/2", "1-0", "0-1"
-
-            const string WHITE = "1-0";
-            const string DRAW = "1/2-1/2";
-            const string BLACK = "0-1";
 
             int iLabel = line.IndexOf('"');
             string fen = line.Substring(0, iLabel - 1);
@@ -191,7 +191,7 @@ namespace Leorik.Tuning
             return data;
         }
 
-        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipMargin, int skipOutliers)
+        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipMargin, int skipOutliers, int maxCaptures)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -205,6 +205,9 @@ namespace Leorik.Tuning
                 if (parser.Result == "*")
                     continue;
 
+                if (parser.Result == DRAW)
+                    continue;
+
                 //if (parser.Positions.Count > 200)
                 //    continue;
 
@@ -215,17 +218,22 @@ namespace Leorik.Tuning
                 {
                     int pi = p0 + (p1 - p0) * i / (posPerGame-1);
                     var pos = parser.Positions[pi];
-                    //if (pos.InCheck())
-                    //    continue;
 
                     var quiet = quiesce.GetQuiet(pos);
                     if (quiet == null)
                         continue;
 
-                    if(skipOutliers > 0)
+                    //is the position too complicated?
+                    int numPiecesBefore = Bitboard.PopCount(pos.Black | pos.White);
+                    int numPiecesAfter = Bitboard.PopCount(quiet.Black | quiet.White);
+                    int numCaptures = numPiecesBefore - numPiecesAfter;
+                    //Console.WriteLine($"{numCaptures} --- {numPiecesBefore} vs {numPiecesAfter}");
+                    if (numCaptures > maxCaptures)
+                        continue; //position is too complicated
+
+                    //Confirmation bias: Let's not weaken the eval by something the eval can't understand
+                    if (skipOutliers > 0)
                     {
-                        const string WHITE = "1-0";
-                        const string BLACK = "0-1";
                         if (quiet.Eval.Score < -skipOutliers && parser.Result != BLACK)
                             continue;
                         if (quiet.Eval.Score > skipOutliers && parser.Result != WHITE)
@@ -247,7 +255,6 @@ namespace Leorik.Tuning
         private BoardState[] Positions;
         private Move[] Moves;
         private BoardState[] Results;
-        private bool[] Checkmates;
 
         public Quiesce()
         {
@@ -262,8 +269,6 @@ namespace Leorik.Tuning
             Results = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
                 Results[i] = new BoardState();
-
-            Checkmates = new bool[MAX_PLY];
         }
 
         public BoardState GetQuiet(BoardState position)
@@ -277,22 +282,6 @@ namespace Leorik.Tuning
             int score2 = (int)position.SideToMove * Results[0].Eval.Score;
             if (score != score2)
                 return null; //This typically means a checkmate or stalemate - we ignore those!
-
-            //if (Checkmates[0])
-            //{
-            //    if (position.InCheck())
-            //        Console.WriteLine("Boring");
-            //    else
-            //    {
-            //        Console.WriteLine(Notation.GetFen(position));
-            //        Console.WriteLine(Notation.GetFen(Results[0]));
-            //        Console.WriteLine();
-            //    }
-            //}
-
-            //int numPiecesBefore = Bitboard.PopCount(position.Black | position.White);
-            //int numPiecesAfter = Bitboard.PopCount(Results[0].Black | Results[0].White);
-            //Console.WriteLine($"{numPiecesBefore - numPiecesAfter} --- {numPiecesBefore} vs {numPiecesAfter}");
 
             return Results[0];
         }
@@ -312,7 +301,6 @@ namespace Leorik.Tuning
                 if (standPatScore > alpha)
                 {
                     Results[ply].Copy(current);
-                    Checkmates[ply] = false;
                     alpha = standPatScore;
                 }
             }
@@ -336,13 +324,11 @@ namespace Leorik.Tuning
                         //int score2 = (int)current.SideToMove * Results[ply + 1].Eval.Score;
                         //Debug.Assert(score == score2);
                         Results[ply].Copy(Results[ply+1]);
-                        Checkmates[ply] = inCheck || Checkmates[ply+1];
                         alpha = score;
                     }
                 }
             }
 
-            //TODO: if (!inCheck || movesPlayed)
             if (!inCheck)
                 return alpha;
 
@@ -362,7 +348,6 @@ namespace Leorik.Tuning
                         //int score2 = (int)current.SideToMove * Results[ply + 1].Eval.Score;
                         //Debug.Assert(score == score2);
                         Results[ply].Copy(Results[ply + 1]);
-                        Checkmates[ply] = inCheck;//always true
                         alpha = score;
                     }
                 }

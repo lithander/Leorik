@@ -2,16 +2,8 @@
 using Leorik.Tuning;
 using System.Diagnostics;
 
-float MSE_SCALING = 100;
-int ITERATIONS = 200;
-int PHASE_ITERATIONS = 115;
-int MATERIAL_ALPHA = 500;
-int FEATURE_ALPHA = 50;
-int PHASE_ALPHA = 100;
-int MATERIAL_BATCH = 100;
-int PHASE_BATCH = 5;
-
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD/";
+string EPD_FILE = "DATA-THETA001-NoDraws-Filtered150.epd";
 string[] PGN_FILES = {
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_12112020.pgn",
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn",
@@ -22,7 +14,7 @@ string[] PGN_FILES = {
     //"leorik228alpha_selfplay_startpos_RND25_100Hash_5s_200ms_2.pgn",
     //"leorik228beta_vs_leorik228alpha_varied_RND30_100Hash_5s_200ms.pgn",
     //"leorik228beta_selfplay_startpos_RND30_100Hash_5s_200ms.pgn",
-    "leorik228gamma_vs_leorik228beta_startpos_RND30_100Hash_5s_200ms.pgn",
+    //"leorik228gamma_vs_leorik228beta_startpos_RND30_100Hash_5s_200ms.pgn",
     "leorik228gamma_selfplay_startpos_RND30_100Hash_5s_200ms.pgn",
     "leorik228gamma_selfplay_varied_RND30_100Hash_5s_200ms.pgn",
     "leorik228delta_vs_leorik228gamma_startpos_RND30_100Hash_5s_200ms.pgn",
@@ -34,24 +26,40 @@ string[] PGN_FILES = {
     "leorik228epsilon_selfplay_one_with_book_startpos_RND50-10_100Hash_5s_200ms.pgn",
     "leorik228epsilon_selfplay_startpos_RND40-0_100Hash_5s_200ms.pgn",
     "leorik228epsilon_selfplay_varied_RND40-0_100Hash_5s_200ms.pgn",
-    "leorik228zeta_selfplay_startpos_RND50-0_100Hash_5s_200ms.pgn",
     "leorik228zeta_vs_leorik228epsilon2_startpos_RND40-0_100Hash_5s_200ms.pgn",
-    "leorik228zeta_vs_leorik228epsilon2_varied_RND40-0_100Hash_5s_200ms.pgn"
-
+    "leorik228zeta_vs_leorik228epsilon2_varied_RND40-0_100Hash_5s_200ms.pgn",
+    "leorik228zeta_selfplay_startpos_RND50-0_100Hash_5s_200ms.pgn",
+    "leorik228zeta_selfplay_startpos_RND50-0_100Hash_5s_200ms_2.pgn",
+    "leorik228eta_vs_zeta_startpos_RND50-0_100Hash_5s_200ms.pgn",
+    "leorik228eta_vs_zeta_varied_RND50-0_100Hash_5s_200ms.pgn",
+    "leorik228eta-1566807_vs_zeta_varied_RND50-0_100Hash_5s_200ms.pgn",
+    "leorik228eta-1560976_vs_zeta_varied_RND50-0_100Hash_5s_200ms.pgn",
+    "leorik228eta-1560976_vs_zeta_varied_RND100-10_100Hash_5s_200ms.pgn"//is actually from startpos
 };
-string EPD_FILE = "DATA-ZETA004.epd";
 int FEN_PER_GAME = 15;
 int SKIP_MARGIN = 5;
-int SKIP_OUTLIERS = -1;
+int SKIP_OUTLIERS = 150;
+int MAX_CAPTURES = 5;
+
+float MSE_SCALING = 100;
+int ITERATIONS = 100;
+int PHASE_ITERATIONS = 100;
+int MATERIAL_ALPHA = 1000;
+int FEATURE_ALPHA = 100;
+int PHASE_ALPHA = 200;
+int MATERIAL_BATCH = 100;
+int PHASE_BATCH = 10;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine(" Leorik Tuning v21 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
+Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
 Console.WriteLine($"SKIP_OUTLIERS = {SKIP_OUTLIERS}");
 Console.WriteLine($"SKIP_MARGIN = {SKIP_MARGIN}");
-Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
+Console.WriteLine($"MAX_CAPTURES = {MAX_CAPTURES}");
+Console.WriteLine();
 Console.WriteLine($"MSE_SCALING = {MSE_SCALING}");
 Console.WriteLine($"ITERATIONS = {ITERATIONS}");
 Console.WriteLine($"PHASE_ITERATIONS = {PHASE_ITERATIONS}");
@@ -63,7 +71,7 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-//PrepareData(FEN_PER_GAME, SKIP_MARGIN, SKIP_OUTLIERS);
+//PrepareData();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
@@ -71,7 +79,6 @@ TestLeorikMSE();
 
 //float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
 //float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-
 float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
 float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
@@ -118,15 +125,15 @@ Console.ReadKey();
 * 
 */
 
-void PrepareData(int positionsPerGame, int skipMargin, int skipOutliers)
+void PrepareData()
 {
-    Console.WriteLine($"Extracting {positionsPerGame} positions per game skipping the {skipMargin} first and last moves and all positions that disagree by >{skipOutliers} with the previous eval...");
+    Console.WriteLine($"Extracting {FEN_PER_GAME} positions per game skipping the {SKIP_MARGIN} first and last moves and all positions that disagree by >{SKIP_OUTLIERS} with the previous eval...");
     var output = File.CreateText(DATA_PATH + EPD_FILE);
     foreach (string pgnFile in PGN_FILES)
     {
         var input = File.OpenText(DATA_PATH + pgnFile);
         Console.WriteLine($"{pgnFile} -> {EPD_FILE}");
-        DataUtils.ExtractData(input, output, positionsPerGame, skipMargin, skipOutliers);
+        DataUtils.ExtractData(input, output, FEN_PER_GAME, SKIP_MARGIN, SKIP_OUTLIERS, MAX_CAPTURES);
         input.Close();
     }
     output.Close();

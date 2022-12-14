@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2.8zeta - 1674108 positions";
+        const string NAME_VERSION = "Leorik 2.2.8theta - NO DRAWS!!! 1234672 positions, MSE:0.42016, SKIP_OUTLIERS=150";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
