@@ -69,18 +69,19 @@ namespace Leorik.Tuning
             }
             return features.ToArray();
         }
-                
-        internal static void Report(Piece piece, int table, bool endgame, float[] coefficients)
+
+        internal static void Report(Piece piece, int table, float[] coefficients)
         {
             Console.WriteLine($"//{piece}: ");
             const int step = 2;
-            int offset = table * 128 + (endgame ? 1 : 0);
+            int offset = table * 128;
             int i0 = Move.Order(piece);
             for (int i = PieceMobilityIndices[i0]; i < PieceMobilityIndices[i0 + 1]; i++)
             {
-                int c = (int)Math.Round(coefficients[offset + i * step]);
-                Console.Write(c);
-                Console.Write(", ");
+                int k = offset + i * step;
+                float mg = (int)Math.Round(coefficients[k]);
+                float eg = (int)Math.Round(coefficients[k + 1]);
+                Console.Write($"({mg},{eg}), ");
             }
             Console.WriteLine();
         }

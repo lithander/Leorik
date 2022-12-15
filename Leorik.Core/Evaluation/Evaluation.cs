@@ -8,7 +8,7 @@ namespace Leorik.Core
 
         public short PhaseValue;
         public EvalTerm Pawns;
-        public Material Material;
+        public EvalTerm Material;
         public EvalTerm Positional;
 
         public float Phase => NormalizePhase(PhaseValue);
@@ -107,9 +107,9 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                Material.AddScore(pieceIndex, squareIndex ^ 56);
+                Material.AddFeature(pieceIndex, squareIndex ^ 56);
             else
-                Material.SubtractScore(pieceIndex, squareIndex);
+                Material.SubtractFeature(pieceIndex, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -118,9 +118,9 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
-                Material.SubtractScore(pieceIndex, squareIndex ^ 56);
+                Material.SubtractFeature(pieceIndex, squareIndex ^ 56);
             else
-                Material.AddScore(pieceIndex, squareIndex);
+                Material.AddFeature(pieceIndex, squareIndex);
         }
 
         public const int CheckmateBase = 9000;

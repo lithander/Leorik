@@ -113,7 +113,7 @@ for (int it = 0; it < ITERATIONS; it++)
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-PrintCoefficients(cFeatures);
+PrintCoefficients(cFeatures, cPhase);
 
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
 Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
@@ -200,56 +200,28 @@ void TestPhaseMSE(float[] coefficients)
     Console.WriteLine();
 }
 
-void PrintCoefficients(float[] coefficients)
+void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 {
     int Tmax = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
 
-    Console.WriteLine("MIDGAME");
+    Console.WriteLine("Features");
     for (int i = 0; i < Tmax; i++)
-        WriteTable(i, false, coefficients);
+    {
+        Console.WriteLine($"//{FeatureTuner.TableNames[i]}");
+        FeatureTuner.Report(i, featureWeights);
+    }
 
     Console.WriteLine();
-    Console.WriteLine("ENDGAME");
-    for (int i = 0; i < Tmax; i++)
-        WriteTable(i, true, coefficients);
-
+    Console.WriteLine("Mobility");
+    MobilityTuner.Report(Piece.Pawn, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.Knight, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.Bishop, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.Rook, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.Queen, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.King, Tmax, featureWeights);
     Console.WriteLine();
-    Console.WriteLine("Mobility - MG");
-    WriteMobilityTable(Tmax, false, coefficients);
-
-    Console.WriteLine();
-    Console.WriteLine("Mobility - EG");
-    WriteMobilityTable(Tmax, true, coefficients);
 
     Console.WriteLine();
     Console.WriteLine("Phase");
-    PhaseTuner.Report(cPhase);
-}
-
-void WriteMobilityTable(int table, bool endgame, float[] coefficients)
-{
-    MobilityTuner.Report(Piece.Pawn, table, endgame, coefficients);
-    MobilityTuner.Report(Piece.Knight, table, endgame, coefficients);
-    MobilityTuner.Report(Piece.Bishop, table, endgame, coefficients);
-    MobilityTuner.Report(Piece.Rook, table, endgame, coefficients);
-    MobilityTuner.Report(Piece.Queen, table, endgame, coefficients);
-    MobilityTuner.Report(Piece.King, table, endgame, coefficients);
-    Console.WriteLine();
-}
-
-void WriteTable(int table, bool endgame, float[] coefficients)
-{
-    Console.WriteLine($"//{FeatureTuner.TableNames[table]}");
-    const int step = 2;
-    int offset = table * 128 + (endgame ? 1 : 0);
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            int k = offset + 8 * i * step + j * step;
-            float c = (k < coefficients.Length) ? coefficients[k] : 0;
-            Console.Write($"{(int)Math.Round(c),5},");
-        }
-        Console.WriteLine();
-    }
+    PhaseTuner.Report(phaseWeights);
 }

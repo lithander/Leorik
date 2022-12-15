@@ -205,8 +205,10 @@ namespace Leorik.Tuning
                 if (parser.Result == "*")
                     continue;
 
+                int numPos = posPerGame;
                 if (parser.Result == DRAW)
-                    continue;
+                    numPos = 5;
+                    //continue;
 
                 //if (parser.Positions.Count > 200)
                 //    continue;
@@ -214,9 +216,9 @@ namespace Leorik.Tuning
                 int p0 = skipMargin;
                 int p1 = parser.Positions.Count - skipMargin;
                 //Console.WriteLine($"{parser.Positions.Count} -> {parser.Result}");
-                for (int i = 0; i < posPerGame; i++)
+                for (int i = 0; i < numPos; i++)
                 {
-                    int pi = p0 + (p1 - p0) * i / (posPerGame-1);
+                    int pi = p0 + (p1 - p0) * i / (numPos - 1);
                     var pos = parser.Positions[pi];
 
                     var quiet = quiesce.GetQuiet(pos);

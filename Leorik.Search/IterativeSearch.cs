@@ -13,6 +13,8 @@ namespace Leorik.Search
         {
             return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
         }
+
+        public static SearchOptions Default => new SearchOptions();
     }
 
     public class IterativeSearch
@@ -44,7 +46,7 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearch(BoardState board, SearchOptions options = default)
+        public IterativeSearch(BoardState board, SearchOptions options)
         {
             _options = options;
             _killers = new KillerMoves(2);
