@@ -147,7 +147,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float NormalizePhase(float phaseValue)
         {
-            return Math.Clamp((PhaseSum - phaseValue) / PhaseSum, 0, 1);
+            return Math.Max((PhaseSum - phaseValue) / PhaseSum, 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

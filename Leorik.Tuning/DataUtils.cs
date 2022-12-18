@@ -191,7 +191,7 @@ namespace Leorik.Tuning
             return data;
         }
 
-        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipMargin, int skipOutliers, int maxCaptures)
+        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxCaptures)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -201,24 +201,19 @@ namespace Leorik.Tuning
             int positions = 0;
             while (parser.NextGame())
             {
-                games++;
+                if (++games % 1000 == 0)
+                    Console.WriteLine($"{games} games, {positions} positions");
+
                 if (parser.Result == "*")
                     continue;
 
-                int numPos = posPerGame;
                 if (parser.Result == DRAW)
-                    numPos = 5;
-                    //continue;
+                    continue;
 
-                //if (parser.Positions.Count > 200)
-                //    continue;
-
-                int p0 = skipMargin;
-                int p1 = parser.Positions.Count - skipMargin;
-                //Console.WriteLine($"{parser.Positions.Count} -> {parser.Result}");
-                for (int i = 0; i < numPos; i++)
+                int count = parser.Positions.Count;
+                for (int i = 0; i < posPerGame; i++)
                 {
-                    int pi = p0 + (p1 - p0) * i / (numPos - 1);
+                    int pi = count * (i+1) / (posPerGame+1);
                     var pos = parser.Positions[pi];
 
                     var quiet = quiesce.GetQuiet(pos);
@@ -245,9 +240,6 @@ namespace Leorik.Tuning
                     positions++;
                     output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
                 }
-
-                if (games % 1000 == 0)
-                    Console.WriteLine($"{games} games, {positions} positions");
             }
         }
     }

@@ -29,7 +29,7 @@ namespace Leorik.Engine
 
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
-            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition());
+            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition(), SearchOptions.Default);
             search.Search(3);
             Reset();
             Uci.Silent = false;
