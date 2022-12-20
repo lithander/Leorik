@@ -59,19 +59,22 @@ namespace Leorik.Tuning
                     continue;
                 if ((piece & Piece.TypeMask) == Piece.Knight)
                     continue;
-                //if ((piece & Piece.TypeMask) == Piece.Pawn)
-                //    continue;
+                //only blocked or promoting pawns are interesting
+                if ((piece & Piece.TypeMask) == Piece.Pawn && _moveCounts[i] > 0 && _moveCounts[i] < 4)
+                    continue;
 
                 int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
                 int index = (short)GetIndex(piece, _moveCounts[i]);
-                features.AddFeature(index, value, phase, false);
+                features.AddFeature(index, value, phase);
             }
             return features.ToArray();
         }
                 
-        internal static void Report(Piece piece, int offset, int step, float[] coefficients)
+        internal static void Report(Piece piece, int table, bool endgame, float[] coefficients)
         {
-            Console.Write($"{piece}: ");
+            Console.WriteLine($"//{piece}: ");
+            const int step = 2;
+            int offset = table * 128 + (endgame ? 1 : 0);
             int i0 = Move.Order(piece);
             for (int i = PieceMobilityIndices[i0]; i < PieceMobilityIndices[i0 + 1]; i++)
             {

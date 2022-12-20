@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.2.7";
+        const string NAME_VERSION = "Leorik 2.2.8zeta - 1674108 positions";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -36,6 +36,8 @@ namespace Leorik.Engine
                     Console.WriteLine($"id name {NAME_VERSION}");
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
+                    Console.WriteLine($"option name Midgame Randomness type spin default 0 min 0 max 255");
+                    Console.WriteLine($"option name Endgame Randomness type spin default 0 min 0 max 255");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
@@ -74,32 +76,35 @@ namespace Leorik.Engine
 
         private static void PrintEval(Evaluation eval)
         {
-            float phase = Evaluation.Phase(eval.PhaseValue);
             Console.WriteLine($"             MG  +  EG");
-            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {phase:0.##}");
-            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {phase:0.##}");
+            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {eval.Phase:0.##}");
+            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {eval.Phase:0.##}");
             Console.WriteLine($"Mobility: {eval.Positional.Base,5}");
             Console.WriteLine($"--------+------------------------");
             Console.WriteLine($"   White: {eval.Score, 5}");
+            Console.WriteLine();
         }
 
-        private static void UciSetOption(string[] tokens)
+        private static void UciSetOption(string[] token)
         {
-            if (tokens[1] == "name" && tokens[2] == "Hash" && tokens[3] == "value" && int.TryParse(tokens[4], out int hashSizeMBytes))
+            if (token[1] == "name" && token[2] == "Hash" && token[3] == "value" && int.TryParse(token[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
+            else if (token[1] == "name" && token[2] == "Midgame" && token[3] == "Randomness" && token[4] == "value" && byte.TryParse(token[5], out byte mgRandomness))
+                _engine.MidgameRandomness = mgRandomness;
+            else if (token[1] == "name" && token[2] == "Endgame" && token[3] == "Randomness" && token[4] == "value" && byte.TryParse(token[5], out byte egRandomness))
+                _engine.EndgameRandomness = egRandomness;
+            else
+                Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
 
         private static void UciPosition(string[] tokens)
         {
             //position [fen <fenstring> | startpos ]  moves <move1> .... <movei>
-            if (tokens.Length <= 1)
-                return;
-            
-            if (tokens[1] == "startpos")
+            if (tokens.Length > 1 && tokens[1] == "startpos")
             {
                 _engine.SetupPosition(Notation.GetStartingPosition());
             }
-            else if (tokens[1] == "fen") //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+            else if (tokens.Length > 1 && tokens[1] == "fen") //rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
             {
                 string fen = string.Join(' ', tokens[2..]);
                 _engine.SetupPosition(Notation.GetBoardState(fen));
@@ -111,11 +116,11 @@ namespace Leorik.Engine
             }
 
             int firstMove = Array.IndexOf(tokens, "moves") + 1;
-            if (firstMove == 0)
-                return;
-
-            for (int i = firstMove; i < tokens.Length; i++)
-                _engine.Play(tokens[i]);
+            if (firstMove > 0)
+            {
+                for (int i = firstMove; i < tokens.Length; i++)
+                    _engine.Play(tokens[i]);
+            }
         }
 
         private static void UciGo(string[] tokens)
@@ -125,7 +130,7 @@ namespace Leorik.Engine
             //40 Moves in 5 Minutes, 1 second increment per Move =  go wtime 300000 btime 300000 movestogo 40 winc 1000 binc 1000 movestogo 40
             //5 Minutes total, no increment (sudden death) = go wtime 300000 btime 300000
 
-            TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MaxDepth);
+            TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MAX_PLY);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
             TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 40 e.g. spend 1/40th of total budget on the move

@@ -6,51 +6,69 @@ namespace Leorik.Core
 {
     public static class Mobility
     {
-        const int PAWN_STUCK = -9;
-        const int PAWN_PROMOTION = 74;
+        const int Pawn = 0;
+        const int Knight = 13;
+        const int Bishop = 22;
+        const int Rook = 36;
+        const int Queen = 51;
+        const int King = 79;
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static int Bishop(int moves) => Math.Min(7, moves) * 5;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static int Rook(int moves) => Math.Min(11, moves) * 5;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        static int Queen(int moves) => Math.Min(25, moves) * 3;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        static int King(int moves) => moves * -5;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Update(BoardState board, ref EvalTerm eval)
+        static EvalTerm Sub(ref EvalTerm eval, int index)
         {
-            eval.Base += Eval(board);
+            eval.Base -= Weights.MidgameMobility[index];
+            eval.Endgame -= Weights.EndgameMobility[index];
+            return eval;
         }
 
-        public static short Eval(BoardState board)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void Add(ref EvalTerm eval, int index)
         {
-            int result = 0;
+            eval.Base += Weights.MidgameMobility[index];
+            eval.Endgame += Weights.EndgameMobility[index];
+        }
 
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Update(BoardState board, ref EvalTerm eval)
+        {
             ulong occupied = board.Black | board.White;
 
             //Kings
             int square = LSB(board.Kings & board.Black);
             int moves = PopCount(KingTargets[square] & ~occupied);
-            result -= King(moves);
+            Sub(ref eval, King + moves);
 
             square = LSB(board.Kings & board.White);
             moves = PopCount(KingTargets[square] & ~occupied);
-            result += King(moves);
+            Add(ref eval, King + moves);
+
+            //Knights
+            //for (ulong knights = board.Knights & board.Black; knights != 0; knights = ClearLSB(knights))
+            //{
+            //    square = LSB(knights);
+            //    moves = PopCount(KnightTargets[square] & ~occupied);
+            //    Sub(ref eval, Knight + moves);
+            //}
+            //for (ulong knights = board.Knights & board.White; knights != 0; knights = ClearLSB(knights))
+            //{
+            //    square = LSB(knights);
+            //    moves = PopCount(KnightTargets[square] & ~occupied);
+            //    Add(ref eval, Knight + moves);
+            //}
 
             //Bishops
             for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = ClearLSB(bishops))
             {
                 square = LSB(bishops);
                 moves = PopCount(GetBishopTargets(occupied, square) & ~occupied);
-                result -= Bishop(moves);
+                Sub(ref eval, Bishop + moves);
             }
             for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = ClearLSB(bishops))
             {
                 square = LSB(bishops);
                 moves = PopCount(GetBishopTargets(occupied, square) & ~occupied);
-                result += Bishop(moves);
+                Add(ref eval, Bishop + moves);
             }
 
             //Rooks
@@ -58,13 +76,13 @@ namespace Leorik.Core
             {
                 square = LSB(rooks);
                 moves = PopCount(GetRookTargets(occupied, square) & ~occupied);
-                result -= Rook(moves);
+                Sub(ref eval, Rook + moves);
             }
             for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = ClearLSB(rooks))
             {
                 square = LSB(rooks);
                 moves = PopCount(GetRookTargets(occupied, square) & ~occupied);
-                result += Rook(moves);
+                Add(ref eval, Rook + moves);
             }
 
             //Queens
@@ -72,13 +90,13 @@ namespace Leorik.Core
             {
                 square = LSB(queens);
                 moves = PopCount(GetQueenTargets(occupied, square) & ~occupied);
-                result -= Queen(moves);
+                Sub(ref eval, Queen + moves);
             }
             for (ulong queens = board.Queens & board.White; queens != 0; queens = ClearLSB(queens))
             {
                 square = LSB(queens);
                 moves = PopCount(GetQueenTargets(occupied, square) & ~occupied);
-                result += Queen(moves);
+                Add(ref eval, Queen + moves);
             }
 
             //Black Pawns
@@ -86,20 +104,24 @@ namespace Leorik.Core
             ulong oneStep = (blackPawns >> 8) & ~occupied;
             //not able to move one square down
             int blocked = PopCount(blackPawns) - PopCount(oneStep);
+            eval.Base -= (short)(blocked * Weights.MidgameMobility[Pawn + 0]);
+            eval.Endgame -= (short)(blocked * Weights.EndgameMobility[Pawn + 0]);
             //promotion square not blocked?
             int promo = PopCount(oneStep & 0x00000000000000FFUL);
-            result -= promo * PAWN_PROMOTION + PAWN_STUCK * blocked;
-
+            eval.Base -= (short)(promo * Weights.MidgameMobility[Pawn + 4]);
+            eval.Endgame -= (short)(promo * Weights.EndgameMobility[Pawn + 4]);
+            
             //White Pawns
             ulong whitePawns = board.Pawns & board.White;
             oneStep = (whitePawns << 8) & ~occupied;
             //not able to move one square up
             blocked = PopCount(whitePawns) - PopCount(oneStep);
+            eval.Base += (short)(blocked * Weights.MidgameMobility[Pawn + 0]);
+            eval.Endgame += (short)(blocked * Weights.EndgameMobility[Pawn + 0]);
             //promotion square not blocked?
             promo = PopCount(oneStep & 0xFF00000000000000UL);
-            result += promo * PAWN_PROMOTION + PAWN_STUCK * blocked;
-
-            return (short)result;
+            eval.Base += (short)(promo * Weights.MidgameMobility[Pawn + 4]);
+            eval.Endgame += (short)(promo * Weights.EndgameMobility[Pawn + 4]);
         }
     }
 }

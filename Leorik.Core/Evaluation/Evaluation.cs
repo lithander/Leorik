@@ -5,12 +5,13 @@ namespace Leorik.Core
     public struct Evaluation
     {
         public static readonly int PhaseSum = 5000;
-        public static readonly short[] PhaseValues = new short[6] { 0, 125, 341, 380, 808, 0 };
 
         public short PhaseValue;
         public EvalTerm Pawns;
         public Material Material;
         public EvalTerm Positional;
+
+        public float Phase => NormalizePhase(PhaseValue);
 
         public short Score { get; private set; }
 
@@ -48,7 +49,7 @@ namespace Leorik.Core
             //TODO: use operator overloading to make this readable
             int mg = Pawns.Base + Material.Base + Positional.Base;
             int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
-            Score = (short)(mg + Phase(PhaseValue) * eg);
+            Score = (short)(mg + NormalizePhase(PhaseValue) * eg);
             //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
         }
 
@@ -104,7 +105,7 @@ namespace Leorik.Core
         private void AddPiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            PhaseValue += PhaseValues[pieceIndex];
+            PhaseValue += Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
                 Material.AddScore(pieceIndex, squareIndex ^ 56);
             else
@@ -115,7 +116,7 @@ namespace Leorik.Core
         private void RemovePiece(Piece piece, int squareIndex)
         {
             int pieceIndex = PieceIndex(piece);
-            PhaseValue -= PhaseValues[pieceIndex];
+            PhaseValue -= Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
                 Material.SubtractScore(pieceIndex, squareIndex ^ 56);
             else
@@ -144,9 +145,9 @@ namespace Leorik.Core
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Phase(short phaseValue)
+        public static float NormalizePhase(float phaseValue)
         {
-            return Math.Clamp((float)(PhaseSum - phaseValue) / PhaseSum, 0, 1);
+            return Math.Clamp((PhaseSum - phaseValue) / PhaseSum, 0, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

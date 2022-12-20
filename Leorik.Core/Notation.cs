@@ -295,6 +295,13 @@ namespace Leorik.Core
                 int toSquare = GetSquare(notation.Substring(2, 2));
                 return SelectMove(board, piece, toSquare, promotion, notation[1]);
             }
+            else if(notation.Length == 5)
+            {
+                //move with disambiguation e.g Ra1a2
+                int fromSquare = GetSquare(notation.Substring(1, 2));
+                int toSquare = GetSquare(notation.Substring(3, 2));
+                return new Move(piece, fromSquare, toSquare, promotion);
+            }
 
             throw new ArgumentException($"Move notation {notation} could not be parsed!");
         }
@@ -314,6 +321,11 @@ namespace Leorik.Core
                 if (board.GetPiece(move.FromSquare) != moving)
                     continue;
                 if (fileOrRank != null && !GetSquareName(move.FromSquare).Contains(fileOrRank.Value))
+                    continue;
+                //make sure the move isn't illegal
+                BoardState clone = board.Clone();
+                clone.PlayWithoutHashAndEval(board, ref move);
+                if (clone.InCheck(board.SideToMove))
                     continue;
 
                 return move; //this is the move!
