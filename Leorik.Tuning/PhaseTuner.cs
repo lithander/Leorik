@@ -78,18 +78,6 @@ namespace Leorik.Tuning
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static float GetPhase2(byte[] pieceCounts, float[] cPhase)
-        {
-            float phaseValue = 0;
-            for (int i = 0; i < N; i++)
-                phaseValue += pieceCounts[i] * cPhase[i];
-
-            return (Evaluation.PhaseSum - phaseValue) / Evaluation.PhaseSum;
-        }
-
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float phase)
         {
             return entry.MidgameEval + phase * entry.EndgameEval;
@@ -152,7 +140,7 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
-                    float phase = GetPhase2(entry.PieceCounts, coefficients);
+                    float phase = GetPhase(entry.PieceCounts, coefficients);
                     float eval = Evaluate(entry, phase);
                     float error = Sigmoid(eval, evalScaling) - entry.Result;
                     float grad = Sigmoid(Evaluate(entry, 0), evalScaling) - Sigmoid(Evaluate(entry, 1), evalScaling);

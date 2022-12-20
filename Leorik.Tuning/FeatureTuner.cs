@@ -45,33 +45,24 @@ namespace Leorik.Tuning
         {
             float[] result = new float[AllWeigths];
             int index = 0;
-            for (int piece = 0; piece < 6; piece++)
+            for (int piece = 0; piece < 10; piece++)
             {
                 for (int sq = 0; sq < 64; sq++)
                 {
-                    result[index++] = Weights.MidgameTables[64 * piece + sq];
-                    result[index++] = Weights.EndgameTables[64 * piece + sq];
+                    (short mg, short eg) = Weights.Features[64 * piece + sq];
+                    result[index++] = mg;
+                    result[index++] = eg;
                 }
             }
-            return result;
-        }
 
-        public static float[] GetRandomCoefficients(int min, int max, int seed)
-        {
-            Random random = new Random(seed);
-            float[] result = new float[AllWeigths];
-            int index = 0;
-            for (int piece = 0; piece < 6; piece++)
+            for (int i = 0; i < 88; i++)
             {
-                for (int sq = 0; sq < 64; sq++)
-                {
-                    result[index++] = min + (max - min) * (float)random.NextDouble();
-                    result[index++] = min + (max - min) * (float)random.NextDouble();
-                }
+                (short mg, short eg) = Weights.Mobility[i];
+                result[index++] = mg;
+                result[index++] = eg;
             }
             return result;
         }
-
 
         delegate void FeatureHandler(int table, int square, int value);
 
@@ -133,15 +124,22 @@ namespace Leorik.Tuning
             }
         }
 
-        internal static void Report(int offset, int count, int step, float[] coefficients)
+        internal static void Report(int table, float[] coefficients)
         {
-            for (int i = 0; i < count; i++)
+            const int step = 2;
+            int offset = table * 128;
+            for (int i = 0; i < 8; i++)
             {
-                int c = (int)Math.Round(coefficients[offset + i * step]);
-                Console.Write(c);
-                Console.Write(", ");
+                for (int j = 0; j < 8; j++)
+                {
+                    int k = offset + 8 * i * step + j * step;
+                    float mg = (int)Math.Round(coefficients[k]);
+                    Console.Write($"({mg,4}");
+                    float eg = (int)Math.Round(coefficients[k + 1]);
+                    Console.Write($",{eg,4}), ");
+                }
+                Console.WriteLine();
             }
-            Console.WriteLine();
         }
 
         public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
