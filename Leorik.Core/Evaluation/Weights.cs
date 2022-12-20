@@ -2,6 +2,30 @@
 {
     public static class Weights
     {
+        /*
+        In term's of selfplay strength this set of weights (theta3) is an improvement over theta2 (which is like theta but with tuples)
+
+        Score of Leorik-2.2.8theta3 vs Leorik-2.2.8theta2: 2500 - 2014 - 3190  [0.532] 7704
+        ...      Leorik-2.2.8theta3 playing White: 1280 - 849 - 1723  [0.556] 3852
+        ...      Leorik-2.2.8theta3 playing Black: 1220 - 1165 - 1467  [0.507] 3852
+        ...      White vs Black: 2445 - 2069 - 3190  [0.524] 7704
+        Elo difference: 21.9 +/- 5.9, LOS: 100.0 %, DrawRatio: 41.4 %
+
+        But in the gauntlet theta3...
+
+           # PLAYER                :  RATING  POINTS  PLAYED   (%)
+           1 Inanis-1.1.1          :  2767.0   308.0     590    52
+           2 odonata-0.6.2         :  2744.0   267.0     590    45
+           3 Leorik-2.2.8theta3    :  2737.0  1846.5    3541    52
+           4 zahak-5.0             :  2730.0   287.5     590    49
+           5 dumb-1.9              :  2703.0   296.0     591    50
+           6 blunder-8.5.5         :  2700.0   283.0     590    48
+           7 Supernova-2.4         :  2687.0   253.0     590    43
+
+        ...is not stronger than theta2:
+
+        */
+
         public static readonly short[] PhaseValues = new short[6] { 0, 190, 184, 347, 1057, 0 };
 
         public static readonly (short, short)[] Features = new (short, short)[10 * 64]{

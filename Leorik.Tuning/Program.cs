@@ -3,7 +3,7 @@ using Leorik.Tuning;
 using System.Diagnostics;
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD/";
-string EPD_FILE = "DATA-THETA003-NoDraws-Filtered200-incTheta1.epd";
+string EPD_FILE = "DATA-THETA003-NoDraws-Filtered200-incTheta1-v2.epd";
 string[] PGN_FILES = {
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_12112020.pgn",
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn",
@@ -72,7 +72,7 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-//PrepareData();
+PrepareData();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
