@@ -7,14 +7,14 @@ namespace Leorik.Search
     {
         public byte MidgameRandomness;
         public byte EndgameRandomness;
-        public long MaxNodes = long.MaxValue;
+        public long MaxNodes;
 
         internal int Randomness(float phase)
         {
             return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
         }
 
-        public static SearchOptions Default => new SearchOptions();
+        public static SearchOptions Default => new SearchOptions() { MaxNodes = long.MaxValue };
     }
 
     public class IterativeSearch
