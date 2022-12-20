@@ -7,6 +7,7 @@ namespace Leorik.Tuning
         public bool EndOfStream => _file.EndOfStream;
         public string Result { get; private set; }
         public IReadOnlyList<BoardState> Positions => _positions;
+        public IReadOnlyList<Move> Moves => _moves;
 
         enum PGNParserState { Header, MoveNumber, WhiteMove, BlackMove, Stop };
 
@@ -17,6 +18,7 @@ namespace Leorik.Tuning
         private int _index;
         private StreamReader _file;
         private List<BoardState> _positions = new();
+        private List<Move> _moves = new();
 
         public PgnParser(StreamReader file)
         {
@@ -29,6 +31,7 @@ namespace Leorik.Tuning
             _board = Notation.GetStartingPosition();
             _state = PGNParserState.Header;
             _positions.Clear();
+            _moves.Clear();
             _moveNumber = 0;
             _line = "";
         }
@@ -81,7 +84,6 @@ namespace Leorik.Tuning
         private void ParseMoveNumber()
         {
             _moveNumber++;
-            //Console.WriteLine($"Move#: {_moveNumber}");
             string token = $"{_moveNumber}. ";
             int i = _line.IndexOf(token, _index);
             _index = i + token.Length;
@@ -90,7 +92,6 @@ namespace Leorik.Tuning
         private void ParseWhiteMove()
         {
             string moveStr = ParseToken();
-            //Console.WriteLine($"White: {moveStr}");
             PlayMove(moveStr);
             _state = SkipComment() ? PGNParserState.BlackMove : PGNParserState.Stop;
         }
@@ -98,7 +99,6 @@ namespace Leorik.Tuning
         private void ParseBlackMove()
         {
             string moveStr = ParseToken();
-            //Console.WriteLine($"Black: {moveStr}");
             PlayMove(moveStr);
             _state = SkipComment() ? PGNParserState.MoveNumber : PGNParserState.Stop;
         }
@@ -143,7 +143,7 @@ namespace Leorik.Tuning
             Move move = Notation.GetMove(_board, moveNotation);
             _board.Play(move);
             _positions.Add(_board.Clone());
-            //Console.WriteLine(Notation.GetFen(_board));
+            _moves.Add(move);
         }
     }
 }

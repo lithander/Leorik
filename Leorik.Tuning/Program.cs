@@ -72,7 +72,8 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-PrepareData();
+PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
+//PrepareData();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
@@ -124,6 +125,17 @@ Console.ReadKey();
 * FUNCTIONS 
 * 
 */
+
+
+void PgnToUci(string pgnFileName)
+{
+    Console.WriteLine($"Converting PGN to 'position startpos move ...' format..");
+    var output = File.CreateText(DATA_PATH + pgnFileName + ".uci");
+    var input = File.OpenText(DATA_PATH + pgnFileName);
+    DataUtils.PgnToUci(input, output);
+    input.Close();
+}
+
 
 void PrepareData()
 {

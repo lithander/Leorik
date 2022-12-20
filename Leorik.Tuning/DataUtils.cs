@@ -97,5 +97,37 @@ namespace Leorik.Tuning
                 }
             }
         }
+
+        public static void PgnToUci(StreamReader input, StreamWriter output)
+        {
+            //Output Format Example:
+            //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
+            PgnParser parser = new PgnParser(input);
+            int games = 0;
+            while (parser.NextGame())
+            {
+                if (++games % 100 == 0)
+                    Console.WriteLine($"{games} games");
+
+                int plys = parser.Moves.Count;
+                output.WriteLine($"Game #{games} - {plys} Plys - Result: {parser.Result}");
+                output.WriteLine("{");
+                for(int i = 0; i < plys; i++)
+                {
+                    if (i % 2 == 0)
+                        output.WriteLine($"{1 + i / 2}.");
+
+                    output.Write($"position startpos moves ");
+                    for (int j = 0; j <= i; j++)
+                    {
+                        Move move = parser.Moves[j];
+                        output.Write(Notation.GetMoveName(move));
+                        output.Write(' ');
+                    }
+                    output.WriteLine();
+                }
+                output.WriteLine("}");
+            }
+        }
     }    
 }
