@@ -24,6 +24,15 @@
 
         ...is not stronger than theta2:
 
+           # PLAYER                :  RATING  POINTS  PLAYED   (%)
+           1 Inanis-1.1.1          :  2767.0   397.0     710    56
+           2 odonata-0.6.2         :  2744.0   378.0     710    53
+           3 Leorik-2.2.8theta2    :  2737.9  2229.5    4264    52
+           4 zahak-5.0             :  2730.0   311.5     710    44
+           5 dumb-1.9              :  2703.0   367.0     712    52
+           6 blunder-8.5.5         :  2700.0   305.0     712    43
+           7 Supernova-2.4         :  2687.0   276.0     710    39
+
         */
 
         public static readonly short[] PhaseValues = new short[6] { 0, 190, 184, 347, 1057, 0 };
