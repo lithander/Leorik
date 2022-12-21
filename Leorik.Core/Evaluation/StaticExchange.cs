@@ -58,7 +58,7 @@ namespace Leorik.Core
 
             while (true)
             {
-                if ((move.CapturedPiece() & Piece.TypeMask) == Piece.King)
+                if (move.CapturedPieceType() == Piece.King)
                     return sign * beta;
 
                 see -= PieceValue(sign, move.CapturedPiece());
@@ -71,6 +71,7 @@ namespace Leorik.Core
 
                 if (see < alpha)
                     return sign * alpha; //move would be too bad, stm uses stand-pat
+
                 beta = Math.Min(beta, see); //new stand-pat option for opponent
 
                 position.Play(move);

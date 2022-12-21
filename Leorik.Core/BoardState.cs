@@ -550,7 +550,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateHalfmoveClock(BoardState from, ref Move move)
         {
-            if (move.MovingPiece() == Piece.Pawn || move.Target != Piece.None)
+            if (move.MovingPieceType() == Piece.Pawn || move.Target != Piece.None)
                 HalfmoveClock = 0;
             else
                 HalfmoveClock = (byte)(from.HalfmoveClock + 1);

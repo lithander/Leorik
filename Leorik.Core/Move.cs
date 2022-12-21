@@ -37,9 +37,21 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Piece CapturedPieceType()
+        {
+            return Target & Piece.TypeMask;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Piece MovingPiece()
         {
             return Flags & Piece.PieceMask;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Piece MovingPieceType()
+        {
+            return Flags & Piece.TypeMask;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

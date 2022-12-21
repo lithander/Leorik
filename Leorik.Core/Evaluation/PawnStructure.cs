@@ -34,8 +34,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Update(BoardState board, ref Move move, ref EvalTerm eval)
         {
-            if ((move.MovingPiece() & Piece.TypeMask) == Piece.Pawn ||
-                (move.CapturedPiece() & Piece.TypeMask) == Piece.Pawn)
+            if (move.MovingPieceType() == Piece.Pawn || move.CapturedPieceType() == Piece.Pawn)
                 Update(board, ref eval);
         }
 
