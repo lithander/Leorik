@@ -324,8 +324,7 @@ namespace Leorik.Core
                     continue;
                 //make sure the move isn't illegal
                 BoardState clone = board.Clone();
-                clone.PlayWithoutHashAndEval(board, ref move);
-                if (clone.InCheck(board.SideToMove))
+                if (!clone.PlayWithoutHashAndEval(board, ref move))
                     continue;
 
                 return move; //this is the move!
