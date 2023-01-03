@@ -97,11 +97,6 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
-TestMaterialMSE(cFeatures);
-RebalanceCoefficients(cFeatures);
-TestMaterialMSE(cFeatures);
-PrintCoefficients(cFeatures, cPhase);
-return;
 TestPhaseMSE(cPhase);
 PhaseTuner.Report(cPhase);
 
