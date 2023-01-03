@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3";
+        const string NAME_VERSION = "Leorik 2.3.1 - Weights rebalanced so that mobility tables don't encode material (Baseline2)";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();

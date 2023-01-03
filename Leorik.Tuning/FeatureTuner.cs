@@ -208,6 +208,17 @@ namespace Leorik.Tuning
             );
         }
 
+        internal static void Rebalance(Piece piece, (int mg, int eg) delta, float[] coefficients)
+        {
+            int table = ((int)piece >> 2) - 1; //Pawn: 0, Knight: 1 ... King: 5
+            int index = table * 128;
+            for (int sq = 0; sq < 64; sq++)
+            {
+                coefficients[index++] += delta.mg;
+                coefficients[index++] += delta.eg;
+            }
+        }
+
         //public static void MinimizeSIMD(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
         //{
         //    int slots = Vector<float>.Count;

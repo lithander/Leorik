@@ -55,7 +55,7 @@ int PHASE_BATCH = 10;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v22 ");
+Console.WriteLine(" Leorik Tuning v23 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
@@ -72,19 +72,17 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
+//PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //PrepareData();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
-
-//PrintCoefficients(cFeatures);
+float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -100,6 +98,10 @@ Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
 TestMaterialMSE(cFeatures);
+RebalanceCoefficients(cFeatures);
+TestMaterialMSE(cFeatures);
+PrintCoefficients(cFeatures, cPhase);
+return;
 TestPhaseMSE(cPhase);
 PhaseTuner.Report(cPhase);
 
@@ -114,6 +116,7 @@ for (int it = 0; it < ITERATIONS; it++)
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
+RebalanceCoefficients(cFeatures);
 PrintCoefficients(cFeatures, cPhase);
 
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
@@ -212,12 +215,25 @@ void TestPhaseMSE(float[] coefficients)
     Console.WriteLine();
 }
 
+void RebalanceCoefficients(float[] featureWeights)
+{
+    //Both the square-feature of a piece and the mobility-feature of a piece can encode material.
+    //...but if mobility isn't updated in Qsearch for performance reasons it should all go into the square-features
+    Console.WriteLine("Rebalancing...");
+    Tuner.Rebalance(Piece.Knight, featureWeights);
+    Tuner.Rebalance(Piece.Bishop, featureWeights);
+    Tuner.Rebalance(Piece.Rook, featureWeights);
+    Tuner.Rebalance(Piece.Queen, featureWeights);
+    Tuner.Rebalance(Piece.King, featureWeights);
+}
+
 void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 {
-    int Tmax = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
+    int featureTables = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
+    int mobilityOffset = 128 * featureTables;
 
     Console.WriteLine("Features");
-    for (int i = 0; i < Tmax; i++)
+    for (int i = 0; i < featureTables; i++)
     {
         Console.WriteLine($"//{FeatureTuner.TableNames[i]}");
         FeatureTuner.Report(i, featureWeights);
@@ -225,12 +241,12 @@ void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 
     Console.WriteLine();
     Console.WriteLine("Mobility");
-    MobilityTuner.Report(Piece.Pawn, Tmax, featureWeights);
-    MobilityTuner.Report(Piece.Knight, Tmax, featureWeights);
-    MobilityTuner.Report(Piece.Bishop, Tmax, featureWeights);
-    MobilityTuner.Report(Piece.Rook, Tmax, featureWeights);
-    MobilityTuner.Report(Piece.Queen, Tmax, featureWeights);
-    MobilityTuner.Report(Piece.King, Tmax, featureWeights);
+    MobilityTuner.Report(Piece.Pawn, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Knight, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Bishop, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Rook, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Queen, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.King, mobilityOffset, featureWeights);
     Console.WriteLine();
 
     Console.WriteLine();
