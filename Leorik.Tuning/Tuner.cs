@@ -291,5 +291,13 @@ namespace Leorik.Tuning
                 return result;
             }
         }
+
+        internal static void Rebalance(Piece piece, float[] featureWeights)
+        {
+            int featureTables = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
+            int mobilityOffset = 128 * featureTables;
+            var avg = MobilityTuner.Rebalance(piece, mobilityOffset, featureWeights);
+            FeatureTuner.Rebalance(piece, avg, featureWeights);
+        }
     }
 }

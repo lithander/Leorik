@@ -70,11 +70,10 @@ namespace Leorik.Tuning
             return features.ToArray();
         }
 
-        internal static void Report(Piece piece, int table, float[] coefficients)
+        internal static void Report(Piece piece, int offset, float[] coefficients)
         {
             Console.WriteLine($"//{piece}: ");
             const int step = 2;
-            int offset = table * 128;
             int i0 = Move.Order(piece);
             for (int i = PieceMobilityIndices[i0]; i < PieceMobilityIndices[i0 + 1]; i++)
             {
@@ -84,6 +83,27 @@ namespace Leorik.Tuning
                 Console.Write($"({mg},{eg}), ");
             }
             Console.WriteLine();
+        }
+
+        //Score of Leorik-2.3X vs Leorik-2.3: 2673 - 2431 - 3902  [0.513] 9006
+        //Elo difference: 9.3 +/- 5.4, LOS: 100.0 %, DrawRatio: 43.3 %
+        internal static (int mg, int eg) Rebalance(Piece piece, int offset, float[] coefficients)
+        {
+            const int step = 2;
+            int order = Move.Order(piece);
+            int i0 = PieceMobilityIndices[order];
+            int iNext = PieceMobilityIndices[order + 1];
+            int iBase = i0 + (iNext - i0) / 3;
+            int mg = (int)coefficients[offset + iBase * step];
+            int eg = (int)coefficients[offset + iBase * step + 1];
+
+            for (int i = i0; i < iNext; i++)
+            {
+                int k = offset + i * step;
+                coefficients[k] -= mg;
+                coefficients[k + 1] -= eg;
+            }
+            return (mg, eg);
         }
     }
 }

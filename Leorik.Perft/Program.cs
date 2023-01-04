@@ -69,6 +69,13 @@ namespace Leorik.Perft
             return Perft(0, depth, new PerftMoveGen(Moves, 0));
         }
 
+        //TODO:
+        //- encode wether a move is legal or not in move.Target, play without testing legality if flag is set
+        //- use a special move-gen when in check //https://chess.stackexchange.com/questions/35199/how-can-a-check-evasion-move-generation-algorithm-be-done-efficiently
+        //- when not in check set the legal flag where appropriate //https://talkchess.com/forum3/viewtopic.php?f=7&t=80952&start=20#p937332 & https://talkchess.com/forum3/viewtopic.php?f=7&t=81265
+        //- if movegen needs to evaluate "inCheck()" info anyway and search does also eval it frequently
+        //  -> make it a field of the Position set immediately after playing the move
+
         private static long Perft(int depth, int remaining, PerftMoveGen moves)
         {
             BoardState current = Positions[depth];
