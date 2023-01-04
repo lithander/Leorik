@@ -35,6 +35,7 @@ namespace Leorik.Search
         private History _history;
         private KillerMoves _killers;
         private Random _random = new Random();
+        private StaticExchange _see = new StaticExchange();
 
         SearchOptions _options;
 
@@ -452,7 +453,6 @@ namespace Leorik.Search
             }
 
             Aborted |= ForcedCut(ply);
-
             if (Aborted)
                 return current.RelativeScore();
 
@@ -462,6 +462,11 @@ namespace Leorik.Search
             for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
             {
                 PickBestCapture(i, moveGen.Next);
+
+                //skip playing bad captures when not in check
+                if (!inCheck && _see.IsBad(current, ref Moves[i]))
+                    continue;
+
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
                     movesPlayed = true;

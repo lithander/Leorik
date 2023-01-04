@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
+using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core
 {
@@ -34,39 +29,101 @@ namespace Leorik.Core
             +9999    //WhiteKing = 13,
         };
 
+        ulong White;
+        ulong Black;
+        ulong Pawns;
+        ulong Knights;
+        ulong Bishops;
+        ulong Rooks;
+        ulong Queens;
+        ulong Kings;
+        ulong ToBit;
+
+        Piece Flags;
+        Piece Target;
+        int FromSquare;
+        int ToSquare;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int PieceValue(int sign, Piece piece) => sign * PieceValues[(int)piece >> 1];
+        private Piece NewPiece()
+        {
+            return Flags < Piece.KnightPromotion || Flags >= Piece.CastleShort
+                ? Flags & Piece.PieceMask
+                : (Piece)((int)Flags >> 3) & ~Piece.ColorMask | (Flags & Piece.ColorMask);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsPromotion() => Flags >= Piece.KnightPromotion && Flags < Piece.CastleShort;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Piece CapturedPieceType() => Target & Piece.TypeMask;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Piece MovingPiece() => Flags & Piece.PieceMask;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsBad(BoardState position, ref Move move)
+        {
+            if (Move.Order(move.CapturedPiece()) >= Move.Order(move.MovingPiece()))
+                return false;
+
+            int see = Evaluate(position, move, -1, 1);
+            return position.SideToMove == Color.White ? see < 0 : see > 0;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EvaluateSign(BoardState position, Move move)
         {
-            return Math.Sign(Evaluate(position, move, -1, 1));
+            StaticExchange see = new();
+            return Math.Sign(see.Evaluate(position, move, -1, 1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Evaluate(BoardState position, Move move)
         {
-            return Evaluate(position, move, -Evaluation.CheckmateScore, Evaluation.CheckmateScore);
+            StaticExchange see = new();
+            return see.Evaluate(position, move, -Evaluation.CheckmateScore, Evaluation.CheckmateScore);
         }
 
-        public static int Evaluate(BoardState position, Move move, int alpha, int beta)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PieceValue(int sign, Piece piece) => sign * PieceValues[(int)piece >> 1];
+
+        public int Evaluate(BoardState position, Move move, int alpha, int beta)
         {
-            position = position.Clone();
+            Flags = move.Flags;
+            Target = move.Target;
+            FromSquare = move.FromSquare;
+            ToSquare = move.ToSquare;
+            ToBit = 1UL << ToSquare;
+            White = position.White & ~ToBit;
+            Black = position.Black & ~ToBit;
+            Pawns = position.Pawns & ~ToBit;
+            Knights = position.Knights & ~ToBit & KnightTargets[ToSquare];
+            Bishops = position.Bishops & ~ToBit & DiagonalMask[ToSquare];
+            Rooks = position.Rooks & ~ToBit & OrthogonalMask[ToSquare];
+            Queens = position.Queens & ~ToBit & (OrthogonalMask[ToSquare] | DiagonalMask[ToSquare]);
+            Kings = position.Kings & ~ToBit & KingTargets[ToSquare];
+
+
             int sign = (int)position.SideToMove;
-            int square = move.ToSquare;
+            if (sign > 0)
+                PlayWhite();
+            else
+                PlayBlack();
+
             int see = move.IsEnPassant() ? PieceValue(sign, move.MovingPiece()) : 0;
 
             while (true)
             {
-                if (move.CapturedPieceType() == Piece.King)
+                if (CapturedPieceType() == Piece.King)
                     return sign * beta;
 
-                see -= PieceValue(sign, move.CapturedPiece());
+                see -= PieceValue(sign, Target);
 
-                if (move.IsPromotion())
+                if (IsPromotion())
                 {
-                    see -= PieceValue(sign, move.MovingPiece());
-                    see += PieceValue(sign, move.NewPiece());
+                    see -= PieceValue(sign, MovingPiece());
+                    see += PieceValue(sign, NewPiece());
                 }
 
                 if (see < alpha)
@@ -74,110 +131,113 @@ namespace Leorik.Core
 
                 beta = Math.Min(beta, see); //new stand-pat option for opponent
 
-                position.Play(move);
+                if (sign > 0)
+                {
+                    if (!PlayBlacksLeastValuableAttack())
+                        return beta;
+                    Black ^= (1UL << FromSquare);
+                }
+                else
+                {
+                    if (!PlayWhitesLeastValuableAttack())
+                        return -beta;
+                    White ^= (1UL << FromSquare);
+                }
+
                 //swap the side like a negamax without recursion
                 sign *= -1;
                 see *= -1;
                 (alpha, beta) = (-beta, -alpha);
-
-                if (!GetLeastValuableAttack(position, square, ref move))
-                    return sign * alpha; //Assert(alpha <= beta)
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool GetLeastValuableAttack(BoardState board, int targetSquare, ref Move move)
-        {
-            if (board.SideToMove == Color.White)
-                return GetWhitesLeastValuableAttack(board, targetSquare, ref move);
-            else
-                return GetBlacksLeastValuableAttack(board, targetSquare, ref move);
-        }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool GetBlacksLeastValuableAttack(BoardState board, int toSquare, ref Move move)
+        private bool PlayBlacksLeastValuableAttack()
         {
-            ulong target = 1UL << toSquare;
-            Piece targetPiece = board.GetPiece(toSquare);
+            Target = NewPiece();
 
             //capture left
-            ulong blackPawns = board.Black & board.Pawns;
+            ulong blackPawns = Black & Pawns;
             ulong left = (blackPawns & 0xFEFEFEFEFEFEFEFEUL) >> 9;
-            if ((left & target & 0xFFFFFFFFFFFFFF00UL) > 0)
+            if ((left & ToBit & 0xFFFFFFFFFFFFFF00UL) > 0)
             {
-                move = new Move(Piece.BlackPawn, toSquare + 9, toSquare, targetPiece);
+                Flags = Piece.BlackPawn;
+                FromSquare = ToSquare + 9;
                 return true;
             }
 
             ulong right = (blackPawns & 0x7F7F7F7F7F7F7F7FUL) >> 7;
-            if ((right & target & 0xFFFFFFFFFFFFFF00UL) > 0)
+            if ((right & ToBit & 0xFFFFFFFFFFFFFF00UL) > 0)
             {
-                move = new Move(Piece.BlackPawn, toSquare + 7, toSquare, targetPiece);
+                Flags = Piece.BlackPawn;
+                FromSquare = ToSquare + 7;
                 return true;
             }
 
-            ulong pieces = board.Black & board.Knights;
-            if (pieces > 0 && (pieces & Bitboard.KnightTargets[toSquare]) > 0)
+            ulong pieces = Black & Knights;
+            if (pieces > 0)
             {
-                int from = Bitboard.LSB(pieces & Bitboard.KnightTargets[toSquare]);
-                move = new Move(Piece.BlackKnight, from, toSquare, targetPiece);
+                Flags = Piece.BlackKnight;
+                FromSquare = LSB(pieces);
                 return true;
             }
 
-            pieces = board.Black & board.Bishops;
-            if (pieces > 0 && (pieces & Bitboard.DiagonalMask[toSquare]) > 0)
+            pieces = Black & Bishops;
+            if (pieces > 0)
             {
-                pieces &= Bitboard.GetBishopTargets(board.Black | board.White, toSquare);
+                pieces &= GetBishopTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.BlackBishop, from, toSquare, targetPiece);
+                    Flags = Piece.BlackBishop;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            pieces = board.Black & board.Rooks;
-            if (pieces > 0 && (pieces & Bitboard.OrthogonalMask[toSquare]) > 0)
+            pieces = Black & Rooks;
+            if (pieces > 0)
             {
-                pieces &= Bitboard.GetRookTargets(board.Black | board.White, toSquare);
+                pieces &= GetRookTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.BlackRook, from, toSquare, targetPiece);
+                    Flags = Piece.BlackRook;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            if ((left & target & 0x00000000000000FFUL) > 0)
+            if ((left & ToBit & 0x00000000000000FFUL) > 0)
             {
-                move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 9, toSquare, targetPiece);
+                Flags = Piece.BlackPawn | Piece.QueenPromotion;
+                FromSquare = ToSquare + 9;
                 return true;
             }
 
-            if ((right & target & 0x00000000000000FFUL) > 0)
+            if ((right & ToBit & 0x00000000000000FFUL) > 0)
             {
-                move = new Move(Piece.BlackPawn | Piece.QueenPromotion, toSquare + 7, toSquare, targetPiece);
+                Flags = Piece.BlackPawn | Piece.QueenPromotion;
+                FromSquare = ToSquare + 7;
                 return true;
             }
 
-            pieces = board.Black & board.Queens;
-            if (pieces > 0 && (pieces & (Bitboard.DiagonalMask[toSquare] | Bitboard.OrthogonalMask[toSquare])) > 0)
+            pieces = Black & Queens;
+            if (pieces > 0)
             {
-                pieces &= Bitboard.GetQueenTargets(board.Black | board.White, toSquare);
+                pieces &= GetQueenTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.BlackQueen, from, toSquare, targetPiece);
+                    Flags = Piece.BlackQueen;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            pieces = board.Black & board.Kings;
-            if (pieces > 0 && (pieces & Bitboard.KingTargets[toSquare]) > 0)
+            pieces = Black & Kings;
+            if (pieces > 0)
             {
-                int from = Bitboard.LSB(pieces & Bitboard.KingTargets[toSquare]);
-                move = new Move(Piece.BlackKing, from, toSquare, targetPiece);
+                Flags = Piece.BlackKing;
+                FromSquare = LSB(pieces);
                 return true;
             }
 
@@ -185,90 +245,134 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool GetWhitesLeastValuableAttack(BoardState board, int toSquare, ref Move move)
+        private bool PlayWhitesLeastValuableAttack()
         {
-            ulong target = 1UL << toSquare;
-            Piece targetPiece = board.GetPiece(toSquare);
+            Target = NewPiece();
 
-            ulong whitePawns = board.Pawns & board.White;
+            ulong whitePawns = Pawns & White;
             ulong left = (whitePawns & 0xFEFEFEFEFEFEFEFEUL) << 7;
-            if ((left & target & 0x00FFFFFFFFFFFFFFUL) > 0)
+            if ((left & ToBit & 0x00FFFFFFFFFFFFFFUL) > 0)
             {
-                move = new Move(Piece.WhitePawn, toSquare - 7, toSquare, targetPiece);
+                Flags = Piece.WhitePawn;
+                FromSquare = ToSquare - 7;
                 return true;
             }
 
             ulong right = (whitePawns & 0x7F7F7F7F7F7F7F7FUL) << 9;
-            if ((right & target & 0x00FFFFFFFFFFFFFFUL) > 0)
+            if ((right & ToBit & 0x00FFFFFFFFFFFFFFUL) > 0)
             {
-                move = new Move(Piece.WhitePawn, toSquare - 9, toSquare, targetPiece);
+                Flags = Piece.WhitePawn;
+                FromSquare = ToSquare - 9;
                 return true;
             }
 
-            ulong pieces = board.White & board.Knights;
-            if (pieces > 0 && (pieces & Bitboard.KnightTargets[toSquare]) > 0)
+            ulong pieces = White & Knights;
+            if (pieces > 0)
             {
-                int from = Bitboard.LSB(pieces & Bitboard.KnightTargets[toSquare]);
-                move = new Move(Piece.WhiteKnight, from, toSquare, targetPiece);
+                Flags = Piece.WhiteKnight;
+                FromSquare = LSB(pieces);
                 return true;
             }
 
-            pieces = board.White & board.Bishops;
-            if (pieces > 0 && (pieces & Bitboard.DiagonalMask[toSquare]) > 0)
+            pieces = White & Bishops;
+            if (pieces > 0)
             {
-                pieces &= Bitboard.GetBishopTargets(board.Black | board.White, toSquare);
+                pieces &= GetBishopTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.WhiteBishop, from, toSquare, targetPiece);
+                    Flags = Piece.WhiteBishop;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            pieces = board.White & board.Rooks;
-            if (pieces > 0 && (pieces & Bitboard.OrthogonalMask[toSquare]) > 0)
+            pieces = White & Rooks;
+            if (pieces > 0)
             {
-                pieces &= Bitboard.GetRookTargets(board.Black | board.White, toSquare);
+                pieces &= GetRookTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.WhiteRook, from, toSquare, targetPiece);
+                    Flags = Piece.WhiteRook;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            if ((left & target & 0xFF00000000000000UL) > 0)
+            if ((left & ToBit & 0xFF00000000000000UL) > 0)
             {
-                move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 7, toSquare, targetPiece);
-                return true;
-            }
-            if ((right & target & 0xFF00000000000000UL) > 0)
-            {
-                move = new Move(Piece.WhitePawn | Piece.QueenPromotion, toSquare - 9, toSquare, targetPiece);
+                Flags = Piece.WhitePawn | Piece.QueenPromotion;
+                FromSquare = ToSquare - 7;
                 return true;
             }
 
-            pieces = board.White & board.Queens;
-            if (pieces > 0 && (pieces & (Bitboard.DiagonalMask[toSquare] | Bitboard.OrthogonalMask[toSquare])) > 0)
+            if ((right & ToBit & 0xFF00000000000000UL) > 0)
             {
-                pieces &= Bitboard.GetQueenTargets(board.Black | board.White, toSquare);
+                Flags = Piece.WhitePawn | Piece.QueenPromotion;
+                FromSquare = ToSquare - 9;
+                return true;
+            }
+
+            pieces = White & Queens;
+            if (pieces > 0)
+            {
+                pieces &= GetQueenTargets(Black | White, ToSquare);
                 if (pieces > 0)
                 {
-                    int from = Bitboard.LSB(pieces);
-                    move = new Move(Piece.WhiteQueen, from, toSquare, targetPiece);
+                    Flags = Piece.WhiteQueen;
+                    FromSquare = LSB(pieces);
                     return true;
                 }
             }
 
-            pieces = board.White & board.Kings;
-            if (pieces > 0 && (pieces & Bitboard.KingTargets[toSquare]) > 0)
+            pieces = White & Kings;
+            if (pieces > 0)
             {
-                int from = Bitboard.LSB(pieces & Bitboard.KingTargets[toSquare]);
-                move = new Move(Piece.WhiteKing, from, toSquare, targetPiece);
+                Flags = Piece.WhiteKing;
+                FromSquare = LSB(pieces);
                 return true;
             }
 
             return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PlayBlack()
+        {
+            ulong bbFrom = 1UL << FromSquare;
+            Black ^= bbFrom;
+
+            switch (Flags & ~Piece.ColorMask)
+            {
+                case Piece.CastleShort:
+                    Kings ^= bbFrom | ToBit;
+                    Rooks ^= 0xA000000000000000UL;
+                    Black ^= 0xA000000000000000UL;
+                    break;
+                case Piece.CastleLong:
+                    Kings ^= bbFrom | ToBit;
+                    Rooks ^= 0x0900000000000000UL;
+                    Black ^= 0x0900000000000000UL;
+                    break;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PlayWhite()
+        {
+            ulong bbFrom = 1UL << FromSquare;
+            White ^= bbFrom;
+
+            switch (Flags & ~Piece.ColorMask)
+            {
+                case Piece.CastleShort:
+                    Rooks ^= 0x00000000000000A0UL;
+                    White ^= 0x00000000000000A0UL;
+                    break;
+                case Piece.CastleLong:
+                    Rooks ^= 0x0000000000000009UL;
+                    White ^= 0x0000000000000009UL;
+                    break;
+            }
         }
     }
 }
