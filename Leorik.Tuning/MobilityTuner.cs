@@ -85,15 +85,13 @@ namespace Leorik.Tuning
             Console.WriteLine();
         }
 
-        //Score of Leorik-2.3X vs Leorik-2.3: 2673 - 2431 - 3902  [0.513] 9006
-        //Elo difference: 9.3 +/- 5.4, LOS: 100.0 %, DrawRatio: 43.3 %
         internal static (int mg, int eg) Rebalance(Piece piece, int offset, float[] coefficients)
         {
             const int step = 2;
             int order = Move.Order(piece);
             int i0 = PieceMobilityIndices[order];
             int iNext = PieceMobilityIndices[order + 1];
-            int iBase = i0 + (iNext - i0) / 3;
+            int iBase = i0;//i0 + (iNext - i0) / 3;
             int mg = (int)coefficients[offset + iBase * step];
             int eg = (int)coefficients[offset + iBase * step + 1];
 
