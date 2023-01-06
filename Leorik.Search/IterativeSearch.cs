@@ -93,14 +93,17 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExtendPV(int ply, Move move)
+        public void ExtendPV(int ply, int remaining, Move move)
         {
             int index = IndexPV(ply);
             PrincipalVariations[index] = move;
             int stride = Depth - ply;
             int from = index + stride - 1;
-            for (int i = 1; i < stride; i++)
+            for (int i = 1; i < remaining; i++)
                 PrincipalVariations[index + i] = PrincipalVariations[from + i];
+
+            for (int i = remaining; i < stride; i++)
+                PrincipalVariations[index + i] = default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -344,7 +347,7 @@ namespace Leorik.Search
                 {
                     alpha = score;
                     bestMove = move;
-                    ExtendPV(0, bestMove);
+                    ExtendPV(0, depth, bestMove);
 
                     if (playState.Stage >= Stage.Killers)
                     {
@@ -385,10 +388,10 @@ namespace Leorik.Search
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
-                bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
+                bool interesting = playState.PlayedMoves == 1 || inCheck || next.InCheck();
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
-                if (remaining <= FUTILITY_RANGE && !interesting)
+                if (!interesting && remaining <= FUTILITY_RANGE)
                 {
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
@@ -397,11 +400,10 @@ namespace Leorik.Search
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (remaining >= 2 && playState.PlayedMoves > 1)
+                if (!interesting && remaining >= 2)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
-                    int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
+                    int R = playState.Stage < Stage.Quiets ? 0 : 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
                         continue;
                 }
@@ -414,7 +416,7 @@ namespace Leorik.Search
 
                 alpha = score;
                 bestMove = move;
-                ExtendPV(ply, bestMove);
+                ExtendPV(ply, remaining, bestMove);
 
                 if (playState.Stage >= Stage.Killers)
                 {
