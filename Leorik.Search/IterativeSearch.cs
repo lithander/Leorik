@@ -330,17 +330,21 @@ namespace Leorik.Search
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(depth, ref move);
 
+                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
+                int bonus = _random.Next(maxRandomCpBonus);
+
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (depth >= 2 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = (inCheck || next.InCheck() || playState.Stage < Stage.Quiets) ? 0 : 2;
-                    if (FailLow(0, depth - R, alpha, moveGen))
+
+                    //if (FailLow(0, depth - R, alpha, moveGen)) BUT WHIT BONUS!
+                    if (bonus - EvaluateTT(1, depth - R - 1, bonus - alpha - 1, bonus - alpha, moveGen) <= alpha)
                         continue;
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = _random.Next(maxRandomCpBonus);
                 int score = bonus - EvaluateTT(1, depth - 1, bonus - MAX_BETA, bonus - alpha, moveGen);
 
                 if (score > alpha)
@@ -388,10 +392,10 @@ namespace Leorik.Search
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
-                bool interesting = playState.PlayedMoves == 1 || inCheck || next.InCheck();
+                bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
-                if (!interesting && remaining <= FUTILITY_RANGE)
+                if (remaining <= FUTILITY_RANGE && !interesting)
                 {
                     //if the static eval looks much worse than alpha also skip it
                     float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
@@ -400,10 +404,11 @@ namespace Leorik.Search
                 }
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (!interesting && remaining >= 2)
+                if (remaining >= 2 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = playState.Stage < Stage.Quiets ? 0 : 2;
+                    //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
+                    int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
                         continue;
                 }
