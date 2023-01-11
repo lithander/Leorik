@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3.3 fixed PV-search in root to include random bonus";
+        const string NAME_VERSION = "Leorik 2.3.3 - Try Nullmove only if current.RelativeScore() > alpha";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();

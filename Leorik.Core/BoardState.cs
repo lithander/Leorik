@@ -345,9 +345,9 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsEndgame(Color color)
+        public bool IsEndgame()
         {
-            if (color == Color.White)
+            if (SideToMove == Color.White)
                 return White == (White & (Kings | Pawns));
             else
                 return Black == (Black & (Kings | Pawns));

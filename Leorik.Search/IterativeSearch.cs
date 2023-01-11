@@ -376,8 +376,8 @@ namespace Leorik.Search
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
 
-            //consider null move pruning first           
-            if (remaining >= 2 && beta < MAX_BETA && !inCheck && AllowNullMove(ply) && !current.IsEndgame(current.SideToMove))
+            //consider null move pruning first
+            if (!inCheck && remaining >= 2 && beta < MAX_BETA && current.RelativeScore() > alpha && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
@@ -407,7 +407,6 @@ namespace Leorik.Search
                 if (remaining >= 2 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    //int R = interesting || playState.PlayedMoves < 4 ? 0 : 2;
                     int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
                     if (FailLow(ply, remaining - R, alpha, moveGen))
                         continue;
