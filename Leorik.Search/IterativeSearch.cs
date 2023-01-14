@@ -30,11 +30,11 @@ namespace Leorik.Search
 
         private BoardState[] Positions;
         private Move[] Moves;
+        private int[] RootMoveOffsets;
         private Move[] PrincipalVariations;
         private KillSwitch _killSwitch;
         private History _history;
         private KillerMoves _killers;
-        private Random _random = new Random();
         private StaticExchange _see = new StaticExchange();
 
         SearchOptions _options;
@@ -59,10 +59,18 @@ namespace Leorik.Search
             const int d = MAX_PLY + 1;
             PrincipalVariations = new Move[(d * d + d) / 2];
 
+            //Initialize BoardState Stack
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Positions[0].Copy(board);
+
+            //Initialize a random bonus added to each root move
+            Random random = new Random();
+            int maxRandomCpBonus = _options.Randomness(board.Eval.Phase);
+            RootMoveOffsets = new int[MAX_MOVES];
+            for (int i = 0; i < MAX_MOVES; i++)
+                RootMoveOffsets[i] = random.Next(maxRandomCpBonus);
         }
 
         public void Search(int maxDepth)
@@ -320,8 +328,6 @@ namespace Leorik.Search
             BoardState next = Positions[1];
             bool inCheck = root.InCheck();
             int alpha = MIN_ALPHA;
-            int maxRandomCpBonus = _options.Randomness(root.Eval.Phase);
-            //Console.WriteLine($"Lerp({root.Eval.Phase}, {_options.MidgameRandomness}, {_options.EndgameRandomness}) = {maxRandomCpBonus}");
 
             //init staged move generation and play all moves
             PlayState playState = InitPlay(ref moveGen, ref bestMove);
@@ -331,7 +337,7 @@ namespace Leorik.Search
                 _history.Played(depth, ref move);
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = _random.Next(maxRandomCpBonus);
+                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[playState.PlayedMoves - 1];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (depth >= 2 && playState.PlayedMoves > 1)

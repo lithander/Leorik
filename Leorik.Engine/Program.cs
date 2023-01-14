@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3.3 - Try Nullmove only if current.RelativeScore() > alpha";
+        const string NAME_VERSION = "Leorik 2.3.3c - Random but consistent root move bonus. No randomization when going for mate.";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
