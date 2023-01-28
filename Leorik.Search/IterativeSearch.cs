@@ -7,6 +7,8 @@ namespace Leorik.Search
     {
         public byte MidgameRandomness;
         public byte EndgameRandomness;
+        public byte FutilityMargin;
+        public byte LateFutilityMargin;
         public long MaxNodes;
 
         internal int Randomness(float phase)
@@ -14,7 +16,12 @@ namespace Leorik.Search
             return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
         }
 
-        public static SearchOptions Default => new SearchOptions() { MaxNodes = long.MaxValue };
+        public static SearchOptions Default => new SearchOptions() 
+        { 
+            MaxNodes = long.MaxValue,
+            FutilityMargin = 90,
+            LateFutilityMargin = 50
+        };
     }
 
     public class IterativeSearch
@@ -22,8 +29,6 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
 
         private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
-        private const int MAX_GAIN_PER_PLY = 70; //upper bound on the amount of cp you can hope to make good in a ply
-        private const int FUTILITY_RANGE = 4;
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
@@ -401,10 +406,10 @@ namespace Leorik.Search
                 bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
 
                 //some nodes near the leaves that appear hopeless can be skipped without evaluation
-                if (remaining <= FUTILITY_RANGE && !interesting)
+                if (!interesting && !Evaluation.IsCheckmate(Score))
                 {
                     //if the static eval looks much worse than alpha also skip it
-                    float futilityMargin = alpha - remaining * MAX_GAIN_PER_PLY;
+                    float futilityMargin = alpha - remaining * (playState.Stage == Stage.Quiets ? _options.LateFutilityMargin : _options.FutilityMargin);
                     if (next.RelativeScore(current.SideToMove) < futilityMargin)
                         continue;
                 }
