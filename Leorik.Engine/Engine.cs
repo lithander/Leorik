@@ -12,12 +12,7 @@ namespace Leorik.Engine
         BoardState _board = Notation.GetStartingPosition();
         List<BoardState> _history = new List<BoardState>();
 
-        //each root move receives a random bonus between [0..maxRandomCpBonus] so good moves
-        //within 'maxRandomCpBonus' centipawns of the bestmove have a chance to be played instead
-        //the exact value of 'maxRandomCpBonus' depends on the phase of the position
-
-        public SearchOptions Options;
-
+        public SearchOptions Options = SearchOptions.Default;
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
         public string GetFen() => Notation.GetFen(_board);

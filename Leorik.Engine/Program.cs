@@ -36,10 +36,10 @@ namespace Leorik.Engine
                     Console.WriteLine($"id name {NAME_VERSION}");
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
-                    Console.WriteLine($"option name Midgame Randomness type spin default 0 min 0 max 255");
-                    Console.WriteLine($"option name Endgame Randomness type spin default 0 min 0 max 255");
-                    Console.WriteLine($"option name FutilityMargin type spin default 90 min 0 max 255");
-                    Console.WriteLine($"option name LateFutilityMargin type spin default 50 min 0 max 255");
+                    Console.WriteLine($"option name Midgame Randomness type spin default {SearchOptions.Default.MidgameRandomness} min 0 max 255");
+                    Console.WriteLine($"option name Endgame Randomness type spin default {SearchOptions.Default.EndgameRandomness} min 0 max 255");
+                    Console.WriteLine($"option name FutilityMargin type spin default {SearchOptions.Default.FutilityMargin} min 0 max 255");
+                    Console.WriteLine($"option name LateFutilityMargin type spin default {SearchOptions.Default.LateFutilityMargin} min 0 max 255");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":

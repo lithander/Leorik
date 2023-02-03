@@ -1,5 +1,9 @@
 ﻿using Leorik.Core;
+using System;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Xml.Linq;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Leorik.Search
 {
@@ -16,12 +20,16 @@ namespace Leorik.Search
             return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
         }
 
-        public static SearchOptions Default => new SearchOptions() 
-        { 
-            MaxNodes = long.MaxValue,
-            FutilityMargin = 90,
-            LateFutilityMargin = 50
-        };
+        public static SearchOptions Default = new();
+
+        public SearchOptions()
+        {
+            MaxNodes = long.MaxValue;
+            MidgameRandomness = 0;
+            EndgameRandomness = 0;
+            FutilityMargin = 90;
+            LateFutilityMargin = 50;
+        }
     }
 
     public class IterativeSearch
@@ -449,7 +457,7 @@ namespace Leorik.Search
                 return inCheck ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
-        }
+        }                
 
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
