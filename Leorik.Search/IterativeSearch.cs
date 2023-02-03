@@ -171,20 +171,13 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool FailLow(int ply, int remaining, int alpha, MoveGen moveGen)
+        private int EvaluateNext(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
         {
-            return -EvaluateTT(ply + 1, remaining - 1, -alpha - 1, -alpha, moveGen) <= alpha;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool FailHigh(int ply, int remaining, int beta, MoveGen moveGen)
-        {
-            return -EvaluateTT(ply + 1, remaining - 1, -beta, -beta + 1, moveGen) >= beta;
+            return -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, ref moveGen);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvaluateTT(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
+        private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
             if (Aborted)
                 return Positions[ply].RelativeScore();
@@ -359,12 +352,12 @@ namespace Leorik.Search
                     int R = (inCheck || next.InCheck() || playState.Stage < Stage.Quiets) ? 0 : 2;
 
                     //if (FailLow(0, depth - R, alpha, moveGen)) BUT WHIT BONUS!
-                    if (bonus - EvaluateTT(1, depth - R - 1, bonus - alpha - 1, bonus - alpha, moveGen) <= alpha)
+                    if (EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha - bonus)
                         continue;
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int score = bonus - EvaluateTT(1, depth - 1, bonus - MAX_BETA, bonus - alpha, moveGen);
+                int score = bonus + EvaluateNext(0, depth, alpha - bonus, MAX_BETA - bonus, moveGen);
 
                 if (score > alpha)
                 {
@@ -400,7 +393,7 @@ namespace Leorik.Search
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (FailHigh(ply, remaining - R_NULL_MOVE, beta, moveGen))
+                if (EvaluateNext(ply, remaining - R_NULL_MOVE, beta-1, beta, moveGen) >= beta)
                     return beta;
             }
 
@@ -427,12 +420,12 @@ namespace Leorik.Search
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
-                    if (FailLow(ply, remaining - R, alpha, moveGen))
+                    if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
 
                 //...but if it does not we have to research it!
-                int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, moveGen);
+                int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
 
                 if (score <= alpha)
                     continue;
