@@ -127,7 +127,6 @@ Console.ReadKey();
 * 
 */
 
-
 void PgnToUci(string pgnFileName)
 {
     Console.WriteLine($"Converting PGN to 'position startpos move ...' format..");

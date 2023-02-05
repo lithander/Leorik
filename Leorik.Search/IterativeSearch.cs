@@ -1,9 +1,5 @@
 ﻿using Leorik.Core;
-using System;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Xml.Linq;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace Leorik.Search
 {
@@ -11,8 +7,6 @@ namespace Leorik.Search
     {
         public byte MidgameRandomness;
         public byte EndgameRandomness;
-        public byte FutilityMargin;
-        public byte LateFutilityMargin;
         public long MaxNodes;
 
         internal int Randomness(float phase)
@@ -27,16 +21,13 @@ namespace Leorik.Search
             MaxNodes = long.MaxValue;
             MidgameRandomness = 0;
             EndgameRandomness = 0;
-            FutilityMargin = 90;
-            LateFutilityMargin = 50;
         }
     }
 
     public class IterativeSearch
     {
         public const int MAX_PLY = 99;
-
-        private const int R_NULL_MOVE = 2; //how much do we reduce the search depth after passing a move? (null move pruning)
+        private const int NULL_MOVE_R = 4;
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
@@ -349,9 +340,8 @@ namespace Leorik.Search
                 if (depth >= 2 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = (inCheck || next.InCheck() || playState.Stage < Stage.Quiets) ? 0 : 2;
-
-                    //if (FailLow(0, depth - R, alpha, moveGen)) BUT WHIT BONUS!
+                    int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
+                    //Fail low but with BONUS!
                     if (EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha - bonus)
                         continue;
                 }
@@ -389,11 +379,11 @@ namespace Leorik.Search
             bool inCheck = current.InCheck();
 
             //consider null move pruning first
-            if (!inCheck && remaining >= 2 && beta < MAX_BETA && current.RelativeScore() > alpha && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && remaining >= 2 && beta < MAX_BETA && current.RelativeScore() > beta && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (EvaluateNext(ply, remaining - R_NULL_MOVE, beta-1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - NULL_MOVE_R, beta-1, beta, moveGen) >= beta)
                     return beta;
             }
 
@@ -404,22 +394,11 @@ namespace Leorik.Search
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
-                bool interesting = playState.Stage == Stage.New || inCheck || next.InCheck();
-
-                //some nodes near the leaves that appear hopeless can be skipped without evaluation
-                if (!interesting && !Evaluation.IsCheckmate(Score))
-                {
-                    //if the static eval looks much worse than alpha also skip it
-                    float futilityMargin = alpha - remaining * (playState.Stage == Stage.Quiets ? _options.LateFutilityMargin : _options.FutilityMargin);
-                    if (next.RelativeScore(current.SideToMove) < futilityMargin)
-                        continue;
-                }
-
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (remaining >= 2 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = interesting || playState.Stage < Stage.Quiets ? 0 : 2;
+                    int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }

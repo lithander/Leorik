@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3.4a - FutilityMargin=90, LateFutilityMargin=50";
+        const string NAME_VERSION = "Leorik 2.3.4";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -38,8 +38,6 @@ namespace Leorik.Engine
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Midgame Randomness type spin default {SearchOptions.Default.MidgameRandomness} min 0 max 255");
                     Console.WriteLine($"option name Endgame Randomness type spin default {SearchOptions.Default.EndgameRandomness} min 0 max 255");
-                    Console.WriteLine($"option name FutilityMargin type spin default {SearchOptions.Default.FutilityMargin} min 0 max 255");
-                    Console.WriteLine($"option name LateFutilityMargin type spin default {SearchOptions.Default.LateFutilityMargin} min 0 max 255");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
@@ -95,11 +93,6 @@ namespace Leorik.Engine
                 _engine.Options.MidgameRandomness = mgRandomness;
             else if (token[1] == "name" && token[2] == "Endgame" && token[3] == "Randomness" && token[4] == "value" && byte.TryParse(token[5], out byte egRandomness))
                 _engine.Options.EndgameRandomness = egRandomness;
-
-            else if (token[1] == "name" && token[2] == "FutilityMargin" && token[3] == "value" && byte.TryParse(token[4], out byte futMargin))
-                _engine.Options.FutilityMargin = futMargin;
-            else if (token[1] == "name" && token[2] == "LateFutilityMargin" && token[3] == "value" && byte.TryParse(token[4], out byte lateFutMargin))
-                _engine.Options.LateFutilityMargin = lateFutMargin;
             else
                 Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
