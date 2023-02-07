@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Diagnostics;
 
 namespace Leorik.Tuning
 {
@@ -84,9 +85,8 @@ namespace Leorik.Tuning
         private void ParseMoveNumber()
         {
             _moveNumber++;
-            string token = $"{_moveNumber}. ";
-            int i = _line.IndexOf(token, _index);
-            _index = i + token.Length;
+            string token = ParseToken();
+            Debug.Assert(token == $"{_moveNumber}.");
             _state = PGNParserState.WhiteMove;
         }
         private void ParseWhiteMove()
@@ -105,6 +105,10 @@ namespace Leorik.Tuning
 
         private string ParseToken()
         {
+            //skip whitespaces
+            while (_line[_index] == ' ')
+                _index++;
+
             int end = _line.IndexOf(' ', _index);
             if (end == -1)
             {
