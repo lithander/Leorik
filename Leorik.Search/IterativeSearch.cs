@@ -1,5 +1,6 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Leorik.Search
 {
@@ -8,6 +9,8 @@ namespace Leorik.Search
         public byte MidgameRandomness;
         public byte EndgameRandomness;
         public long MaxNodes;
+        public int NullMoveCutoff;
+        public byte NullMoveReductions;
 
         internal int Randomness(float phase)
         {
@@ -21,13 +24,14 @@ namespace Leorik.Search
             MaxNodes = long.MaxValue;
             MidgameRandomness = 0;
             EndgameRandomness = 0;
+            NullMoveCutoff = 338;
+            NullMoveReductions = 4;
         }
     }
 
     public class IterativeSearch
     {
         public const int MAX_PLY = 99;
-        private const int NULL_MOVE_R = 4;
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
@@ -370,6 +374,9 @@ namespace Leorik.Search
             return alpha;
         }
 
+        public static long TotalCutoffs = 0;
+        public static long FalseCutoffs = 0;
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -377,13 +384,18 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
+            int eval = current.RelativeScore();
 
             //consider null move pruning first
-            if (!inCheck && remaining >= 2 && beta < MAX_BETA && current.RelativeScore() > beta && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
             {
+                //int R = remaining < ply ? 2 : 4;
+                if (remaining - _options.NullMoveReductions <= 1 && eval - beta > _options.NullMoveCutoff)
+                    return beta;
+
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (EvaluateNext(ply, remaining - NULL_MOVE_R, beta-1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - _options.NullMoveReductions, beta-1, beta, moveGen) >= beta)
                     return beta;
             }
 

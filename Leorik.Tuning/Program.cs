@@ -72,7 +72,7 @@ Console.WriteLine($"PHASE_BATCH = {PHASE_BATCH}");
 Console.WriteLine();
 
 //BitboardUtils.Repl();
-//PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
+PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //PrepareData();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
 
