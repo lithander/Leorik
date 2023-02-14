@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3.5a - NullMoveCutoff=338, NullMoveReduction=4";
+        const string NAME_VERSION = "Leorik 2.3.6 - NullMoveCutoff=338";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -39,7 +39,6 @@ namespace Leorik.Engine
                     Console.WriteLine($"option name Midgame Randomness type spin default {SearchOptions.Default.MidgameRandomness} min 0 max 255");
                     Console.WriteLine($"option name Endgame Randomness type spin default {SearchOptions.Default.EndgameRandomness} min 0 max 255");
                     Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
-                    Console.WriteLine($"option name NullMoveReductions type spin default {SearchOptions.Default.NullMoveReductions} min 0 max 255");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
@@ -97,8 +96,6 @@ namespace Leorik.Engine
                 _engine.Options.EndgameRandomness = egRandomness;
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
-            else if (token[1] == "name" && token[2] == "NullMoveReductions" && token[3] == "value" && byte.TryParse(token[4], out byte nullMoveReduction))
-                _engine.Options.NullMoveReductions = nullMoveReduction;
             else
                 Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }

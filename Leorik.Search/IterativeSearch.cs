@@ -10,7 +10,6 @@ namespace Leorik.Search
         public byte EndgameRandomness;
         public long MaxNodes;
         public int NullMoveCutoff;
-        public byte NullMoveReductions;
 
         internal int Randomness(float phase)
         {
@@ -25,7 +24,6 @@ namespace Leorik.Search
             MidgameRandomness = 0;
             EndgameRandomness = 0;
             NullMoveCutoff = 338;
-            NullMoveReductions = 4;
         }
     }
 
@@ -374,9 +372,6 @@ namespace Leorik.Search
             return alpha;
         }
 
-        public static long TotalCutoffs = 0;
-        public static long FalseCutoffs = 0;
-
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -389,13 +384,13 @@ namespace Leorik.Search
             //consider null move pruning first
             if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
             {
-                //int R = remaining < ply ? 2 : 4;
-                if (remaining - _options.NullMoveReductions <= 1 && eval - beta > _options.NullMoveCutoff)
+                //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
+                if (remaining < 6 && eval > beta + _options.NullMoveCutoff)
                     return beta;
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (EvaluateNext(ply, remaining - _options.NullMoveReductions, beta-1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - 4, beta-1, beta, moveGen) >= beta)
                     return beta;
             }
 
@@ -407,7 +402,7 @@ namespace Leorik.Search
                 _history.Played(remaining, ref move);
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (remaining >= 2 && playState.PlayedMoves > 1)
+                if (remaining > 1 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
