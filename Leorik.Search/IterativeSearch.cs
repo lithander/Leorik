@@ -406,6 +406,9 @@ namespace Leorik.Search
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
+                    if (remaining <= 6 && _see.IsBad(current, ref move))
+                        R += 2;
+
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
