@@ -23,7 +23,7 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            RunSeeTests();
+            //RunSeeTests();
 
             Console.WriteLine("Depth:");
             if (!int.TryParse(Console.ReadLine(), out int depth))
@@ -37,7 +37,8 @@ namespace Leorik.Test
             if (int.TryParse(Console.ReadLine(), out int hashSize))
                 Transpositions.Resize(hashSize);
 
-            CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
+            //CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
+            CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
             //RunMateTests();
@@ -74,7 +75,8 @@ namespace Leorik.Test
             long totalNodes = 0;
             int count = 0;
             int foundBest = 0;
-            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
+            int totalScore = 0;
+            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out Dictionary<Move, int> bestMoves) > 0)
             {
                 //Transpositions.Clear();
                 Transpositions.IncreaseAge();
@@ -87,14 +89,17 @@ namespace Leorik.Test
                 totalTime += dt;
                 totalNodes += NodesVisited;
                 string pvString = string.Join(' ', pv.ToArray());
-                bool foundBestMove = bestMoves.Contains(pv[0]);
+                bool foundBestMove = bestMoves.TryGetValue(pv[0], out int score);
                 if (foundBestMove)
+                {
                     foundBest++;
+                    totalScore += score;
+                }
 
                 if (logDetails)
                 {
                     Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
-                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
+                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count*100})");
                 }
                 else
                     Console.Write('.');
@@ -105,7 +110,7 @@ namespace Leorik.Test
             Console.WriteLine($"Searched {count} positions with {label}({depth})");
             Console.WriteLine($"{totalNodes} nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
-            Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
+            Console.WriteLine($"Best move found in {foundBest} / {count} positions! Score: {totalScore}/{count * 100}");
             Console.WriteLine();
         }
 
@@ -117,7 +122,8 @@ namespace Leorik.Test
             long totalNodes = 0;
             int count = 0;
             int foundBest = 0;
-            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out List<Move> bestMoves) > 0)
+            int totalScore = 0;
+            while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out Dictionary<Move, int> bestMoves) > 0)
             {
                 Transpositions.Clear();
                 Move pvMove = default;
@@ -139,14 +145,17 @@ namespace Leorik.Test
                 totalTime += dt;
                 totalNodes += search.NodesVisited;
                 string pvString = string.Join(' ', search.PrincipalVariation.ToArray());
-                bool foundBestMove = bestMoves.Contains(pvMove);
+                bool foundBestMove = bestMoves.TryGetValue(pvMove, out int score);
                 if (foundBestMove)
+                {
                     foundBest++;
+                    totalScore += score;
+                }
 
                 if (logDetails)
                 {
                     Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
-                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved.");
+                    Console.WriteLine($"{totalNodes,14} nodes, {(int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count * 100})");
                 }
                 else
                     Console.Write('.');
@@ -157,11 +166,11 @@ namespace Leorik.Test
             Console.WriteLine($"Searched {count} positions for {timeBudgetMs}ms each.");
             Console.WriteLine($"{totalNodes / 1000}K nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
-            Console.WriteLine($"Best move found in {foundBest} / {count} positions!");
+            Console.WriteLine($"Best move found in {foundBest} / {count} positions! Score: {totalScore}/{count * 100}");
             Console.WriteLine();
         }
 
-        private static int ParseEpd(string epd, out BoardState board, out List<Move> bestMoves)
+        private static int ParseEpd(string epd, out BoardState board, out Dictionary<Move, int> bestMoves)
         {
             //The parser expects a fen-string with bm delimited by a ';'
             //Example: 2q1r1k1/1ppb4/r2p1Pp1/p4n1p/2P1n3/5NPP/PP3Q1K/2BRRB2 w - - bm f7+; id "ECM.001";
@@ -172,13 +181,33 @@ namespace Leorik.Test
             string bmString = epd.Substring(bmStart, bmEnd - bmStart);
 
             board = Notation.GetBoardState(fen);
-            bestMoves = new List<Move>();
+            bestMoves = new Dictionary<Move, int>();
             foreach (var token in bmString.Split())
             {
                 Move bestMove = Notation.GetMove(board, token);
                 //Console.WriteLine($"{bmString} => {bestMove}");
-                bestMoves.Add(bestMove);
+                bestMoves[bestMove] = 100;
             }
+
+            //Example: r1bq1rk1/pp2bppp/2n1pn2/8/2Pp4/N2P1NP1/PP3PBP/R1BQ1RK1 w - - bm Re1; c0 "Re1=100, Qe2=100, Bg5=100, Bf4=100, Nc2=96, Bd2=94, Rb1=91"; acd 25; Ae "Stockfish 2019.04.16";
+            int c0Start = epd.IndexOf("c0");
+            if(c0Start != -1)
+            {
+                c0Start = epd.IndexOf('"', c0Start);
+                int c0End = epd.IndexOf('"', c0Start + 1);
+                string scoreString = epd.Substring(c0Start+1, c0End - c0Start - 1).Replace(",", string.Empty);
+                foreach(var token in scoreString.Split()) 
+                {
+                    int split = token.IndexOf('=');
+                    string moveStr = token.Substring(0, split);
+                    string scoreStr = token.Substring(split+1);
+                    Move bestMove = Notation.GetMove(board, moveStr);
+                    int score = int.Parse(scoreStr);
+                    bestMoves[bestMove] = score;
+                    //Console.WriteLine($"{bestMove}={score}");
+                }
+            }
+
             return bestMoves.Count;
         }
 
