@@ -371,5 +371,28 @@ namespace Leorik.Core
             }
             throw new ArgumentException("No move meeting all requirements could be found!");
         }
+
+        public static string GetEndgameClass(BoardState board)
+        {
+            StringBuilder sb = new StringBuilder();
+            void Add(char c, ulong bb)
+            {
+                int cnt = Bitboard.PopCount(bb);
+                while (cnt-- > 0) sb.Append(c);
+            }
+            void AddAll(ulong color)
+            {
+                Add('K', color & board.Kings);
+                Add('Q', color & board.Queens);
+                Add('R', color & board.Rooks);
+                Add('B', color & board.Bishops);
+                Add('N', color & board.Knights);
+                Add('P', color & board.Pawns);
+            }
+            AddAll(board.White);
+            sb.Append("v");
+            AddAll(board.Black);
+            return sb.ToString();
+        }
     }
 }

@@ -21,7 +21,7 @@ namespace Leorik.Core
             Mobility.Update(board, ref Positional);
             //KingSafety.Update(board, ref _positional);
             AddPieces(board);
-            UpdateScore();
+            UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -29,7 +29,7 @@ namespace Leorik.Core
         {
             PawnStructure.Update(board, ref Pawns);
             UpdateMaterial(board, ref move);
-            UpdateScore();
+            UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -40,16 +40,15 @@ namespace Leorik.Core
             //KingSafety.Update(board, ref _positional);
             PawnStructure.Update(board, ref move, ref Pawns);
             UpdateMaterial(board, ref move);
-            UpdateScore();
+            UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateScore()
+        public void UpdateScore(BoardState board)
         {
-            //TODO: use operator overloading to make this readable
             int mg = Pawns.Base + Material.Base + Positional.Base;
             int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
-            Score = (short)(mg + NormalizePhase(PhaseValue) * eg);
+            Score = Endgame.Scale(board, mg + NormalizePhase(PhaseValue) * eg);
             //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
         }
 
