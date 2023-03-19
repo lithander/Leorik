@@ -19,7 +19,6 @@ namespace Leorik.Core
         {
             PawnStructure.Update(board, ref Pawns);
             Mobility.Update(board, ref Positional);
-            //KingSafety.Update(board, ref _positional);
             AddPieces(board);
             UpdateScore(board);
         }
@@ -37,7 +36,6 @@ namespace Leorik.Core
         {
             Positional = default;
             Mobility.Update(board, ref Positional);
-            //KingSafety.Update(board, ref _positional);
             PawnStructure.Update(board, ref move, ref Pawns);
             UpdateMaterial(board, ref move);
             UpdateScore(board);
@@ -48,8 +46,8 @@ namespace Leorik.Core
         {
             int mg = Pawns.Base + Material.Base + Positional.Base;
             int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
-            Score = Endgame.Scale(board, mg + NormalizePhase(PhaseValue) * eg);
-            //Console.WriteLine($"Phase:{Phase(_phaseValue)} Score:{Score}");
+            float scale = Endgame.IsDrawn(board) ? 0.1f : 1f;
+            Score = (short)(scale * (mg + NormalizePhase(PhaseValue) * eg));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

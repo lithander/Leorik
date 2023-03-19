@@ -20,42 +20,16 @@ namespace Leorik.Core
             "KRvKN", "KNvKR",
             "KRvKB", "KBvKR"
         };
-
-        internal static short ScaleRef(BoardState board, float score)
-        {
-            if (Drawn.Contains(Notation.GetEndgameClass(board)))
-                return (short)((int)score >> 3);
-            else
-                return (short)score;
-        }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static short _Scale(BoardState board, float score)
+        internal static bool IsDrawn(BoardState board)
         {
-            short s0 = Scale(board, score);
-            short s1 = ScaleRef(board, score);
-            if (s0 != s1)
-                throw new Exception();
-            return s0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static short Scale(BoardState board, float score)
-        {
-            int cnt = PopCount(board.Black | board.White);
-            if (cnt > 5)
-                return (short)score;
+            if (PopCount(board.Black | board.White) > 5)
+                return false;
 
             ulong black = board.Black & ~board.Kings;
             ulong white = board.White & ~board.Kings;
-            if(IsDrawn(board, black, white) || IsDrawn(board, white, black))
-            {
-                Debug.Assert(Drawn.Contains(Notation.GetEndgameClass(board)));
-                return (short)((int)score >> 3);
-            }
-
-            Debug.Assert(!Drawn.Contains(Notation.GetEndgameClass(board)));
-            return (short)score;
+            return IsDrawn(board, black, white) || IsDrawn(board, white, black);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
