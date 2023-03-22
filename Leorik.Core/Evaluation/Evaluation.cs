@@ -42,12 +42,16 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int EvalBase() => Pawns.Base + Material.Base + Positional.Base;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int EvalEndgame() => Pawns.Endgame + Material.Endgame + Positional.Endgame;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore(BoardState board)
         {
-            int mg = Pawns.Base + Material.Base + Positional.Base;
-            int eg = Pawns.Endgame + Material.Endgame + Positional.Endgame;
-            float scale = Endgame.IsDrawn(board) ? 0.1f : 1f;
-            Score = (short)(scale * (mg + NormalizePhase(PhaseValue) * eg));
+            float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
+            Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -142,10 +146,7 @@ namespace Leorik.Core
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float NormalizePhase(float phaseValue)
-        {
-            return Math.Max((PhaseSum - phaseValue) / PhaseSum, 0);
-        }
+        public static float NormalizePhase(float phaseValue) => Math.Max((PhaseSum - phaseValue) / PhaseSum, 0);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int PieceIndex(Piece piece) => ((int)piece >> 2) - 1;
