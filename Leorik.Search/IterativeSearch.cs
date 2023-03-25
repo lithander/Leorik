@@ -1,6 +1,5 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Leorik.Search
 {
@@ -401,19 +400,23 @@ namespace Leorik.Search
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
-                //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
+                //moves after the PV are searched with a null-window around alpha expecting the move to fail low
                 if (remaining > 1 && playState.PlayedMoves > 1)
                 {
+                    int R = 0;
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
+                    if (!inCheck && playState.Stage >= Stage.Quiets && !next.InCheck())
+                        R += 2;
+                    //when not in check moves with a negative SEE score are reduced further
                     if (!inCheck && _see.IsBad(current, ref move))
                         R += 2;
 
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
+
+                    //...but if against expectations the move does NOT fail low we research it at full depth!
                 }
 
-                //...but if it does not we have to research it!
                 int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
 
                 if (score <= alpha)
@@ -487,7 +490,6 @@ namespace Leorik.Search
                 }
             }
 
-            //TODO: if (!inCheck || movesPlayed)
             if (!inCheck)
                 return alpha;
 

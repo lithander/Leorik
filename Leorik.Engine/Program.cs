@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.3.8 BB-based DrawnEndgame detection";
+        const string NAME_VERSION = "Leorik 2.4";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -38,7 +38,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Midgame Randomness type spin default {SearchOptions.Default.MidgameRandomness} min 0 max 255");
                     Console.WriteLine($"option name Endgame Randomness type spin default {SearchOptions.Default.EndgameRandomness} min 0 max 255");
-                    Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
+                    //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
                     Console.WriteLine("uciok");
                     break;
                 case "isready":
