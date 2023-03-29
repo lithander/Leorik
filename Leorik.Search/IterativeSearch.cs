@@ -5,14 +5,14 @@ namespace Leorik.Search
 {
     public struct SearchOptions
     {
-        public byte MidgameRandomness;
-        public byte EndgameRandomness;
+        public int MidgameRandomness;
+        public int EndgameRandomness;
         public long MaxNodes;
         public int NullMoveCutoff;
 
         internal int Randomness(float phase)
         {
-            return (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase);
+            return Math.Max(0, (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase));
         }
 
         public static SearchOptions Default = new();
@@ -389,7 +389,7 @@ namespace Leorik.Search
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (EvaluateNext(ply, remaining - 4, beta-1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - 3 - remaining / 4, beta-1, beta, moveGen) >= beta)
                     return beta;
             }
 

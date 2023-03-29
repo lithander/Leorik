@@ -37,8 +37,8 @@ namespace Leorik.Test
             if (int.TryParse(Console.ReadLine(), out int hashSize))
                 Transpositions.Resize(hashSize);
 
-            //CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
-            CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
+            //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
             //RunMateTests();
