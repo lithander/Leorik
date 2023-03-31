@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 
@@ -10,109 +11,134 @@ namespace Leorik.Core
     //...henceforth we shall abreviate it as KiSS <3
     public static class KiSS
     {
-        static ulong[] hMask = new ulong[64];
-        static ulong[] dMask = new ulong[64];
-        static ulong[] aMask = new ulong[64];
-        static ulong[,] vSubset = new ulong[64,64];
-        static ulong[,] hSubset = new ulong[64, 64];
-        static ulong[,] dSubset = new ulong[64, 64];
-        static ulong[,] aSubset = new ulong[64, 64];
-        static int[] shift_horizontal_table = new int[64]; // new lookup table for shifts in calculation of hIndex
+        static ulong[] DiagonalMask = new ulong[64];
+        static ulong[] AntiDiagonalMask = new ulong[64];
+        static ulong[] RookSubset = new ulong[2 * 64 * 64];
+        //static ulong[] HorizontalSubset = new ulong[64 * 64];
+        static ulong[] BishopSubset = new ulong[2 * 64 * 64];
+        //static ulong[] AntiDiagonalSubset = new ulong[64 * 64];
 
-        const ulong Size = (64 * 64 * 4 + 64 * 4) * sizeof(ulong) + 64 * sizeof(uint);
-
-        const int FILEa = 0;
-        const int FILEh = 7;
-        const int RANK1 = 0;
-        const int RANK8 = 7;
+        const int FILE_A = 0;
+        const int FILE_H = 7;
+        const int RANK_1 = 0;
+        const int RANK_8 = 7;
 
         static KiSS()
         {
             for (int i = 0; i < 64; i++)
             {
-                InitSquare(i);
+                InitDiagonalMasks(i);
+                InitBishopSubsets(i);
+                InitRookSubsets(i);
             }
 
-            for (int i = 0; i < 64; i++)
-            {
-                shift_horizontal_table[i] = (i & 56) + 1;
-            }
+            //for (int i = 0; i < 64; i++)
+            //{
+            //    Console.WriteLine("HorizontalMask");
+            //    PrintBitboard(HorizontalMask[i]);
+            //    Console.WriteLine("OrthogonalMask");
+            //    PrintBitboard(Bitboard.OrthogonalMask[i]);
+            //}
         }
 
-        static void InitSquare(int sq)
+        private static void InitDiagonalMasks(int square)
         {
             int ts, dx, dy;
-            ulong occ, index;
-            int x = sq % 8;
-            int y = sq / 8;
+            int x = square % 8;
+            int y = square / 8;
 
             // Initialize Kindergarten Super SISSY Bitboards
             // diagonals
-            for (ts = sq + 9, dx = x + 1, dy = y + 1; dx < FILEh && dy < RANK8; dMask[sq] |= 1UL << ts, ts += 9, dx++, dy++) ;
-            for (ts = sq - 9, dx = x - 1, dy = y - 1; dx > FILEa && dy > RANK1; dMask[sq] |= 1UL << ts, ts -= 9, dx--, dy--) ;
+            for (ts = square + 9, dx = x + 1, dy = y + 1; dx < FILE_H && dy < RANK_8; DiagonalMask[square] |= 1UL << ts, ts += 9, dx++, dy++) ;
+            for (ts = square - 9, dx = x - 1, dy = y - 1; dx > FILE_A && dy > RANK_1; DiagonalMask[square] |= 1UL << ts, ts -= 9, dx--, dy--) ;
 
             // anti diagonals
-            for (ts = sq + 7, dx = x - 1, dy = y + 1; dx > FILEa && dy < RANK8; aMask[sq] |= 1UL << ts, ts += 7, dx--, dy++) ;
-            for (ts = sq - 7, dx = x + 1, dy = y - 1; dx < FILEh && dy > RANK1; aMask[sq] |= 1UL << ts, ts -= 7, dx++, dy--) ;
+            for (ts = square + 7, dx = x - 1, dy = y + 1; dx > FILE_A && dy < RANK_8; AntiDiagonalMask[square] |= 1UL << ts, ts += 7, dx--, dy++) ;
+            for (ts = square - 7, dx = x + 1, dy = y - 1; dx < FILE_H && dy > RANK_1; AntiDiagonalMask[square] |= 1UL << ts, ts -= 7, dx++, dy--) ;
+        }
+
+        public static void PrintBitboard(ulong bits)
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    int sq = (7 - i) * 8 + j;
+                    bool bit = (bits & (1UL << sq)) != 0;
+                    Console.Write(bit ? "O " : "- ");
+                }
+                Console.WriteLine();
+            }
+        }
+
+        static void InitBishopSubsets(int square)
+        {
+            ulong offset = (ulong)(square << 7);
+            int ts;
+            ulong occ, index;
 
             // diagonal indexes
             for (index = 0; index < 64; index++)
             {
-                dSubset[sq, index] = 0;
+                BishopSubset[offset | index] = 0;
                 occ = index << 1;
-                if ((sq & 7) != FILEh && (sq >> 3) != RANK8)
+                if ((square & 7) != FILE_H && (square >> 3) != RANK_8)
                 {
-                    for (ts = sq + 9; ; ts += 9)
+                    for (ts = square + 9; ; ts += 9)
                     {
-                        dSubset[sq, index] |= (1UL << ts);
+                        BishopSubset[offset | index] |= (1UL << ts);
                         if ((occ & (1UL << (ts & 7))) > 0) break;
-                        if ((ts & 7) == FILEh || (ts >> 3) == RANK8) break;
+                        if ((ts & 7) == FILE_H || (ts >> 3) == RANK_8) break;
                     }
                 }
-		        if ((sq & 7) != FILEa && (sq >> 3) != RANK1)
-		        {
-			        for (ts = sq - 9; ; ts -= 9)
-			        {
-				        dSubset[sq, index] |= (1UL << ts);
-				        if ((occ & (1UL << (ts & 7))) > 0) break;
-				        if ((ts & 7) == FILEa || (ts >> 3) == RANK1) break;
-			        }
-		        }
-        	}
-
-	        // anti diagonal indexes
-	        for (index = 0; index < 64; index++)
-            {
-                aSubset[sq, index] = 0;
-                occ = index << 1;
-                if ((sq & 7) != FILEa && (sq >> 3) != RANK8)
+                if ((square & 7) != FILE_A && (square >> 3) != RANK_1)
                 {
-                    for (ts = sq + 7; ; ts += 7)
+                    for (ts = square - 9; ; ts -= 9)
                     {
-                        aSubset[sq, index] |= (1UL << ts);
+                        BishopSubset[offset | index] |= (1UL << ts);
                         if ((occ & (1UL << (ts & 7))) > 0) break;
-                        if ((ts & 7) == FILEa || (ts >> 3) == RANK8) break;
-			        }
-		        }
-		        if ((sq & 7) != FILEh && (sq >> 3) != RANK1)
-                {
-                    for (ts = sq - 7; ; ts -= 7)
-                    {
-                        aSubset[sq, index] |= (1UL << ts);
-                        if ((occ & (1UL << (ts & 7))) > 0) break;
-                        if ((ts & 7) == FILEh || (ts >> 3) == RANK1) break;
+                        if ((ts & 7) == FILE_A || (ts >> 3) == RANK_1) break;
                     }
-		        }
-	        }
+                }
+            }
 
-	        // horizontal lines
-	        for (ts = sq + 1, dx = x + 1; dx < FILEh; hMask[sq] |= 1UL << ts, ts += 1, dx++) ;
-            for (ts = sq - 1, dx = x - 1; dx > FILEa; hMask[sq] |= 1UL << ts, ts -= 1, dx--) ;
+            // anti diagonal indexes
+            offset += 64;
+            for (index = 0; index < 64; index++)
+            {
+                BishopSubset[offset | index] = 0;
+                occ = index << 1;
+                if ((square & 7) != FILE_A && (square >> 3) != RANK_8)
+                {
+                    for (ts = square + 7; ; ts += 7)
+                    {
+                        BishopSubset[offset | index] |= (1UL << ts);
+                        if ((occ & (1UL << (ts & 7))) > 0) break;
+                        if ((ts & 7) == FILE_A || (ts >> 3) == RANK_8) break;
+                    }
+                }
+                if ((square & 7) != FILE_H && (square >> 3) != RANK_1)
+                {
+                    for (ts = square - 7; ; ts -= 7)
+                    {
+                        BishopSubset[offset | index] |= (1UL << ts);
+                        if ((occ & (1UL << (ts & 7))) > 0) break;
+                        if ((ts & 7) == FILE_H || (ts >> 3) == RANK_1) break;
+                    }
+                }
+            }
+        }
+
+        static void InitRookSubsets(int square)
+        {
+            ulong offset = (ulong)(square << 7);
+            int ts;
+            ulong occ, index;
 
             // vertical indexes
             for (index = 0; index < 64; index++)
             {
-                vSubset[sq, index] = 0;
+                RookSubset[offset | index] = 0;
                 ulong blockers = 0;
                 for (int i = 0; i <= 5; i++)
                 {
@@ -121,69 +147,88 @@ namespace Leorik.Core
                         blockers |= (1UL << (((5 - i) << 3) + 8));
                     }
 		        }
-		        if ((sq >> 3) != RANK8)
+		        if ((square >> 3) != RANK_8)
                 {
-                    for (ts = sq + 8; ; ts += 8)
+                    for (ts = square + 8; ; ts += 8)
                     {
-                        vSubset[sq, index] |= (1UL << ts);
+                        RookSubset[offset | index] |= (1UL << ts);
                         if ((blockers & (1UL << (ts - (ts & 7)))) > 0)
                             break;
-                        if ((ts >> 3) == RANK8) break;
+                        if ((ts >> 3) == RANK_8) break;
                     }
 		        }
-		        if ((sq >> 3) != RANK1)
+		        if ((square >> 3) != RANK_1)
                 {
-                    for (ts = sq - 8; ; ts -= 8)
+                    for (ts = square - 8; ; ts -= 8)
                     {
-                        vSubset[sq, index] |= (1UL << ts);
+                        RookSubset[offset | index] |= (1UL << ts);
                         if ((blockers & (1UL << (ts - (ts & 7)))) > 0) break;
-                        if ((ts >> 3) == RANK1) break;
+                        if ((ts >> 3) == RANK_1) break;
                     }
 		        }
 	        }
 
-	        // horizontal indexes
-        	for (index = 0; index < 64; index++)
+            // horizontal indexes
+            offset += 64;
+            for (index = 0; index < 64; index++)
             {
-                hSubset[sq, index] = 0;
+                RookSubset[offset | index] = 0;
                 occ = index << 1;
-                if ((sq & 7) != FILEh)
+                if ((square & 7) != FILE_H)
                 {
-                    for (ts = sq + 1; ; ts += 1)
+                    for (ts = square + 1; ; ts += 1)
                     {
-                        hSubset[sq, index] |= (1UL << ts);
+                        RookSubset[offset | index] |= (1UL << ts);
                         if ((occ & (1UL << (ts & 7))) > 0) break;
-                        if ((ts & 7) == FILEh) break;
+                        if ((ts & 7) == FILE_H) break;
 			        }
 		        }
-		        if ((sq & 7) != FILEa)
+		        if ((square & 7) != FILE_A)
                 {
-                    for (ts = sq - 1; ; ts -= 1)
+                    for (ts = square - 1; ; ts -= 1)
                     {
-                        hSubset[sq, index] |= (1UL << ts);
+                        RookSubset[offset | index] |= (1UL << ts);
                         if ((occ & (1UL << (ts & 7))) > 0) break;
-                        if ((ts & 7) == FILEa) break;
+                        if ((ts & 7) == FILE_A) break;
                     }
 		        }
 	        }
         }
 
-        const ulong file_b2_b7 = 0x0002020202020200;
-        const ulong file_a2_a7 = 0x0001010101010100;
-        const ulong diag_c2h7 = 0x0080402010080400;
+        const ulong FILE_B2_B7 = 0x0002020202020200;
+        const ulong FILE_A2_A7 = 0x0001010101010100;
+        const ulong DIAGONAL_C2_H7 = 0x0080402010080400;
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static ulong BishopAttacks(ulong occupation, int square)
+        //{
+        //    return DiagonalSubset[square, ((occupation & DiagonalMask[square]) * FILE_B2_B7) >> 58] |
+        //           AntiDiagonalSubset[square, ((occupation & AntiDiagonalMask[square]) * FILE_B2_B7) >> 58];
+        //}
+        //
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static ulong RookAttacks(ulong occupation, int square)
+        //{
+        //    return HorizontalSubset[square, (occupation >> shift_horizontal_table[square]) & 63] |
+        //           VerticalSubset[square, (((occupation >> (square & 7)) & FILE_A2_A7) * DIAGONAL_C2_H7) >> 58];
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong BishopAttacks(ulong occupation, int square)
+        public static ulong _BishopAttacks(ulong occupation, int square)
         {
-            return dSubset[square, ((occupation & dMask[square]) * file_b2_b7) >> 58] |
-                   aSubset[square, ((occupation & aMask[square]) * file_b2_b7) >> 58];
+            ulong dIndex = ((occupation & DiagonalMask[square]) * FILE_B2_B7) >> 58;
+            ulong aIndex = ((occupation & AntiDiagonalMask[square]) * FILE_B2_B7) >> 58;
+            ulong offset = (ulong)(square << 7);
+            return BishopSubset[offset | dIndex] | BishopSubset[64 | offset | aIndex];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong RookAttacks(ulong occupation, int square)
+        public static ulong _RookAttacks(ulong occupation, int square)
         {
-            return hSubset[square, (occupation >> shift_horizontal_table[square]) & 63] |
-                   vSubset[square, (((occupation >> (square & 7)) & file_a2_a7) * diag_c2h7) >> 58];
+            ulong hIndex = (occupation >> ((square & 0b11111000) | 1)) & 63;
+            ulong vIndex = (((occupation >> (square & 0b00000111)) & FILE_A2_A7) * DIAGONAL_C2_H7) >> 58;
+            ulong offset = (ulong)(square << 7);
+            return RookSubset[64 | offset | hIndex] | RookSubset[offset | vIndex];
         }
     }
 }

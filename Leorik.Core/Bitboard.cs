@@ -141,8 +141,8 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int PopCount(ulong bb) => BitOperations.PopCount(bb);
 
-        const ulong HORIZONTAL = 0x00000000000000FFUL;
-        const ulong VERTICAL = 0x0101010101010101UL;
+        const ulong HORIZONTAL = 0x00000000000000FF;
+        const ulong VERTICAL = 0x0101010101010101;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong GetBishopAttacks(ulong occupation, int square)
@@ -185,7 +185,7 @@ namespace Leorik.Core
 #if PEXT
             return Pext.Attacks[Pext.BishopOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.BishopMask[square])];
 #elif KISS
-            return KiSS.BishopAttacks(occupation, square);
+            return KiSS._BishopAttacks(occupation, square);
 #else
             return GetBishopAttacks(occupation, square);
 #endif
@@ -197,7 +197,7 @@ namespace Leorik.Core
 #if PEXT
             return Pext.Attacks[Pext.RookOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.RookMask[square])];
 #elif KISS
-            return KiSS.RookAttacks(occupation, square);
+            return KiSS._RookAttacks(occupation, square);
 #else
             return GetRookAttacks(occupation, square);
 #endif
