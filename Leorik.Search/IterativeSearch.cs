@@ -389,7 +389,7 @@ namespace Leorik.Search
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
-                if (EvaluateNext(ply, remaining - 3 - remaining / 4, beta-1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
                     return beta;
             }
 
