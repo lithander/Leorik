@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.4";
+        const string NAME_VERSION = "Leorik 2.4 Net8";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -13,7 +13,7 @@ namespace Leorik.Engine
         private static async Task Main()
         {
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            Console.WriteLine(NAME_VERSION);
+            Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
             _engine.Init();
 
             while (_engine.Running)

@@ -20,7 +20,7 @@ namespace Leorik.Perft
 
         static void Main()
         {
-            Console.WriteLine("Leorik Perft");
+            Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
             Console.WriteLine();
             int line = 1;
             long totalNodes = 0;

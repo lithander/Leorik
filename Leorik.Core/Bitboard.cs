@@ -1,4 +1,5 @@
-﻿#define PEXT
+﻿//#define PEXT
+#define KISS
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -167,11 +168,24 @@ namespace Leorik.Core
             return GenLines(bbHorizontal, bbVertical, bbBlocker, bbBelow);
         }
 
+
+        public enum SliderGeneration { Leorik, KiSS, PEXT }
+#if PEXT
+        public const SliderGeneration SliderMode = SliderGeneration.PEXT;
+#elif KISS
+        public const SliderGeneration SliderMode = SliderGeneration.KiSS;
+#else
+        public const SliderGeneration SliderMode = SliderGeneration.Leorik;
+#endif
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong GetBishopTargets(ulong occupation, int square)
         {
 #if PEXT
             return Pext.Attacks[Pext.BishopOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.BishopMask[square])];
+#elif KISS
+            return KiSS.BishopAttacks(occupation, square);
 #else
             return GetBishopAttacks(occupation, square);
 #endif
@@ -182,6 +196,8 @@ namespace Leorik.Core
         {
 #if PEXT
             return Pext.Attacks[Pext.RookOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.RookMask[square])];
+#elif KISS
+            return KiSS.RookAttacks(occupation, square);
 #else
             return GetRookAttacks(occupation, square);
 #endif
