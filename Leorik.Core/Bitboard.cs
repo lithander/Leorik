@@ -185,7 +185,7 @@ namespace Leorik.Core
 #if PEXT
             return Pext.Attacks[Pext.BishopOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.BishopMask[square])];
 #elif KISS
-            return KiSS._BishopAttacks(occupation, square);
+            return KiSS.BishopAttacks(occupation, square);
 #else
             return GetBishopAttacks(occupation, square);
 #endif
@@ -197,7 +197,7 @@ namespace Leorik.Core
 #if PEXT
             return Pext.Attacks[Pext.RookOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.RookMask[square])];
 #elif KISS
-            return KiSS._RookAttacks(occupation, square);
+            return KiSS.RookAttacks(occupation, square);
 #else
             return GetRookAttacks(occupation, square);
 #endif
