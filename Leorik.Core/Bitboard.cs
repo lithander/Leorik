@@ -1,14 +1,77 @@
 ﻿//#define PEXT
 #define KISS
+//#define SPARSE_SUBSETS
+//#define DENSE_SUBSETS
+//#define CLASSIC
+//#define ZERO
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics.X86;
+using Leorik.Core.Slider;
 
 namespace Leorik.Core
 {
     public static class Bitboard
     {
+        public enum SliderGeneration { Classic, ClassicZero, KiSS, PEXT, SparseSubsets, DenseSubsets }
+#if PEXT
+        public const SliderGeneration SliderMode = SliderGeneration.PEXT;
+#elif KISS
+        public const SliderGeneration SliderMode = SliderGeneration.KiSS;
+#elif SPARSE_SUBSETS
+        public const SliderGeneration SliderMode = SliderGeneration.SparseSubsets;
+#elif DENSE_SUBSETS
+        public const SliderGeneration SliderMode = SliderGeneration.DenseSubsets;
+#elif CLASSIC
+        public const SliderGeneration SliderMode = SliderGeneration.Classic;
+#elif ZERO
+        public const SliderGeneration SliderMode = SliderGeneration.ClassicZero;
+#endif
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetBishopTargets(ulong occupation, int square)
+        {
+#if PEXT
+            return Pext.BishopAttacks(occupation, square);
+#elif KISS
+            return KiSS.BishopAttacks(occupation, square);
+#elif SISSY
+            return SparseSissyPext.BishopAttacks(occupation, square);
+#elif SPARSE_SUBSETS
+            return SparseSubsets.BishopAttacks(occupation, square);
+#elif DENSE_SUBSETS
+            return DenseSubsets.BishopAttacks(occupation, square);
+#elif CLASSIC
+            return Classic.BishopAttacks(occupation, square);
+#elif ZERO
+            return ClassicZero.BishopAttacks(occupation, square);
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetRookTargets(ulong occupation, int square)
+        {
+#if PEXT
+            return Pext.RookAttacks(occupation, square);
+#elif KISS
+            return KiSS.RookAttacks(occupation, square);
+#elif SPARSE_SUBSETS
+            return SparseSubsets.RookAttacks(occupation, square);
+#elif DENSE_SUBSETS
+            return DenseSubsets.RookAttacks(occupation, square);
+#elif CLASSIC
+            return Classic.RookAttacks(occupation, square);
+#elif ZERO
+            return ClassicZero.RookAttacks(occupation, square);
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetQueenTargets(ulong occupation, int square) =>
+            GetBishopTargets(occupation, square) |
+            GetRookTargets(occupation, square);
+
         public static readonly ulong[] KingTargets =
         {
             0x0000000000000302, 0x0000000000000705, 0x0000000000000E0A, 0x0000000000001C14,
@@ -89,46 +152,6 @@ namespace Leorik.Core
             0xEF10101010101010, 0xDF20202020202020, 0xBF40404040404040, 0x7F80808080808080
         };
 
-        public static readonly ulong[] Diagonals =
-        {
-            0x8040201008040201, 0x0080402010080402, 0x0000804020100804, 0x0000008040201008,
-            0x0000000080402010, 0x0000000000804020, 0x0000000000008040, 0x0000000000000080,
-            0x4020100804020100, 0x8040201008040201, 0x0080402010080402, 0x0000804020100804,
-            0x0000008040201008, 0x0000000080402010, 0x0000000000804020, 0x0000000000008040,
-            0x2010080402010000, 0x4020100804020100, 0x8040201008040201, 0x0080402010080402,
-            0x0000804020100804, 0x0000008040201008, 0x0000000080402010, 0x0000000000804020,
-            0x1008040201000000, 0x2010080402010000, 0x4020100804020100, 0x8040201008040201,
-            0x0080402010080402, 0x0000804020100804, 0x0000008040201008, 0x0000000080402010,
-            0x0804020100000000, 0x1008040201000000, 0x2010080402010000, 0x4020100804020100,
-            0x8040201008040201, 0x0080402010080402, 0x0000804020100804, 0x0000008040201008,
-            0x0402010000000000, 0x0804020100000000, 0x1008040201000000, 0x2010080402010000,
-            0x4020100804020100, 0x8040201008040201, 0x0080402010080402, 0x0000804020100804,
-            0x0201000000000000, 0x0402010000000000, 0x0804020100000000, 0x1008040201000000,
-            0x2010080402010000, 0x4020100804020100, 0x8040201008040201, 0x0080402010080402,
-            0x0100000000000000, 0x0201000000000000, 0x0402010000000000, 0x0804020100000000,
-            0x1008040201000000, 0x2010080402010000, 0x4020100804020100, 0x8040201008040201
-        };
-
-        public static readonly ulong[] AntiDiagonals =
-        {
-            0x0000000000000001, 0x0000000000000102, 0x0000000000010204, 0x0000000001020408,
-            0x0000000102040810, 0x0000010204081020, 0x0001020408102040, 0x0102040810204080,
-            0x0000000000000102, 0x0000000000010204, 0x0000000001020408, 0x0000000102040810,
-            0x0000010204081020, 0x0001020408102040, 0x0102040810204080, 0x0204081020408000,
-            0x0000000000010204, 0x0000000001020408, 0x0000000102040810, 0x0000010204081020,
-            0x0001020408102040, 0x0102040810204080, 0x0204081020408000, 0x0408102040800000,
-            0x0000000001020408, 0x0000000102040810, 0x0000010204081020, 0x0001020408102040,
-            0x0102040810204080, 0x0204081020408000, 0x0408102040800000, 0x0810204080000000,
-            0x0000000102040810, 0x0000010204081020, 0x0001020408102040, 0x0102040810204080,
-            0x0204081020408000, 0x0408102040800000, 0x0810204080000000, 0x1020408000000000,
-            0x0000010204081020, 0x0001020408102040, 0x0102040810204080, 0x0204081020408000,
-            0x0408102040800000, 0x0810204080000000, 0x1020408000000000, 0x2040800000000000,
-            0x0001020408102040, 0x0102040810204080, 0x0204081020408000, 0x0408102040800000,
-            0x0810204080000000, 0x1020408000000000, 0x2040800000000000, 0x4080000000000000,
-            0x0102040810204080, 0x0204081020408000, 0x0408102040800000, 0x0810204080000000,
-            0x1020408000000000, 0x2040800000000000, 0x4080000000000000, 0x8000000000000000
-        };
-
         //returns the index of the least significant bit of the bitboard, bb can't be 0
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LSB(ulong bb) => BitOperations.TrailingZeroCount(bb);
@@ -141,121 +164,11 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int PopCount(ulong bb) => BitOperations.PopCount(bb);
 
-        const ulong HORIZONTAL = 0x00000000000000FF;
-        const ulong VERTICAL = 0x0101010101010101;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Rank(int square) => square >> 3;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetBishopAttacks(ulong occupation, int square)
-        {
-            ulong bbPiece = 1UL << square;
-            ulong bbBlocker = occupation & ~bbPiece;
-            //mask the bits below bbPiece
-            ulong bbBelow = bbPiece - 1;
-            return GenLines(Diagonals[square], AntiDiagonals[square], bbBlocker, bbBelow);
-        }
+        public static int File(int square) => square & 7;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetRookAttacks(ulong occupation, int square)
-        {
-            ulong bbPiece = 1UL << square;
-            ulong bbBlocker = occupation & ~bbPiece;
-            //mask the bits below bbPiece
-            ulong bbBelow = bbPiece - 1;
-            //horizontal line through square
-            ulong bbHorizontal = HORIZONTAL << (square & 56);
-            //vertical line through square
-            ulong bbVertical = VERTICAL << (square & 7);
-            return GenLines(bbHorizontal, bbVertical, bbBlocker, bbBelow);
-        }
-
-
-        public enum SliderGeneration { Leorik, KiSS, PEXT }
-#if PEXT
-        public const SliderGeneration SliderMode = SliderGeneration.PEXT;
-#elif KISS
-        public const SliderGeneration SliderMode = SliderGeneration.KiSS;
-#else
-        public const SliderGeneration SliderMode = SliderGeneration.Leorik;
-#endif
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetBishopTargets(ulong occupation, int square)
-        {
-#if PEXT
-            return Pext.Attacks[Pext.BishopOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.BishopMask[square])];
-#elif KISS
-            return KiSS.BishopAttacks(occupation, square);
-#else
-            return GetBishopAttacks(occupation, square);
-#endif
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetRookTargets(ulong occupation, int square)
-        {
-#if PEXT
-            return Pext.Attacks[Pext.RookOffset[square] + Bmi2.X64.ParallelBitExtract(occupation, Pext.RookMask[square])];
-#elif KISS
-            return KiSS.RookAttacks(occupation, square);
-#else
-            return GetRookAttacks(occupation, square);
-#endif
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ulong GetQueenTargets(ulong occupation, int square) =>
-            GetBishopTargets(occupation, square) |
-            GetRookTargets(occupation, square);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong GenLines(ulong bbLineA, ulong bbLineB, ulong bbBlocker, ulong bbBelow) =>
-            GenLine(bbLineA, bbBlocker & bbLineA, bbBelow) |
-            GenLine(bbLineB, bbBlocker & bbLineB, bbBelow);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ulong GenLine(ulong bbLine, ulong bbBlocker, ulong bbBelow)
-        {
-            //MaskLow sets all low bits up to and including the lowest blocker above orgin, the rest are zeroed out.
-            //MaskHigh sets all low bits up to and including the highest blocker below origin, the rest are zerored out.
-            //The bits of the line that are different between the two masks are the valid targets (including the first blockers on each side)
-            return (MaskLow(bbBlocker & ~bbBelow) ^ MaskHigh(bbBlocker & bbBelow)) & bbLine;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //identify the highest set bit and shift a mask so the bits below are set and the rest are zeroed
-        private static ulong MaskHigh(ulong bb) => 0x7FFFFFFFFFFFFFFFUL >> BitOperations.LeadingZeroCount(bb | 1);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //identify the lowest set bit and set all bits below while zeroing the rest
-        private static ulong MaskLow(ulong bb) => bb ^ (bb - 1);
-
-        //******************************
-        //*** ZERO TABLE ALTERNATIVE ***
-        //******************************
-
-        //const ulong DIAGONAL = 0x8040201008040201UL;
-        //const ulong ANTIDIAGONAL = 0x0102040810204080UL;
-        //
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ////sign of 'ranks' decides between left shift or right shift. Then convert signed ranks to a positiver number of bits to shift by. Each rank has 8 bits e.g. 1 << 3 == 8
-        //private static ulong VerticalShift(in ulong bb, in int ranks) => ranks > 0 ? bb >> (ranks << 3) : bb << -(ranks << 3);
-        //
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public static ulong GetBishopTargets(ulong occupation, int square)
-        //{
-        //    ulong bbPiece = 1UL << square;
-        //    ulong bbBlocker = occupation & ~bbPiece;
-        //    //mask the bits below bbPiece
-        //    ulong bbBelow = bbPiece - 1;
-        //    //compute rank and file of square
-        //    int rank = square >> 3;
-        //    int file = square & 7;
-        //    //diagonal line through square
-        //    ulong bbDiagonal = VerticalShift(DIAGONAL, file - rank);
-        //    //antidiagonal line through square
-        //    ulong bbAntiDiagonal = VerticalShift(ANTIDIAGONAL, 7 - file - rank);
-        //    return GenLines(bbDiagonal, bbAntiDiagonal, bbBlocker, bbBelow);
-        //}
     }
 }

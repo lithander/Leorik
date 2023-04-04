@@ -10,7 +10,6 @@ namespace Leorik.Core
         {
             return $"0x{Convert.ToString((long)bitboard, 16).PadLeft(16, '0').ToUpperInvariant()}UL";
         }
-
         public static char GetChar(Piece piece)
         {
             return piece switch
@@ -392,6 +391,22 @@ namespace Leorik.Core
             AddAll(board.White);
             sb.Append("v");
             AddAll(board.Black);
+            return sb.ToString();
+        }
+
+        public static string PrintBitboard(ulong bits)
+        {
+            StringBuilder sb = new StringBuilder(64 * 3);
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    int sq = (7 - i) * 8 + j;
+                    bool bit = (bits & (1UL << sq)) != 0;
+                    sb.Append(bit ? "O " : "- ");
+                }
+                sb.AppendLine();
+            }
             return sb.ToString();
         }
     }
