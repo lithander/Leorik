@@ -39,6 +39,9 @@ namespace Leorik.Tuning
 
         public bool NextGame()
         {
+            if (_file.EndOfStream)
+                return false;
+
             Reset();
             while (_state != PGNParserState.Stop)
             {
@@ -54,7 +57,7 @@ namespace Leorik.Tuning
                         ParseBlackMove(); break;
                 }
             }
-            return !_file.EndOfStream;
+            return true;
         }
 
         private void ParseHeader()
@@ -131,7 +134,16 @@ namespace Leorik.Tuning
             if (_line[_index] == ' ')
                 _index++;
             if (_line[_index] == '{')
-                _index = _line.IndexOf('}', _index) + 2;
+            {
+                int end = _line.IndexOf('}', _index);
+                while(end == -1)
+                {
+                    _index = 0;
+                    _line = _file.ReadLine();
+                    end = _line.IndexOf('}', _index);
+                }
+                _index = end + 2;
+            }
 
             if (_line.Length <= _index)
             {
