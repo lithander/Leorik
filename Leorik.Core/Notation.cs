@@ -282,6 +282,12 @@ namespace Leorik.Core
                 int toSquare = GetSquare(notation.Substring(3, 2));
                 return SelectMove(board, piece, toSquare, promotion, notation[1]);
             }
+            else if (notation.Length >= 4 && notation[3] == 'x')
+            {
+                int fromSquare = GetSquare(notation.Substring(1, 2));
+                int toSquare = GetSquare(notation.Substring(4, 2));
+                return new Move(piece, fromSquare, toSquare, promotion);
+            }
             else if (notation.Length == 3)
             {
                 //move
