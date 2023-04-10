@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Data;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Search
@@ -41,6 +42,8 @@ namespace Leorik.Search
         private History _history;
         private KillerMoves _killers;
         private StaticExchange _see = new StaticExchange();
+        private ulong[] _legacy; //hashes of positons that we need to eval as repetitions
+
 
         SearchOptions _options;
 
@@ -52,11 +55,12 @@ namespace Leorik.Search
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
 
-        public IterativeSearch(BoardState board, SearchOptions options)
+        public IterativeSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
         {
             _options = options;
             _killers = new KillerMoves(2);
             _history = new History();
+            _legacy = SelectMoveHistory(history);
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
 
@@ -76,6 +80,21 @@ namespace Leorik.Search
             RootMoveOffsets = new int[MAX_MOVES];
             for (int i = 0; i < MAX_MOVES; i++)
                 RootMoveOffsets[i] = random.Next(maxRandomCpBonus);
+        }
+
+        private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
+        {
+            if(history == null)
+                return Array.Empty<ulong>();
+
+            List<ulong> reps = new List<ulong>();
+            foreach (BoardState state in history) 
+            {
+                if (state.HalfmoveClock == 0)
+                    reps.Clear();
+                reps.Add(state.ZobristHash);
+            }
+            return reps.ToArray();
         }
 
         public void Search(int maxDepth)
@@ -262,12 +281,25 @@ namespace Leorik.Search
                 }
             }
         }
-
+         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsRepetition(int ply)
         {
+            ulong hash = Positions[ply].ZobristHash;
+            //start with the positions we've been searching
             for (int i = ply - 4; i >= 0; i -= 2)
-                if (Positions[i].ZobristHash == Positions[ply].ZobristHash)
+            {
+                if (Positions[i].ZobristHash == hash)
+                    return true;
+
+                //captures and pawn moves reset the halfmove clock for the purpose of enforcing the 50-move rule and also make a repetition impossible
+                if (Positions[i].HalfmoveClock <= 1)
+                    return false;
+            }
+            //continue with the history of positions from the startpos, truncated based on the half-move clock
+            int start = _legacy.Length - 1 - (ply & 1);
+            for (int i = start; i >= 0; i -= 2)
+                if (_legacy[i] == hash)
                     return true;
 
             return false;

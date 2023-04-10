@@ -24,7 +24,7 @@ namespace Leorik.Engine
 
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
-            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition(), SearchOptions.Default);
+            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition(), SearchOptions.Default, null);
             search.Search(3);
             Reset();
             Uci.Silent = false;
@@ -100,14 +100,10 @@ namespace Leorik.Engine
         {
             Transpositions.IncreaseAge();
 
-            //add all history positions with a score of 0 (Draw through 3-fold repetition) and freeze them by setting a depth that is never going to be overwritten
-            foreach (var position in _history)
-                Transpositions.StoreHistory(position);
-
             SearchOptions options = Options;
             options.MaxNodes = maxNodes;
 
-            _search = new IterativeSearch(_board, options);
+            _search = new IterativeSearch(_board, options, _history);
             _time.StartInterval();
             _search.SearchDeeper();
             Collect();

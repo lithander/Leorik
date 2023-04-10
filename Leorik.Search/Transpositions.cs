@@ -146,11 +146,6 @@ namespace Leorik.Search
                 return (short)score;
         }
 
-        public static void StoreHistory(BoardState position)
-        {
-            Store(position.ZobristHash, HISTORY_DEPTH, 0, -Evaluation.CheckmateScore, +Evaluation.CheckmateScore, 0, default);
-        }
-
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
             bestMove = Find(position.ZobristHash, out int index) ? _table[index].GetMove() : default;

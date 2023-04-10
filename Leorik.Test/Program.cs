@@ -127,7 +127,7 @@ namespace Leorik.Test
             {
                 Transpositions.Clear();
                 Move pvMove = default;
-                var search = new IterativeSearch(board, SearchOptions.Default);
+                var search = new IterativeSearch(board, SearchOptions.Default, null);
                 long t0 = Stopwatch.GetTimestamp();
                 long tStop = t0 + (timeBudgetMs * Stopwatch.Frequency) / 1000;
                 //search until running out of time
@@ -246,7 +246,7 @@ namespace Leorik.Test
 
                 Transpositions.Clear();
                 long t0 = Stopwatch.GetTimestamp();
-                var search = new IterativeSearch(board, SearchOptions.Default);
+                var search = new IterativeSearch(board, SearchOptions.Default, null);
                 search.Search(mateDepth * 2);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
@@ -393,7 +393,7 @@ namespace Leorik.Test
 
         private static Span<Move> IterativeSearch(BoardState board, int depth)
         {
-            var search = new IterativeSearch(board, SearchOptions.Default);
+            var search = new IterativeSearch(board, SearchOptions.Default, null);
             search.Search(depth);
             Score = search.Score;
             NodesVisited = search.NodesVisited;

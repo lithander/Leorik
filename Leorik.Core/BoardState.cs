@@ -180,7 +180,7 @@ namespace Leorik.Core
         {
             //Copy & update Boardstate
             CopyUnmasked(from);
-            HalfmoveClock++;
+            HalfmoveClock = (byte)(from.HalfmoveClock + 1);
             SideToMove = (Color)(-(int)from.SideToMove);
             EnPassant = 0;
             Eval = from.Eval;
