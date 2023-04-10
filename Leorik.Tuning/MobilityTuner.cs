@@ -59,8 +59,8 @@ namespace Leorik.Tuning
                     continue;
                 if ((piece & Piece.TypeMask) == Piece.Knight)
                     continue;
-                //only blocked or promoting pawns are interesting
-                if ((piece & Piece.TypeMask) == Piece.Pawn && _moveCounts[i] > 0 && _moveCounts[i] < 4)
+                    //only blocked or promoting pawns are interesting
+                if ((piece & Piece.TypeMask) == Piece.Pawn && _moveCounts[i] > 0 && _moveCounts[i] < 3)
                     continue;
 
                 int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
