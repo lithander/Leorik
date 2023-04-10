@@ -11,6 +11,8 @@
         public static readonly ulong[] AntiDiagonalMask = new ulong[64];
         public static readonly ulong[] HorizontalMask = new ulong[64];
         public static readonly ulong[] VerticalMask = new ulong[64];
+        public static readonly ulong[] BishopMask = new ulong[64];
+        public static readonly ulong[] RookMask = new ulong[64];
 
         static Blocker()
         {
@@ -32,6 +34,8 @@
                 for (int dx = x + 1, dy = y - 1; dx < FILE_H && dy > RANK_1; dx++, dy--)
                     AntiDiagonalMask[square] |= 1UL << dx + dy * 8;
 
+                BishopMask[square] = DiagonalMask[square] | AntiDiagonalMask[square];
+
                 //HorizontalMask
                 for (int dx = FILE_A + 1; dx < FILE_H; dx++)
                     if (dx != x)
@@ -41,6 +45,9 @@
                 for (int dy = RANK_1 + 1; dy < RANK_8; dy++)
                     if (dy != y)
                         VerticalMask[square] |= 1UL << x + dy * 8;
+
+                RookMask[square] = HorizontalMask[square] | VerticalMask[square];
+
             }
         }
     }

@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core.Slider
@@ -7,7 +9,10 @@ namespace Leorik.Core.Slider
     //...henceforth we shall abreviate it as KiSS <3
     public static class KiSS
     {
-        static readonly ulong[] Subset = new ulong[4 * 64 * 64];
+        private static readonly ulong[] DSubset = new ulong[64 * 64];
+        private static readonly ulong[] ASubset = new ulong[64 * 64];
+        private static readonly ulong[] VSubset = new ulong[64 * 64];
+        private static readonly ulong[] HSubset = new ulong[64 * 64];
 
         const int FILE_A = 0;
         const int FILE_H = 7;
@@ -19,19 +24,19 @@ namespace Leorik.Core.Slider
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong BishopAttacks(ulong occupation, int square)
         {
-            ulong offset = (ulong)(square << 7);
+            ulong offset = (ulong)square << 6;
             ulong dIndex = (occupation & Blocker.DiagonalMask[square]) * FILE_A2_A7 >> 57;
             ulong aIndex = (occupation & Blocker.AntiDiagonalMask[square]) * FILE_A2_A7 >> 57;
-            return Subset[offset + dIndex] | Subset[offset + 64 + aIndex];
+            return DSubset[offset + dIndex] | ASubset[offset + aIndex];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong RookAttacks(ulong occupation, int square)
         {
-            ulong offset = 8192 + (ulong)(square << 7);
+            ulong offset = (ulong)square << 6;
             ulong hIndex = occupation >> (square & 0b111000 | 1) & 63;
             ulong vIndex = (occupation >> (square & 0b000111) & FILE_A2_A7) * DIAGONAL_C2_H7 >> 58;
-            return Subset[offset + hIndex] | Subset[offset + 64 + vIndex];
+            return HSubset[offset + hIndex] | VSubset[offset + vIndex];
         }
 
         //Table initialization
@@ -42,11 +47,11 @@ namespace Leorik.Core.Slider
             for (int square = 0; square < 64; square++)
                 for (int index = 0; index < 64; index++)
                 {
-                    int offset = square * 128 + index;
-                    Subset[offset] = GetDiagonalSubset(square, index);
-                    Subset[offset + 64] = GetAntiDiagonalSubset(square, index);
-                    Subset[offset + 8192] = GetHorizontalSubset(square, index);
-                    Subset[offset + 8192 + 64] = GetVerticalSubset(square, index);
+                    int offset = square * 64 + index;
+                    DSubset[offset] = GetDiagonalSubset(square, index);
+                    ASubset[offset] = GetAntiDiagonalSubset(square, index);
+                    HSubset[offset] = GetHorizontalSubset(square, index);
+                    VSubset[offset] = GetVerticalSubset(square, index);
                 }
         }
 
@@ -130,7 +135,11 @@ namespace Leorik.Core.Slider
         {
             ulong dIndex = (occupation & Blocker.DiagonalMask[square]) * FILE_A2_A7 >> 57;
             ulong aIndex = (occupation & Blocker.AntiDiagonalMask[square]) * FILE_A2_A7 >> 57;
-            return GetDiagonalSubset(square, (int)dIndex) | GetAntiDiagonalSubset(square, (int)aIndex);
+            ulong result = GetDiagonalSubset(square, (int)dIndex) | GetAntiDiagonalSubset(square, (int)aIndex);
+            ulong result2 = BishopAttacks(occupation, square);
+            if (result2 != result)
+                throw new Exception();
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -138,7 +147,11 @@ namespace Leorik.Core.Slider
         {
             ulong hIndex = occupation >> (square & 0b111000 | 1) & 63;
             ulong vIndex = (occupation >> (square & 0b000111) & FILE_A2_A7) * DIAGONAL_C2_H7 >> 58;
-            return GetHorizontalSubset(square, (int)hIndex) | GetVerticalSubset(square, (int)vIndex);
+            ulong result = GetHorizontalSubset(square, (int)hIndex) | GetVerticalSubset(square, (int)vIndex);
+            ulong result2 = RookAttacks(occupation, square);
+            if (result2 != result)
+                throw new Exception();
+            return result;
         }
     }
 }
