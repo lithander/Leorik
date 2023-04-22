@@ -162,7 +162,7 @@ namespace Leorik.Tuning
                 }
             );
 
-            Resize(coefficients, Evaluation.PhaseSum);
+            //Resize(coefficients, Evaluation.PhaseSum);
         }
     }
 }

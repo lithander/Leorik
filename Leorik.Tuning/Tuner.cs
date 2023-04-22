@@ -94,20 +94,19 @@ namespace Leorik.Tuning
             return result;
         }
 
+        internal static Feature[] GetDenseFeatures(BoardState position, float phase)
+        {
+            Feature[] features = Condense(FeatureTuner.GetFeatures(position, phase));
+            Feature[] mobilityFeatures = MobilityTuner.GetFeatures(position, phase);
+            return Merge(features, mobilityFeatures, FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights);
+        }
+
         internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cFeatures)
         {
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
-            Feature[] features = Condense(FeatureTuner.GetFeatures(input.Position, phase));
-            Feature[] mobilityFeatures = MobilityTuner.GetFeatures(input.Position, phase);
-            features = Merge(features, mobilityFeatures, FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights);
-            //Feature[] kingSafetyFeatures = KingSafetyTuner.GetKingThreatsFeatures(input.Position, phase);
-            //features = Merge(features, kingSafetyFeatures, FeatureTuner.MaterialWeights);
-
+            Feature[] features = GetDenseFeatures(input.Position, phase);
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
-            //EvalTerm pawns = PawnStructure.Eval(input.Position);
-            //KingSafety.Update(input.Position, ref pawns);
-            //short mobility = Mobility.Eval(input.Position);
 
             return new TuningData
             {
@@ -121,24 +120,27 @@ namespace Leorik.Tuning
             };
         }
 
-        public static short[] IndexBuffer(float[] values)
+        public static int[] IndexBuffer(float[] values)
         {
-            List<short> indices = new List<short>();
-            for (short i = 0; i < values.Length; i++)
+            List<int> indices = new List<int>();
+            for (int i = 0; i < values.Length; i += 2)
                 if (values[i] != 0)
+                {
                     indices.Add(i);
+                    indices.Add(i+1);
+                }
 
             return indices.ToArray();
         }
 
         public static Feature[] Condense(float[] features)
         {
-            short[] indices = IndexBuffer(features);
+            int[] indices = IndexBuffer(features);
             Feature[] denseFeatures = new Feature[indices.Length];
             for (int i = 0; i < indices.Length; i++)
             {
-                short index = indices[i];
-                denseFeatures[i].Index = index;
+                int index = indices[i];
+                denseFeatures[i].Index = (short)index;
                 denseFeatures[i].Value = features[index];
             }
             return denseFeatures;
@@ -151,9 +153,6 @@ namespace Leorik.Tuning
                 Index = (short)(2 * index),
                 Value = value
             });
-
-            if (phase == 0)
-                return;
 
             //Set to 0 if you don't want to consider phases
             features.Add(new Feature
@@ -215,8 +214,7 @@ namespace Leorik.Tuning
         internal static Feature[] _AdjustPhase(BoardState position, Feature[] features, float phase)
         {
             //*** This is the naive but slow approach ***
-            float[] rawFeatures = FeatureTuner.GetFeatures(position, phase);
-            Feature[] refResult = Condense(rawFeatures);
+            Feature[] refResult = GetDenseFeatures(position, phase);
 
             //...but knowing the implementation details we can do it much faster...
             Feature[] result = AdjustPhase(features, phase);
@@ -244,52 +242,10 @@ namespace Leorik.Tuning
 
         internal static Feature[] AdjustPhase(Feature[] features, float phase)
         {
-            //The amount of features could change when phase is or was zero. So let's count the mg features first
-            //mg features are those with an even index
-            int count = 0;
-            foreach (var feature in features)
-                if (feature.Index % 2 == 0)
-                    count++;
+            for (int i = 0; i < features.Length; i += 2)
+                features[i + 1].Value = features[i].Value * phase;
 
-            //1. no eg features present or needed -> no change!
-            if (phase == 0 && features.Length == count)
-                return features;
-
-            //2. get rid of the endgame features
-            if (phase == 0 && features.Length == 2 * count)
-            {
-                Feature[] result = new Feature[count];
-                for (int i = 0; i < features.Length; i += 2)
-                    result[i / 2] = features[i];
-
-                return result;
-            }
-
-            //3. just update the eg values
-            if (phase > 0 && features.Length == 2 * count)
-            {
-                for (int i = 0; i < features.Length; i += 2)
-                    features[i + 1].Value = features[i].Value * phase;
-
-                return features;
-            }
-
-            //4. construct eg features from the mg features
-            Debug.Assert(phase > 0 && features.Length == count);
-            {
-                Feature[] result = new Feature[2 * count];
-                int index = 0;
-                foreach (var feature in features)
-                {
-                    result[index++] = feature;
-                    result[index++] = new()
-                    {
-                        Index = (short)(feature.Index + 1),
-                        Value = feature.Value * phase
-                    };
-                }
-                return result;
-            }
+            return features;
         }
 
         internal static void Rebalance(Piece piece, float[] featureWeights)

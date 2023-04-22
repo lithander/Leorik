@@ -146,7 +146,7 @@ namespace Leorik.Core
         public static int Checkmate(int ply) => (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float NormalizePhase(float phaseValue) => Math.Max((PhaseSum - phaseValue) / PhaseSum, 0);
+        public static float NormalizePhase(float phaseValue) => (PhaseSum - phaseValue) / PhaseSum;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int PieceIndex(Piece piece) => ((int)piece >> 2) - 1;
