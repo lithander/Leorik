@@ -1,5 +1,6 @@
 ﻿using Leorik.Core;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Leorik.Tuning
 {
@@ -65,13 +66,12 @@ namespace Leorik.Tuning
             //reader header blocks [...] skip empty lines, parse the result
             while (!_file.EndOfStream)
             {
-                _line = _file.ReadLine();
+                NextLine();
                 if (string.IsNullOrEmpty(_line) || _line == "\u001a")
                     continue;
 
                 if (_line[0] != '[')
                 {
-                    _index = 0;
                     _state = PGNParserState.MoveNumber;
                     return;
                 }
@@ -96,14 +96,16 @@ namespace Leorik.Tuning
         {
             string moveStr = ParseToken();
             PlayMove(moveStr);
-            _state = SkipComment() ? PGNParserState.BlackMove : PGNParserState.Stop;
+            SkipComment();
+            _state = IsGameOver() ? PGNParserState.Stop: PGNParserState.BlackMove;
         }
 
         private void ParseBlackMove()
         {
             string moveStr = ParseToken();
             PlayMove(moveStr);
-            _state = SkipComment() ? PGNParserState.MoveNumber : PGNParserState.Stop;
+            SkipComment();
+            _state = IsGameOver() ? PGNParserState.Stop : PGNParserState.MoveNumber;
         }
 
         private string ParseToken()
@@ -116,8 +118,7 @@ namespace Leorik.Tuning
             if (end == -1)
             {
                 string token = _line.Substring(_index);
-                _line = _file.ReadLine();
-                _index = 0;
+                NextLine();
                 return token;
             }
             else
@@ -128,7 +129,7 @@ namespace Leorik.Tuning
             }
         }
 
-        private bool SkipComment()
+        private void SkipComment()
         {
             //now there could follow a comment {}
             if (_line[_index] == ' ')
@@ -138,20 +139,37 @@ namespace Leorik.Tuning
                 int end = _line.IndexOf('}', _index);
                 while(end == -1)
                 {
-                    _index = 0;
-                    _line = _file.ReadLine();
+                    NextLine();
                     end = _line.IndexOf('}', _index);
                 }
                 _index = end + 2;
             }
 
             if (_line.Length <= _index)
-            {
-                _line = _file.ReadLine();
-                _index = 0;
-            }
+                NextLine();
+        }
 
-            return _line.IndexOf(Result, _index) == -1;
+        private bool IsGameOver()
+        {
+            int i = _line.IndexOf(Result[0], _index);
+            while(i >= 0)
+            {
+                int j = 1, count = Result.Length;
+                for (; j < count && Result[j] == _line[i + j]; j++);
+
+                if (j == count)
+                    return true;
+
+                i = _line.IndexOf(Result[0], i+1);
+            }
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void NextLine()
+        {
+            _line = _file.ReadLine();
+            _index = 0;
         }
 
         private void PlayMove(string moveNotation)
