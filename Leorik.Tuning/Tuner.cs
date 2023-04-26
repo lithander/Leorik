@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -12,13 +13,10 @@ namespace Leorik.Tuning
         public float Value;
     }
 
-    class TuningData
+    struct TuningData
     {
-        public BoardState Position;
         public sbyte Result;
-
         public Feature[] Features;
-
         public float MidgameEval;
         public float EndgameEval;
         public float Phase;
@@ -110,7 +108,6 @@ namespace Leorik.Tuning
 
             return new TuningData
             {
-                Position = input.Position,
                 Result = input.Result,               
                 Features = features,
                 MidgameEval = mgEval,
@@ -175,31 +172,33 @@ namespace Leorik.Tuning
             return combined;
         }
 
-        internal static void SyncFeaturesChanges(List<TuningData> data, float[] cFeatures)
+        internal static void SyncFeaturesChanges(TuningData[] data, float[] cFeatures)
         {
             //This is called after the material coefficients have been tuned. Now the phase-fatures need to be adjusted
             //so that the phase-eval and material-eval will agree again.
-            foreach (var td in data)
+            for (int i = 0; i < data.Length; i++)
             {
+                ref TuningData td = ref data[i];
                 FeatureTuner.GetEvalTerms(td.Features, cFeatures, out float mgEval, out float egEval);
                 td.MidgameEval = mgEval;
                 td.EndgameEval = egEval;
             }
         }
 
-        internal static void SyncPhaseChanges(List<TuningData> data, float[] cPhase)
+        internal static void SyncPhaseChanges(TuningData[] data, float[] cPhase)
         {
             //This is called after the phase coefficients have been tuned. Now the material-fatures need to be adjusted
             //so that the phase-eval and material-eval will agree again.
-            foreach (var td in data)
+            for (int i = 0; i < data.Length; i++)
             {
+                ref TuningData td = ref data[i];
                 td.Phase = PhaseTuner.GetPhase(td.PieceCounts, cPhase);
                 //td.Features = MaterialTuner._AdjustPhase(td.Position, td.Features, phase);
                 td.Features = AdjustPhase(td.Features, td.Phase);
             }
         }
         
-        internal static void ValidateConsistency(List<TuningData> data, float[] cPhase, float[] cFeatures)
+        internal static void ValidateConsistency(TuningData[] data, float[] cPhase, float[] cFeatures)
         {
             //This is called after the king-phase coefficients have been tuned. Re-Evaluate the white and black phases! 
             foreach (var td in data)
@@ -209,35 +208,6 @@ namespace Leorik.Tuning
                 if (Math.Abs(m - p) > 0.1f)
                     throw new Exception("TuningData is out of Sync!");
             }
-        }
-
-        internal static Feature[] _AdjustPhase(BoardState position, Feature[] features, float phase)
-        {
-            //*** This is the naive but slow approach ***
-            Feature[] refResult = GetDenseFeatures(position, phase);
-
-            //...but knowing the implementation details we can do it much faster...
-            Feature[] result = AdjustPhase(features, phase);
-
-            //...however, the results should be the same!
-            if (refResult.Length != result.Length)
-                throw new Exception("AdjustPhase is seriously buggy");
-
-            float error = 0;
-            for (int i = 0; i < result.Length; i++)
-            {
-                ref Feature a = ref refResult[i];
-                ref Feature b = ref result[i];
-                if (a.Index != b.Index)
-                    throw new Exception("AdjustPhase is seriously buggy");
-
-                error += Math.Abs(a.Value - b.Value);
-            }
-            if (error > 0.1)
-                throw new Exception("AdjustPhase is seriously buggy");
-
-            //...which is now verified! (Don't use outside debugging, obviuosly)
-            return result;
         }
 
         internal static Feature[] AdjustPhase(Feature[] features, float phase)
@@ -254,6 +224,45 @@ namespace Leorik.Tuning
             int mobilityOffset = 128 * featureTables;
             var avg = MobilityTuner.Rebalance(piece, mobilityOffset, featureWeights);
             FeatureTuner.Rebalance(piece, avg, featureWeights);
+        }
+
+        internal static void SampleRandomly(TuningData[] source, TuningData[] batch)
+        {
+            Random rng = new Random();
+            for (int i = 0; i < batch.Length; i++)
+            {
+                batch[i] = source[rng.Next(source.Length)];
+            }
+        }
+
+        internal static void SampleRandomSlice(TuningData[] source, TuningData[] batch)
+        {
+            Random rng = new Random();
+            int start = rng.Next(source.Length - batch.Length);
+            Array.Copy(source, start, batch, 0, batch.Length);
+        }
+
+        internal static void Shuffle(TuningData[] data)
+        {
+            //https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+            Random rng = new Random();
+            int n = data.Length;
+            while (n > 1)
+            {
+                n--;
+                int k = rng.Next(n + 1);
+                (data[k], data[n]) = (data[n], data[k]);
+            }
+        }
+
+        internal static void Localize(TuningData[] tuningData)
+        {
+            for (int i = 0; i < tuningData.Length; i++)
+                tuningData[i].Features = (Feature[])tuningData[i].Features.Clone();
+
+            for (int i = 0; i < tuningData.Length; i++)
+                tuningData[i].PieceCounts = (byte[])tuningData[i].PieceCounts.Clone();
+
         }
     }
 }

@@ -46,7 +46,7 @@ namespace Leorik.Tuning
             return data;
         }
 
-        public static void ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxCaptures)
+        public static (int games, int positions) ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxQDepth)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -56,13 +56,11 @@ namespace Leorik.Tuning
             int positions = 0;
             while (parser.NextGame())
             {
-                if (++games % 1000 == 0)
-                    Console.WriteLine($"{games} games, {positions} positions");
-
-                if (parser.Result == "*")
+                if (parser.Positions.Count == 0)
                     continue;
 
-                if (parser.Result == DRAW)
+                games++;
+                if (parser.Result == "*" || parser.Result == DRAW)
                     continue;
 
                 int count = parser.Positions.Count;
@@ -71,17 +69,9 @@ namespace Leorik.Tuning
                     int pi = count * (i+1) / (posPerGame+1);
                     var pos = parser.Positions[pi];
 
-                    var quiet = quiesce.QuiescePosition(pos);
+                    var quiet = quiesce.QuiescePosition(pos, maxQDepth);
                     if (quiet == null)
                         continue;
-
-                    //is the position too complicated?
-                    int numPiecesBefore = Bitboard.PopCount(pos.Black | pos.White);
-                    int numPiecesAfter = Bitboard.PopCount(quiet.Black | quiet.White);
-                    int numCaptures = numPiecesBefore - numPiecesAfter;
-                    //Console.WriteLine($"{numCaptures} --- {numPiecesBefore} vs {numPiecesAfter}");
-                    if (numCaptures > maxCaptures)
-                        continue; //position is too complicated
 
                     //Confirmation bias: Let's not weaken the eval by something the eval can't understand
                     if (skipOutliers > 0)
@@ -96,6 +86,7 @@ namespace Leorik.Tuning
                     output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
                 }
             }
+            return (games, positions);
         }
 
         public static void PgnToUci(StreamReader input, StreamWriter output)

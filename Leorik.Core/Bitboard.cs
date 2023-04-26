@@ -1,8 +1,8 @@
-﻿//#define PEXT
+﻿#define PEXT
 //#define KISS
 //#define SPARSE_SUBSETS
 //#define DENSE_SUBSETS
-#define CLASSIC
+//#define CLASSIC
 //#define ZERO
 
 using System.Numerics;

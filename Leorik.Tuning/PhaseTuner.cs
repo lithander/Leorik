@@ -48,7 +48,7 @@ namespace Leorik.Tuning
             return result;
         }
 
-        public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
+        public static double MeanSquareError(TuningData[] data, float[] coefficients, float scalingCoefficient)
         {
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
@@ -56,7 +56,7 @@ namespace Leorik.Tuning
                 float eval = Evaluate(entry, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
-            double result = squaredErrorSum / data.Count;
+            double result = squaredErrorSum / data.Length;
             return result;
         }
 
@@ -131,7 +131,7 @@ namespace Leorik.Tuning
                    2 * coefficients[3];  // Q
         }
 
-        internal static void MinimizeParallel(List<TuningData> data, float[] coefficients, float evalScaling, float alpha)
+        internal static void MinimizeParallel(TuningData[] data, float[] coefficients, float evalScaling, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -157,7 +157,7 @@ namespace Leorik.Tuning
                     lock (coefficients)
                     {
                         for (int i = 0; i < N; i++)
-                            coefficients[i] -= alpha * accu[i] / data.Count;
+                            coefficients[i] -= alpha * accu[i] / data.Length;
                     }
                 }
             );

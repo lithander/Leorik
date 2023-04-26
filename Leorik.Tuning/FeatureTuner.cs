@@ -142,7 +142,7 @@ namespace Leorik.Tuning
             }
         }
 
-        public static double MeanSquareError(List<TuningData> data, float[] coefficients, float scalingCoefficient)
+        public static double MeanSquareError(TuningData[] data, float[] coefficients, float scalingCoefficient)
         {
             double squaredErrorSum = 0;
             foreach (TuningData entry in data)
@@ -150,7 +150,7 @@ namespace Leorik.Tuning
                 float eval = Evaluate(entry, coefficients);
                 squaredErrorSum += SquareError(entry.Result, eval, scalingCoefficient);
             }
-            double result = squaredErrorSum / data.Count;
+            double result = squaredErrorSum / data.Length;
             return result;
         }
 
@@ -160,7 +160,7 @@ namespace Leorik.Tuning
             return Tuner.Evaluate(entry.Features, coefficients);
         }
 
-        public static void Minimize(List<TuningData> data, float[] coefficients, float evalScaling, float alpha)
+        public static void Minimize(TuningData[] data, float[] coefficients, float evalScaling, float alpha)
         {
             float[] accu = new float[AllWeigths];
             foreach (TuningData entry in data)
@@ -173,10 +173,10 @@ namespace Leorik.Tuning
             }
 
             for (int i = 0; i < AllWeigths; i++)
-                coefficients[i] -= alpha * accu[i] / data.Count;
+                coefficients[i] -= alpha * accu[i] / data.Length;
         }
 
-        public static void MinimizeParallel(List<TuningData> data, float[] coefficients, float evalScaling, float materialAlpha, float featureAlpha)
+        public static void MinimizeParallel(TuningData[] data, float[] coefficients, float evalScaling, float alpha)
         {
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
@@ -198,11 +198,8 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        for (int i = 0; i < MaterialWeights; i++)
-                            coefficients[i] -= materialAlpha * accu[i] / data.Count;
-
-                        for (int i = MaterialWeights; i < AllWeigths; i++)
-                            coefficients[i] -= featureAlpha * accu[i] / data.Count;
+                        for (int i = 0; i < AllWeigths; i++)
+                            coefficients[i] -= alpha * accu[i] / data.Length;
                     }
                 }
             );

@@ -7,6 +7,8 @@ namespace Leorik.Tuning
         private BoardState[] Positions;
         private Move[] Moves;
         private BoardState[] Results;
+        private int DeepestPly;
+        private int MaxDepth;
 
         public Quiesce()
         {
@@ -23,14 +25,19 @@ namespace Leorik.Tuning
                 Results[i] = new BoardState();
         }
 
-        public BoardState QuiescePosition(BoardState position)
+        public BoardState QuiescePosition(BoardState position, int maxQDepth)
         {
             const int MIN_ALPHA = -Evaluation.CheckmateScore;
             const int MAX_BETA = Evaluation.CheckmateScore;
             Positions[0].Copy(position);
             Results[0].Copy(position);
+            DeepestPly = 0;
+            MaxDepth = maxQDepth;
             MoveGen moveGen = new MoveGen(Moves, 0);
             int score = EvaluateQuiet(0, MIN_ALPHA, MAX_BETA, moveGen);
+            if (DeepestPly > MaxDepth)
+                return null; //We couldn't quiesce the position within the allowed depth
+
             int score2 = (int)position.SideToMove * Results[0].Eval.Score;
             if (score != score2)
                 return null; //This typically means a checkmate or stalemate - we ignore those!
@@ -41,6 +48,11 @@ namespace Leorik.Tuning
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             BoardState current = Positions[ply];
+
+            DeepestPly = Math.Max(DeepestPly, ply);
+            if(DeepestPly > MaxDepth)
+                return current.RelativeScore();
+
             bool inCheck = current.InCheck();
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
