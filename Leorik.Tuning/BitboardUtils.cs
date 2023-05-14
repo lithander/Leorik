@@ -81,6 +81,25 @@ namespace Leorik.Tuning
                 Console.ForegroundColor = ConsoleColor.Gray;
         }
 
+        public static void PrintData(Func<int, int> func)
+        {
+            Console.WriteLine("    A   B   C   D   E   F   G   H  ");
+            Console.WriteLine(" .--------------------------------.");
+            for (int rank = 7; rank >= 0; rank--)
+            {
+                Console.Write($" |"); //ranks aren't zero-indexed
+                for (int file = 0; file < 8; file++)
+                {
+                    int square = rank * 8 + file;
+                    Console.Write($"{func(square),3} ");
+                }
+                Console.WriteLine($"| {rank + 1}"); //ranks aren't zero-indexed
+                if (rank >= 1)
+                    Console.WriteLine(" |--------------------------------|");
+            }
+            Console.WriteLine(" '--------------------------------'");
+        }
+
         private static void BlockPrint(List<string> bbStrings, int stride)
         {
             int next = 0;

@@ -64,10 +64,10 @@ namespace Leorik.Tuning
                     continue;
 
                 int count = parser.Positions.Count;
-                for (int i = 0; i < posPerGame; i++)
+                int skip = count / posPerGame;
+                for (int i = 0; i < count; i++)
                 {
-                    int pi = count * (i+1) / (posPerGame+1);
-                    var pos = parser.Positions[pi];
+                    var pos = parser.Positions[i];
 
                     var quiet = quiesce.QuiescePosition(pos, maxQDepth);
                     if (quiet == null)
@@ -82,6 +82,7 @@ namespace Leorik.Tuning
                             continue;
                     }
 
+                    i += skip;
                     positions++;
                     output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
                 }
@@ -120,5 +121,36 @@ namespace Leorik.Tuning
                 output.WriteLine("}");
             }
         }
+
+        internal static void CollectMetrics(List<Data> data)
+        {
+            int[] black = new int[64];
+            int[] white = new int[64];
+            foreach (var entry in data)
+            {
+                var pos = entry.Position;
+                black[Bitboard.LSB(pos.Black & pos.Kings)]++;
+                white[Bitboard.LSB(pos.White & pos.Kings)]++;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("[Squares]");
+            Console.WriteLine();
+            BitboardUtils.PrintData(sq => sq);
+
+            Console.WriteLine();
+            Console.WriteLine("[Black King]");
+            Console.WriteLine();
+            int max = black.Max();
+            BitboardUtils.PrintData(square => (int)(999 * black[square] / (float)max));
+
+            Console.WriteLine();
+            Console.WriteLine("[White King]");
+            Console.WriteLine();
+            max = white.Max();
+            BitboardUtils.PrintData(square => (int)(999 * white[square] / (float)max));
+        }
+
+
     }    
 }

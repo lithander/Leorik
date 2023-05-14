@@ -91,7 +91,7 @@ namespace Leorik.Core
             eval.SubtractMobility(Pawn, blocked);
             //promotion square not blocked?
             int promo = PopCount(oneStep & 0x00000000000000FFUL);
-            eval.SubtractMobility(Pawn + 4, promo);
+            eval.SubtractMobility(Pawn + 3, promo);
             
             //White Pawns
             ulong whitePawns = board.Pawns & board.White;
@@ -101,7 +101,7 @@ namespace Leorik.Core
             eval.AddMobility(Pawn, blocked);
             //promotion square not blocked?
             promo = PopCount(oneStep & 0xFF00000000000000UL);
-            eval.AddMobility(Pawn + 4, promo);
+            eval.AddMobility(Pawn + 3, promo);
         }
     }
 }

@@ -1,10 +1,12 @@
 ﻿using Leorik.Core;
 using Leorik.Tuning;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
-string EPD_FILE = "DATA-L24-mixed-random-v7.epd";
+string EPD_FILE = "DATA-L24-all.epd";
 string[] PGN_FILES = {
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_12112020.pgn",
     //"leorik2X3_selfplay_startpos_5s_200ms_50mb_16112020.pgn",
@@ -48,6 +50,7 @@ string[] PGN_FILES = {
     "leorik24net8pext_selfplay_human_6_RND100--250-5s_100ms.pgn",
     "leorik24net8pext_selfplay_human_7_RND100--250-5s_100ms.pgn",
     "leorik24net8pext_selfplay_human_8_RND100--250-5s_100ms.pgn",
+    "leorik24net8pext_selfplay_human_9_RND100--250-5s_100ms.pgn",
 
     "leorik24net8pext_selfplay_varied_1_RND120--300-5s_100ms.pgn",
     "leorik24net8pext_selfplay_varied_2_RND120--300-5s_100ms.pgn",
@@ -60,6 +63,12 @@ string[] PGN_FILES = {
     "leorik24net8pext_selfplay_varied_9_RND120--300-5s_100ms.pgn",
     "leorik24net8pext_selfplay_varied_10_RND120--300-5s_100ms.pgn",
     "leorik24net8pext_selfplay_varied_11_RND120--300-5s_100ms.pgn",
+
+    "leorik24net8pext_selfplay_0_titans_RND100--250-5s_100ms.pgn",
+    "leorik24net8pext_selfplay_1_titans_RND100--250-5s_100ms.pgn",
+    "leorik24net8pext_selfplay_2_titans_RND100--250-5s_100ms.pgn",
+    "leorik24net8pext_selfplay_3_titans_RND100--250-5s_100ms.pgn",
+    "leorik24net8pext_selfplay_4_titans_RND100--250-5s_100ms.pgn",
 
     "leorik24_selfplay_varied_1_RND100-0_5s_200ms.pgn",
     "leorik24_selfplay_varied_2_RND100-0_5s_200ms.pgn",
@@ -75,7 +84,7 @@ string[] PGN_FILES = {
     "leorik24net8pext_selfplay_startpos_4_RND100--250-5s_100ms.pgn",
 };
 
-int FEN_PER_GAME = 15;
+int FEN_PER_GAME = 10;
 int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
@@ -114,13 +123,13 @@ Console.WriteLine();
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //ExtractPositions();
 List<Data> data = DataUtils.LoadData(DATA_PATH + EPD_FILE);
-
+DataUtils.CollectMetrics(data);
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
 //float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
 float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
@@ -134,9 +143,10 @@ foreach (Data entry in data)
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-Console.WriteLine($"Shuffling and localizing arrays...");
+Console.WriteLine($"Shuffling data...");
 t0 = Stopwatch.GetTimestamp();
 Tuner.Shuffle(tuningData);
+Console.WriteLine($"...and aligning feature arrays in memory...");
 Tuner.Localize(tuningData);
 GC.Collect();
 t1 = Stopwatch.GetTimestamp();
@@ -167,7 +177,34 @@ PrintCoefficients(cFeatures, cPhase);
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
 Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 
+WriteResults($"completely_random_{data.Count}", cFeatures, data);
 Console.ReadKey();
+
+void WriteResults(string fileName, float[] cFeatures, List<Data> data)
+{
+    string filePath;
+    // Loop until a filename that doesn't exist is found
+    int i = 0;
+    do
+        filePath = Path.Combine(DATA_PATH, $"{fileName}{i++}.txt");
+    while (File.Exists(filePath));
+
+    // Create the new file
+    Console.WriteLine($"Writing results into {fileName}...");
+    using (StreamWriter sw = File.CreateText(filePath))
+    {
+        sw.WriteLine(data.Count);
+        foreach (var td in data)
+        {
+            sw.WriteLine(Notation.GetFen(td.Position));
+        }
+        sw.WriteLine("#Weights:");
+        for(i = 0; i < cFeatures.Length; i += 2)
+            sw.WriteLine($"{cFeatures[i]}, {cFeatures[i+1]}");
+    }
+    Console.WriteLine($"Done!");
+}
+
 /*
 * 
 * FUNCTIONS 
@@ -184,7 +221,6 @@ void PgnToUci(string pgnFileName)
     DataUtils.PgnToUci(input, output);
     input.Close();
 }
-
 
 void ExtractPositions()
 {

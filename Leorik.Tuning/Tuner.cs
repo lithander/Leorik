@@ -86,7 +86,7 @@ namespace Leorik.Tuning
             foreach (Data entry in data)
             {
                 var eval = new Evaluation(entry.Position);
-                squaredErrorSum += SquareError(entry.Result, eval.Score, scalingCoefficient);
+                squaredErrorSum += SquareError(entry.Result, eval.RawScore, scalingCoefficient);
             }
             double result = squaredErrorSum / data.Count;
             return result;

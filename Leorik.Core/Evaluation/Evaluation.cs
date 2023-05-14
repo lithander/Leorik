@@ -15,6 +15,8 @@ namespace Leorik.Core
 
         public short Score { get; private set; }
 
+        public short RawScore => (short)(EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame());
+
         public Evaluation(BoardState board) : this()
         {
             PawnStructure.Update(board, ref Pawns);
