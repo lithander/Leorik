@@ -69,6 +69,9 @@ namespace Leorik.Engine
                 case "eval":
                     PrintEval(_engine.GetEval());
                     break;
+                case "flip":
+                    _engine.Flip();
+                    break;
                 default:
                     Console.WriteLine($"Unknown command: {input}");
                     return;

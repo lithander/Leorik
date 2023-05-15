@@ -4,6 +4,20 @@
     {
         /*
             Rebalanced so that immobile pieces receive no mobility bonus (0, 0)
+
+            Varied.bin Openings:
+            Score of Leorik-2.4.1 vs Leorik-2.4-Pext-Net8: 3081 - 2718 - 4201  [0.518] 10000
+            ...      Leorik-2.4.1 playing White: 1657 - 1162 - 2181  [0.549] 5000
+            ...      Leorik-2.4.1 playing Black: 1424 - 1556 - 2020  [0.487] 5000
+            ...      White vs Black: 3213 - 2586 - 4201  [0.531] 10000
+            Elo difference: 12.6 +/- 5.2, LOS: 100.0 %, DrawRatio: 42.0 %
+
+            Titans.bin Openings:
+            Score of Leorik-2.4.1 vs Leorik-2.4-Pext-Net8: 2592 - 2274 - 3642  [0.519] 8508
+            ...      Leorik-2.4.1 playing White: 1450 - 988 - 1816  [0.554] 4254
+            ...      Leorik-2.4.1 playing Black: 1142 - 1286 - 1826  [0.483] 4254
+            ...      White vs Black: 2736 - 2130 - 3642  [0.536] 8508
+            Elo difference: 13.0 +/- 5.6, LOS: 100.0 %, DrawRatio: 42.8 %
         */
         public static readonly short[] PhaseValues = new short[6] { 0, 237, 266, 469, 1372, 0 };
 

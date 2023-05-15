@@ -5,6 +5,7 @@
 //#define CLASSIC
 //#define ZERO
 
+using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Leorik.Core.Slider;
@@ -170,5 +171,8 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int File(int square) => square & 7;
 
+        //All bits keep their file but their rank is mirrored horizontally at the axis between 4th and 5th rank. 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong ByteSwap(ulong bb) => BinaryPrimitives.ReverseEndianness(bb);
     }
 }

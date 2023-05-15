@@ -107,6 +107,26 @@ namespace Leorik.Core
             HalfmoveClock = other.HalfmoveClock;
         }
 
+        public void Flip()
+        {
+            //A position flip is the action where each piece is replaced
+            //by the same piece of the opposite color and then moved to the opposite side of the board
+            //https://www.chessprogramming.org/Color_Flipping
+            (White, Black) = (ByteSwap(Black), ByteSwap(White));
+            Pawns = ByteSwap(Pawns);
+            Knights = ByteSwap(Knights);
+            Bishops = ByteSwap(Bishops);
+            Rooks = ByteSwap(Rooks);
+            Queens = ByteSwap(Queens);
+            Kings = ByteSwap(Kings);
+            EnPassant = ByteSwap(EnPassant);
+            CastleFlags = ByteSwap(CastleFlags);
+            SideToMove = (Color)(-(int)SideToMove);
+            UpdateEval();
+            UpdateHash();
+        }
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEval()
         {
