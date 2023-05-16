@@ -15,6 +15,8 @@ namespace Leorik.Tuning
         public const int MobilityWeights = 2 * 88;
         public const int AllWeigths = MaterialWeights + PawnStructureWeights + MobilityWeights;
 
+        public static float[] AllocArray() => new float[AllWeigths];
+
         public static string[] TableNames = new string[]
         {
             "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings",
@@ -24,7 +26,7 @@ namespace Leorik.Tuning
 
         public static float[] GetUntrainedCoefficients()
         {
-            float[] c = new float[AllWeigths];
+            float[] c = AllocArray();
 
             int index = 0;
             for (int sq = 0; sq < 64; sq++, index += 2)
@@ -43,7 +45,7 @@ namespace Leorik.Tuning
 
         public static float[] GetLeorikCoefficients()
         {
-            float[] result = new float[AllWeigths];
+            float[] result = AllocArray();
             int index = 0;
             for (int piece = 0; piece < 10; piece++)
             {
@@ -64,49 +66,41 @@ namespace Leorik.Tuning
             return result;
         }
 
-        delegate void FeatureHandler(int table, int square, int value);
-
-        private static void IteratePieces(BoardState pos, ulong pieces, FeatureHandler action, int table)
+        private static void IteratePieces(float[] features, float phase, BoardState pos, ulong pieces, int table)
         {
             for (ulong bits = pieces & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                action(table, square, -1);
+                int index = table * 128 + 2 * square;
+                features[index]--;
+                features[index + 1] -= phase;
             }
             for (ulong bits = pieces & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
-                int square = Bitboard.LSB(bits);
-                action(table, square ^ 56, 1);
+                int square = Bitboard.LSB(bits) ^ 56;
+                int index = table * 128 + 2 * square;
+                features[index]++;
+                features[index + 1] += phase;
             }
         }
 
-        public static float[] GetFeatures(BoardState pos, float phase)
+        public static void AddFeatures(float[] features, BoardState pos, float phase)
         {
-            float[] result = new float[AllWeigths];
-
             //phase is used to interpolate between endgame and midgame score but we want to incorporate it into the features vector
             //score = midgameScore + phase * endgameScore
-            void AddFeature(int table, int square, int value)
-            {
-                int index = table * 128 + 2 * square;
-                result[index] += value;
-                result[index + 1] += value * phase;
-            }
-
-            IteratePieces(pos, pos.Pawns,   AddFeature, 0);
-            IteratePieces(pos, pos.Knights, AddFeature, 1);
-            IteratePieces(pos, pos.Bishops, AddFeature, 2);
-            IteratePieces(pos, pos.Rooks,   AddFeature, 3);
-            IteratePieces(pos, pos.Queens,  AddFeature, 4);
-            IteratePieces(pos, pos.Kings,   AddFeature, 5);
+            
+            IteratePieces(features, phase, pos, pos.Pawns, 0);
+            IteratePieces(features, phase, pos, pos.Knights, 1);
+            IteratePieces(features, phase, pos, pos.Bishops, 2);
+            IteratePieces(features, phase, pos, pos.Rooks, 3);
+            IteratePieces(features, phase, pos, pos.Queens, 4);
+            IteratePieces(features, phase, pos, pos.Kings, 5);
 
             //Pawn Structure
-            IteratePieces(pos, Features.GetIsolatedPawns(pos), AddFeature, 6);
-            IteratePieces(pos, Features.GetPassedPawns(pos), AddFeature, 7);
-            IteratePieces(pos, Features.GetProtectedPawns(pos), AddFeature, 8);
-            IteratePieces(pos, Features.GetConnectedPawns(pos), AddFeature, 9);
-
-            return result;
+            IteratePieces(features, phase, pos, Features.GetIsolatedPawns(pos), 6);
+            IteratePieces(features, phase, pos, Features.GetPassedPawns(pos), 7);
+            IteratePieces(features, phase, pos, Features.GetProtectedPawns(pos), 8);
+            IteratePieces(features, phase, pos, Features.GetConnectedPawns(pos), 9);
         }
 
         internal static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
@@ -162,7 +156,7 @@ namespace Leorik.Tuning
 
         public static void Minimize(TuningData[] data, float[] coefficients, float evalScaling, float alpha)
         {
-            float[] accu = new float[AllWeigths];
+            float[] accu = AllocArray();
             foreach (TuningData entry in data)
             {
                 float eval = Evaluate(entry, coefficients);
@@ -181,7 +175,7 @@ namespace Leorik.Tuning
             //each thread maintains a local accu. After the loop is complete the accus are combined
             Parallel.ForEach(data,
                 //initialize the local variable accu
-                () => new float[AllWeigths],
+                () => AllocArray(),
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {

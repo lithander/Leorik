@@ -32,7 +32,6 @@ namespace Leorik.Tuning
             return (float)(2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1);
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(Feature[] features, float[] coefficients)
         {
@@ -92,18 +91,16 @@ namespace Leorik.Tuning
             return result;
         }
 
-        internal static Feature[] GetDenseFeatures(BoardState position, float phase)
-        {
-            Feature[] features = Condense(FeatureTuner.GetFeatures(position, phase));
-            Feature[] mobilityFeatures = MobilityTuner.GetFeatures(position, phase);
-            return Merge(features, mobilityFeatures, FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights);
-        }
-
         internal static TuningData GetTuningData(Data input, float[] cPhase, float[] cFeatures)
         {
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
-            Feature[] features = GetDenseFeatures(input.Position, phase);
+
+            float[] sparseFeatures = FeatureTuner.AllocArray();
+            FeatureTuner.AddFeatures(sparseFeatures, input.Position, phase);
+            int mobilityOffset = FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights;
+            MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, mobilityOffset);
+            Feature[] features = Condense(sparseFeatures);
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
 
             return new TuningData
@@ -141,35 +138,6 @@ namespace Leorik.Tuning
                 denseFeatures[i].Value = features[index];
             }
             return denseFeatures;
-        }
-
-        public static void AddFeature(this List<Feature> features, int index, int value, float phase)
-        {
-            features.Add(new Feature
-            {
-                Index = (short)(2 * index),
-                Value = value
-            });
-
-            //Set to 0 if you don't want to consider phases
-            features.Add(new Feature
-            {
-                Index = (short)(2 * index + 1),
-                Value = value * phase
-            });
-        }
-
-        private static Feature[] Merge(Feature[] first, Feature[] second, int offset)
-        {
-            Feature[] combined = new Feature[first.Length + second.Length];
-            Array.Copy(first, combined, first.Length);
-            for(int i = 0; i < second.Length; i++)
-            {
-                int j = first.Length + i;
-                combined[j].Value = second[i].Value;
-                combined[j].Index = (short)(second[i].Index + offset);
-            }
-            return combined;
         }
 
         internal static void SyncFeaturesChanges(TuningData[] data, float[] cFeatures)

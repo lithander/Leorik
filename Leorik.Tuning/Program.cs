@@ -1,9 +1,6 @@
 ﻿using Leorik.Core;
 using Leorik.Tuning;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Net;
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L24-all.epd";
@@ -101,7 +98,7 @@ int PHASE_BATCH_SIZE = 5000;
 
 //https://www.desmos.com/calculator/k7qsivwcdc
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v24 ");
+Console.WriteLine(" Leorik Tuning v25 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
@@ -128,9 +125,9 @@ DataUtils.CollectMetrics(data);
 TestLeorikMSE();
 
 float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 //float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -156,8 +153,9 @@ Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
 RebalanceCoefficients(cFeatures);
-//PrintCoefficients(cFeatures, cPhase);
+PrintCoefficients(cFeatures, cPhase);
 TestPhaseMSE(cPhase);
+TestMaterialMSE(cFeatures);
 PhaseTuner.Report(cPhase);
 
 t0 = Stopwatch.GetTimestamp();
