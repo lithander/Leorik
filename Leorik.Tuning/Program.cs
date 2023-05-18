@@ -86,7 +86,7 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 120;
+int ITERATIONS = 20;
 
 int MATERIAL_ALPHA = 25;
 int MATERIAL_BATCHES = 2500;
@@ -153,7 +153,7 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
-//RebalanceCoefficients(cFeatures);
+RebalanceCoefficients(cFeatures);
 PrintCoefficients(cFeatures, cPhase);
 TestPhaseMSE(cPhase);
 TestMaterialMSE(cFeatures);
@@ -170,7 +170,7 @@ for (int it = 0; it < ITERATIONS; it++)
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-//RebalanceCoefficients(cFeatures);
+RebalanceCoefficients(cFeatures);
 PrintCoefficients(cFeatures, cPhase);
 
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);

@@ -207,10 +207,10 @@ namespace Leorik.Tuning
             );
         }
 
-        internal static void Rebalance(Piece piece, (int mg, int eg) delta, float[] coefficients)
+        internal static void Rebalance(Piece piece, (int mg, int eg) delta, float[] coefficients, int offset)
         {
             int table = ((int)piece >> 2) - 1; //Pawn: 0, Knight: 1 ... King: 5
-            int index = table * 128;
+            int index = offset + table * 128;
             for (int sq = 0; sq < 64; sq++)
             {
                 coefficients[index++] += delta.mg;

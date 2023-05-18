@@ -191,7 +191,13 @@ namespace Leorik.Tuning
             int featureTables = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
             int mobilityOffset = 128 * featureTables;
             var avg = MobilityTuner.Rebalance(piece, mobilityOffset, featureWeights);
-            FeatureTuner.Rebalance(piece, avg, featureWeights);
+            FeatureTuner.Rebalance(piece, avg, featureWeights, 0);
+
+            int blackOffset = FeatureTuner.AllWeights;
+            //we now have feature tables for *white* and *black* seperated by 'blackOffset'
+            avg = MobilityTuner.Rebalance(piece, mobilityOffset + blackOffset, featureWeights);
+            FeatureTuner.Rebalance(piece, avg, featureWeights, blackOffset);
+
         }
 
         internal static void SampleRandomly(TuningData[] source, TuningData[] batch)
