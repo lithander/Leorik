@@ -56,13 +56,24 @@ namespace Leorik.Tuning
                 if ((piece & Piece.TypeMask) == Piece.Pawn && moveCount > 0 && moveCount < 3)
                     continue;
 
-                int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
+                int colorOffset = (piece & Piece.ColorMask) == Piece.White ? 0 : FeatureTuner.AllWeights;
                 int order = Move.Order(piece);
-                int index = offset + 2 * (PieceMobilityIndices[order] + moveCount);
-                features[index] += value;
-                features[index + 1] += value * phase;
+                int index = colorOffset + offset + 2 * (PieceMobilityIndices[order] + moveCount);
+                features[index]++;
+                features[index + 1] += phase;
             }
         }
+
+        internal static void Report(int offset, float[] coefficients)
+        {
+            Report(Piece.Pawn, offset, coefficients);
+            Report(Piece.Knight, offset, coefficients);
+            Report(Piece.Bishop, offset, coefficients);
+            Report(Piece.Rook, offset, coefficients);
+            Report(Piece.Queen, offset, coefficients);
+            Report(Piece.King, offset, coefficients);
+        }
+
 
         internal static void Report(Piece piece, int offset, float[] coefficients)
         {

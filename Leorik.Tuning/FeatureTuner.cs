@@ -13,9 +13,11 @@ namespace Leorik.Tuning
         public const int PawnStructureWeights = 2 * PawnStructureTables * 64;
         public const int MaterialWeights = 2 * MaterialTables * 64;
         public const int MobilityWeights = 2 * 88;
-        public const int AllWeigths = MaterialWeights + PawnStructureWeights + MobilityWeights;
+        public const int AllWeights = MaterialWeights + PawnStructureWeights + MobilityWeights;
+        public const int FeatureCount = 2 * AllWeights; //each color get's it's own set of weights!
 
-        public static float[] AllocArray() => new float[AllWeigths];
+
+        public static float[] AllocArray() => new float[FeatureCount];
 
         public static string[] TableNames = new string[]
         {
@@ -26,21 +28,30 @@ namespace Leorik.Tuning
 
         public static float[] GetUntrainedCoefficients()
         {
-            float[] c = AllocArray();
+            float[] result = AllocArray();
 
             int index = 0;
             for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 100; //Pawns
+                result[index] = 100; //Pawns
             for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 300; //Knights
+                result[index] = 300; //Knights
             for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 300; //Bishops
+                result[index] = 300; //Bishops
             for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 500; //Rooks
+                result[index] = 500; //Rooks
             for (int sq = 0; sq < 64; sq++, index += 2)
-                c[index] = 900; //Queens
+                result[index] = 900; //Queens
 
-            return c;
+            CopyWhiteToBlack(result);
+
+            return result;
+        }
+
+        private static void CopyWhiteToBlack(float[] c)
+        {
+            int split = c.Length / 2;
+            for(int i = 0; i < split; i++)
+                c[i + split] = -c[i];
         }
 
         public static float[] GetLeorikCoefficients()
@@ -63,22 +74,19 @@ namespace Leorik.Tuning
                 result[index++] = mg;
                 result[index++] = eg;
             }
+
+            CopyWhiteToBlack(result);
+
             return result;
         }
 
         private static void IteratePieces(float[] features, float phase, BoardState pos, ulong pieces, int table)
         {
-            for (ulong bits = pieces & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
+            for (ulong bits = pieces; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {               
                 int square = Bitboard.LSB(bits);
-                int index = table * 128 + 2 * square;
-                features[index]--;
-                features[index + 1] -= phase;
-            }
-            for (ulong bits = pieces & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits) ^ 56;
-                int index = table * 128 + 2 * square;
+                bool black = ((pos.Black >> square) & 1UL) > 0;
+                int index = table * 128 + (black ? AllWeights + 2 * square : 2 * (square ^ 56));
                 features[index]++;
                 features[index + 1] += phase;
             }
@@ -118,10 +126,10 @@ namespace Leorik.Tuning
             }
         }
 
-        internal static void Report(int table, float[] coefficients)
+        internal static void Report(int table, int offset, float[] coefficients)
         {
             const int step = 2;
-            int offset = table * 128;
+            offset += table * 128;
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < 8; j++)
@@ -166,7 +174,7 @@ namespace Leorik.Tuning
                     accu[f.Index] += error * f.Value;
             }
 
-            for (int i = 0; i < AllWeigths; i++)
+            for (int i = 0; i < accu.Length; i++)
                 coefficients[i] -= alpha * accu[i] / data.Length;
         }
 
@@ -192,7 +200,7 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        for (int i = 0; i < AllWeigths; i++)
+                        for (int i = 0; i < accu.Length; i++)
                             coefficients[i] -= alpha * accu[i] / data.Length;
                     }
                 }
