@@ -145,8 +145,8 @@ namespace Leorik.Core
                 }
 
                 //swap the side like a negamax without recursion
-                sign *= -1;
-                see *= -1;
+                sign = -sign;
+                see = -see;
                 (alpha, beta) = (-beta, -alpha);
             }
         }

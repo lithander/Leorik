@@ -120,6 +120,22 @@ namespace Leorik.Tuning
         //*** BB-GENERATORS ***
         //*********************
 
+        public static void GenerateFilters()
+        {
+            string any = Notation.GetHexString(ulong.MaxValue);
+            for (int rank = 0; rank < 8; rank++)
+                for (int file = 0; file < 8; file++)
+                {
+                    int square = rank * 8 + file;
+                    ulong bb = (1UL << square);
+                    //Console.WriteLine($"{Notation.GetSquareName(square)} : {Notation.GetHexString(bb)} ");
+
+                    Console.WriteLine($"   new(){{ WhiteKingMask = {any}, BlackKingMask = {Notation.GetHexString(bb)}, Comment = \"WK: *any* BK: {Notation.GetSquareName(square)}\"}},");
+
+                }
+        }
+
+
         public static ulong GenerateWhiteSquares()
         {
             ulong result = 0;
@@ -150,8 +166,8 @@ namespace Leorik.Tuning
                 //Debug.Assert(square == i, "");
                 //ulong king = 1UL << i;
                 ulong zone = Bitboard.KingTargets[square] | 1UL << square;
-                zoneStrings.Add(Notation.GetHex(zone));
-                Console.WriteLine(Notation.GetHex(zone));
+                zoneStrings.Add(Notation.GetHexString(zone));
+                Console.WriteLine(Notation.GetHexString(zone));
             }
             Console.ReadLine();
             BlockPrint(zoneStrings, 4);

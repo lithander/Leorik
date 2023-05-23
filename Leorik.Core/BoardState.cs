@@ -126,7 +126,6 @@ namespace Leorik.Core
             UpdateHash();
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEval()
         {

@@ -10,6 +10,17 @@ namespace Leorik.Tuning
         public sbyte Result; //{1 (White Wins), 0, -1 (Black wins)}
     }
 
+    struct Bucket
+    {
+        public Bucket(string comment)
+        {
+            Comment = comment;
+            Data = new List<Data>();
+        }
+        public string Comment;
+        public List<Data> Data;
+    }
+
     static class DataUtils
     {
         const string WHITE = "1-0";
@@ -40,13 +51,57 @@ namespace Leorik.Tuning
             Console.WriteLine($"Loading DATA from '{epdFile}'");
             var file = File.OpenText(epdFile);
             while (!file.EndOfStream)
-                data.Add(ParseEntry(file.ReadLine()));
+            {
+                string line = file.ReadLine();
+                if (IsComment(line))
+                    continue;
+
+                data.Add(ParseEntry(line));
+            }
 
             Console.WriteLine($"{data.Count} labeled positions loaded!");
             return data;
         }
 
-        public static (int games, int positions) ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxQDepth)
+        public static List<Bucket> LoadDataBuckets(string epdFile)
+        {
+            Console.WriteLine($"Loading DATA from '{epdFile}'");
+            List<Bucket> result = new List<Bucket>();
+            int count = 0;
+            var file = File.OpenText(epdFile);
+
+            string line = file.ReadLine();
+            if (!IsComment(line))
+                throw new Exception("Data blocks need to start with a comment!");
+
+            Bucket bucket = new Bucket(line);
+
+            while (!file.EndOfStream)
+            {
+                line = file.ReadLine();
+                if (IsComment(line))
+                {
+                    result.Add(bucket);
+                    bucket = new Bucket(line);
+                }
+                else
+                {
+                    count++;
+                    bucket.Data.Add(ParseEntry(line));
+                }
+            }
+
+            result.Add(bucket);
+            Console.WriteLine($"{result.Count} buckets with {count} labeled positions loaded!");
+            return result;
+        }
+
+        private static bool IsComment(string line)
+        {
+            return line.Length > 1 && line[0] == '/' && line[1] == '/';
+        }
+
+        public static (int games, int positions) ExtractData(StreamReader input, int skipOpening, int maxQDepth, DataCollector collector)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -64,28 +119,15 @@ namespace Leorik.Tuning
                     continue;
 
                 int count = parser.Positions.Count;
-                int skip = count / posPerGame;
                 for (int i = 0; i < count; i++)
                 {
-                    var pos = parser.Positions[i];
-
-                    var quiet = quiesce.QuiescePosition(pos, maxQDepth);
-                    if (quiet == null)
+                    if (i < skipOpening)
                         continue;
 
-                    //Confirmation bias: Let's not weaken the eval by something the eval can't understand
-                    if (skipOutliers > 0)
-                    {
-                        if (quiet.Eval.Score < -skipOutliers && parser.Result != BLACK)
-                            continue;
-                        if (quiet.Eval.Score > skipOutliers && parser.Result != WHITE)
-                            continue;
-                    }
-
-                    i += skip;
-                    positions++;
-                    output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
-                }
+                    var quiet = quiesce.QuiescePosition(parser.Positions[i], maxQDepth);
+                    if (quiet != null)
+                        positions += collector.Collect(quiet, parser.Result, count);
+                 }
             }
             return (games, positions);
         }
@@ -150,7 +192,5 @@ namespace Leorik.Tuning
             max = white.Max();
             BitboardUtils.PrintData(square => (int)(999 * white[square] / (float)max));
         }
-
-
-    }    
+    }
 }

@@ -6,7 +6,7 @@ namespace Leorik.Core
     {
         public const string STARTING_POS_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-        public static string GetHex(ulong bitboard)
+        public static string GetHexString(ulong bitboard)
         {
             return $"0x{Convert.ToString((long)bitboard, 16).PadLeft(16, '0').ToUpperInvariant()}UL";
         }
