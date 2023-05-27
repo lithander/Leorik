@@ -88,7 +88,7 @@ int MAX_Q_DEPTH = 10;
 float MSE_SCALING = 100;
 int ITERATIONS = 100;
 
-int MATERIAL_ALPHA = 50;
+int MATERIAL_ALPHA = 25;
 int MATERIAL_BATCHES = 2000;
 int MATERIAL_BATCH_SIZE = 5000;
 
@@ -152,7 +152,7 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 Console.WriteLine();
 
-RebalanceCoefficients(cFeatures);
+//RebalanceCoefficients(cFeatures);
 PrintCoefficients(cFeatures, cPhase);
 TestPhaseMSE(cPhase);
 TestMaterialMSE(cFeatures);
@@ -169,7 +169,7 @@ for (int it = 0; it < ITERATIONS; it++)
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-RebalanceCoefficients(cFeatures);
+//RebalanceCoefficients(cFeatures);
 PrintCoefficients(cFeatures, cPhase);
 
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
@@ -352,11 +352,8 @@ void RebalanceCoefficients(float[] featureWeights)
 
 void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 {
-    int featureTables = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
-    int mobilityOffset = 128 * featureTables;
-
     Console.WriteLine("Features");
-    for (int i = 0; i < featureTables; i++)
+    for (int i = 0; i < FeatureTuner.FeatureTables; i++)
     {
         Console.WriteLine($"//{FeatureTuner.TableNames[i]}");
         FeatureTuner.Report(i, featureWeights);
@@ -364,12 +361,12 @@ void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 
     Console.WriteLine();
     Console.WriteLine("Mobility");
-    MobilityTuner.Report(Piece.Pawn, mobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Knight, mobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Bishop, mobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Rook, mobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Queen, mobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.King, mobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Pawn, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Knight, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Bishop, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Rook, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Queen, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.King, FeatureTuner.MobilityOffset, featureWeights);
     Console.WriteLine();
 
     Console.WriteLine();

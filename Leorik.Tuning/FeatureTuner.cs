@@ -10,17 +10,26 @@ namespace Leorik.Tuning
         //(Midgame + Endgame) * (6 Pieces + Isolated + Passed + Protected + Connected) * 64 = 1280 coefficients
         public const int MaterialTables = 6;
         public const int PawnStructureTables = 4;
-        public const int PawnStructureWeights = 2 * PawnStructureTables * 64;
+        public const int KingRelativeTables = 10;
+        public const int FeatureTables = MaterialTables + PawnStructureTables + KingRelativeTables;
+
         public const int MaterialWeights = 2 * MaterialTables * 64;
+        public const int PawnStructureWeights = 2 * PawnStructureTables * 64;
+        public const int KingRelativeWeights = 2 * KingRelativeTables * 64;
+
+        public const int MobilityOffset = MaterialWeights + PawnStructureWeights + KingRelativeWeights;
         public const int MobilityWeights = 2 * 88;
-        public const int AllWeigths = MaterialWeights + PawnStructureWeights + MobilityWeights;
+
+        public const int AllWeigths = MaterialWeights + PawnStructureWeights + KingRelativeWeights + MobilityWeights;
 
         public static float[] AllocArray() => new float[AllWeigths];
 
         public static string[] TableNames = new string[]
         {
             "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings",
-            "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns"
+            "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns",
+            "KR-Pawns", "KR-Knights", "KR-Bishops", "KR-Rooks", "KR-Queens",
+            "KR-Pawns-2", "KR-Knights-2", "KR-Bishops-2", "KR-Rooks-2", "KR-Queens-2",
         };
 
 
@@ -57,6 +66,7 @@ namespace Leorik.Tuning
                 }
             }
 
+            index = MobilityOffset;
             for (int i = 0; i < 88; i++)
             {
                 (short mg, short eg) = Weights.Mobility[i];
@@ -101,6 +111,51 @@ namespace Leorik.Tuning
             IteratePieces(features, phase, pos, Features.GetPassedPawns(pos), 7);
             IteratePieces(features, phase, pos, Features.GetProtectedPawns(pos), 8);
             IteratePieces(features, phase, pos, Features.GetConnectedPawns(pos), 9);
+
+            //King Relative
+            IterateKingRelative(features, phase, pos, pos.Pawns, 10);
+            IterateKingRelative(features, phase, pos, pos.Knights, 11);
+            IterateKingRelative(features, phase, pos, pos.Bishops, 12);
+            IterateKingRelative(features, phase, pos, pos.Rooks, 13);
+            IterateKingRelative(features, phase, pos, pos.Queens, 14);
+
+            IterateOpponentKingRelative(features, phase, pos, pos.Pawns, 15);
+            IterateOpponentKingRelative(features, phase, pos, pos.Knights, 16);
+            IterateOpponentKingRelative(features, phase, pos, pos.Bishops, 17);
+            IterateOpponentKingRelative(features, phase, pos, pos.Rooks, 18);
+            IterateOpponentKingRelative(features, phase, pos, pos.Queens, 19);
+        }
+
+        private static void IterateKingRelative(float[] features, float phase, BoardState pos, ulong pieces, int table)
+        {
+            //Black!
+            int pieceCount = Bitboard.PopCount(pos.Black & pieces);
+            int kingSquare = Bitboard.LSB(pos.Black & pos.Kings);
+            int index = table * 128 + 2 * kingSquare;
+            features[index] -= pieceCount;
+            features[index + 1] -= (phase * pieceCount);
+            //White!
+            pieceCount = Bitboard.PopCount(pos.White & pieces);
+            kingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
+            index = table * 128 + 2 * kingSquare;
+            features[index] += pieceCount;
+            features[index + 1] += (phase * pieceCount);
+        }
+
+        private static void IterateOpponentKingRelative(float[] features, float phase, BoardState pos, ulong pieces, int table)
+        {
+            //Black!
+            int pieceCount = Bitboard.PopCount(pos.Black & pieces);
+            int kingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
+            int index = table * 128 + 2 * kingSquare;
+            features[index] -= pieceCount;
+            features[index + 1] -= (phase * pieceCount);
+            //White!
+            pieceCount = Bitboard.PopCount(pos.White & pieces);
+            kingSquare = Bitboard.LSB(pos.Black & pos.Kings);
+            index = table * 128 + 2 * kingSquare;
+            features[index] += pieceCount;
+            features[index + 1] += (phase * pieceCount);
         }
 
         internal static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
@@ -192,8 +247,13 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        for (int i = 0; i < AllWeigths; i++)
+                        int N0 = MaterialWeights + PawnStructureWeights;
+                        int N1 = N0 + KingRelativeWeights + MobilityWeights;
+                        for (int i = 0; i < N0; i++)
                             coefficients[i] -= alpha * accu[i] / data.Length;
+
+                        for (int i = N0; i < N1; i++)
+                            coefficients[i] -= 0.25f * alpha * accu[i] / data.Length;
                     }
                 }
             );

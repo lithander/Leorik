@@ -136,7 +136,6 @@ namespace Leorik.Core
             return Down(Up(whitePawns) & blackAttacks & ~FillUp(whiteAttacks));
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ulong FillUp(ulong bits)
         {

@@ -9,7 +9,8 @@ namespace Leorik.Core
         public short PhaseValue;
         public EvalTerm Pawns;
         public EvalTerm Material;
-        public EvalTerm Positional;
+        public EvalTerm Mobility;
+        public EvalTerm KingRelative;
 
         public float Phase => NormalizePhase(PhaseValue);
 
@@ -20,7 +21,9 @@ namespace Leorik.Core
         public Evaluation(BoardState board) : this()
         {
             PawnStructure.Update(board, ref Pawns);
-            Mobility.Update(board, ref Positional);
+            MobilityEval.Update(board, ref Mobility);
+            KingRelativeEval.Update(board, ref KingRelative);
+
             AddPieces(board);
             UpdateScore(board);
         }
@@ -29,25 +32,27 @@ namespace Leorik.Core
         internal void QuickUpdate(BoardState board, ref Move move)
         {
             PawnStructure.Update(board, ref Pawns);
-            UpdateMaterial(board, ref move);
+            KingRelativeEval.Update(board, ref move, ref KingRelative);
+            UpdateMaterial(ref move);
             UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
-            Positional = default;
-            Mobility.Update(board, ref Positional);
+            Mobility = default;
+            MobilityEval.Update(board, ref Mobility);
             PawnStructure.Update(board, ref move, ref Pawns);
-            UpdateMaterial(board, ref move);
+            KingRelativeEval.Update(board, ref move, ref KingRelative);
+            UpdateMaterial(ref move);
             UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvalBase() => Pawns.Base + Material.Base + Positional.Base;
+        private int EvalBase() => Pawns.Base + Material.Base + Mobility.Base + KingRelative.Base;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvalEndgame() => Pawns.Endgame + Material.Endgame + Positional.Endgame;
+        private int EvalEndgame() => Pawns.Endgame + Material.Endgame + Mobility.Endgame + KingRelative.Endgame;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore(BoardState board)
@@ -69,7 +74,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateMaterial(BoardState board, ref Move move)
+        private void UpdateMaterial(ref Move move)
         {
             RemovePiece(move.MovingPiece(), move.FromSquare);
             AddPiece(move.NewPiece(), move.ToSquare);

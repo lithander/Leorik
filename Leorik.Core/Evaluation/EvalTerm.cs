@@ -83,5 +83,13 @@ namespace Leorik.Core
             Base += (short)(count * mg);
             Endgame += (short)(count * eg);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Change(int index, int count)
+        {
+            (short mg, short eg) = Weights.Features[index];
+            Base += (short)(count * mg);
+            Endgame += (short)(count * eg);
+        }
     }
 }

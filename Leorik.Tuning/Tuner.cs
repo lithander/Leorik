@@ -98,8 +98,7 @@ namespace Leorik.Tuning
 
             float[] sparseFeatures = FeatureTuner.AllocArray();
             FeatureTuner.AddFeatures(sparseFeatures, input.Position, phase);
-            int mobilityOffset = FeatureTuner.MaterialWeights + FeatureTuner.PawnStructureWeights;
-            MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, mobilityOffset);
+            MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, FeatureTuner.MobilityOffset);
             Feature[] features = Condense(sparseFeatures);
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
 

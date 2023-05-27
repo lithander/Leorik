@@ -4,10 +4,10 @@ using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core
 {
-    public static class Mobility
+    public static class MobilityEval
     {
         const int Pawn = 0;
-        const int Knight = 13;
+        //const int Knight = 13;
         const int Bishop = 22;
         const int Rook = 36;
         const int Queen = 51;
