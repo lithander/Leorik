@@ -34,16 +34,24 @@ namespace Leorik.Tuning
             };
         }
 
-        public static List<Data> LoadData(string epdFile)
+        public static void LoadData(List<Data> data, string epdFile)
         {
-            List<Data> data = new List<Data>();
             Console.WriteLine($"Loading DATA from '{epdFile}'");
             var file = File.OpenText(epdFile);
             while (!file.EndOfStream)
-                data.Add(ParseEntry(file.ReadLine()));
+            {
+                string line = file.ReadLine();
+                if (IsComment(line))
+                    continue;
+                data.Add(ParseEntry(line));
+            }
 
             Console.WriteLine($"{data.Count} labeled positions loaded!");
-            return data;
+        }
+
+        private static bool IsComment(string line)
+        {
+            return line.Length > 1 && line[0] == '/' && line[1] == '/';
         }
 
         public static (int games, int positions) ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxQDepth)
