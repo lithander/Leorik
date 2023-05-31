@@ -31,7 +31,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void QuickUpdate(BoardState board, ref Move move)
         {
-            PawnStructure.Update(board, ref Pawns);
+            PawnStructure.Update(board, ref move, ref Pawns);
             KingRelativeEval.Update(board, ref move, ref KingRelative);
             UpdateMaterial(ref move);
             UpdateScore(board);

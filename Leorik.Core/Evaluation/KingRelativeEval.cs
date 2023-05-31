@@ -10,20 +10,18 @@ namespace Leorik.Core
             int blackKingSquare = LSB(board.Black & board.Kings);
             int whiteKingSquare = LSB(board.White & board.Kings) ^ 56;
 
-            Change(ref eval, 0, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Pawns), PopCount(board.White & board.Pawns));
-            Change(ref eval, 1, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Knights), PopCount(board.White & board.Knights));
-            Change(ref eval, 2, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Bishops), PopCount(board.White & board.Bishops));
-            Change(ref eval, 3, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Rooks), PopCount(board.White & board.Rooks));
-            Change(ref eval, 4, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Queens), PopCount(board.White & board.Queens));
+            Change(ref eval, 10, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Pawns), PopCount(board.White & board.Pawns));
+            Change(ref eval, 11, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Knights), PopCount(board.White & board.Knights));
+            Change(ref eval, 12, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Bishops), PopCount(board.White & board.Bishops));
+            Change(ref eval, 13, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Rooks), PopCount(board.White & board.Rooks));
+            Change(ref eval, 14, blackKingSquare, whiteKingSquare, PopCount(board.Black & board.Queens), PopCount(board.White & board.Queens));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Change(ref EvalTerm eval, int table, int blackKingSquare, int whiteKingSquare, int blackPieceCount, int whitePieceCount)
         {
-            eval.Change((table + 10) * 64 + blackKingSquare, -blackPieceCount);
-            eval.Change((table + 10) * 64 + whiteKingSquare, whitePieceCount);
-            eval.Change((table + 15) * 64 + whiteKingSquare, -blackPieceCount);
-            eval.Change((table + 15) * 64 + blackKingSquare, whitePieceCount);
+            eval.Change(table * 64 + blackKingSquare, -blackPieceCount);
+            eval.Change(table * 64 + whiteKingSquare, whitePieceCount);
         }
 
         internal static void Update(BoardState board, ref Move move, ref EvalTerm kingRelative)
@@ -59,15 +57,11 @@ namespace Leorik.Core
             {
                 int kingSquare = LSB(board.White & board.Kings) ^ 56;
                 kingRelative.Change(table * 64 + kingSquare, count);
-                kingSquare = LSB(board.Black & board.Kings);
-                kingRelative.Change((5 + table) * 64 + kingSquare, count);
             }
             else
             {
                 int kingSquare = LSB(board.Black & board.Kings);
                 kingRelative.Change(table * 64 + kingSquare, -count);
-                kingSquare = LSB(board.White & board.Kings) ^ 56;
-                kingRelative.Change((5 + table) * 64 + kingSquare, -count);
             }
         }
 

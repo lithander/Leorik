@@ -10,7 +10,7 @@ namespace Leorik.Tuning
         //(Midgame + Endgame) * (6 Pieces + Isolated + Passed + Protected + Connected) * 64 = 1280 coefficients
         public const int MaterialTables = 6;
         public const int PawnStructureTables = 4;
-        public const int KingRelativeTables = 10;
+        public const int KingRelativeTables = 5;
         public const int FeatureTables = MaterialTables + PawnStructureTables + KingRelativeTables;
 
         public const int MaterialWeights = 2 * MaterialTables * 64;
@@ -28,8 +28,7 @@ namespace Leorik.Tuning
         {
             "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings",
             "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns",
-            "KR-Pawns", "KR-Knights", "KR-Bishops", "KR-Rooks", "KR-Queens",
-            "KR-Pawns-2", "KR-Knights-2", "KR-Bishops-2", "KR-Rooks-2", "KR-Queens-2",
+            "KingRelative-Pawns", "KingRelative-Knights", "KingRelative-Bishops", "KingRelative-Rooks", "KingRelative-Queens",
         };
 
 
@@ -118,12 +117,6 @@ namespace Leorik.Tuning
             IterateKingRelative(features, phase, pos, pos.Bishops, 12);
             IterateKingRelative(features, phase, pos, pos.Rooks, 13);
             IterateKingRelative(features, phase, pos, pos.Queens, 14);
-
-            IterateOpponentKingRelative(features, phase, pos, pos.Pawns, 15);
-            IterateOpponentKingRelative(features, phase, pos, pos.Knights, 16);
-            IterateOpponentKingRelative(features, phase, pos, pos.Bishops, 17);
-            IterateOpponentKingRelative(features, phase, pos, pos.Rooks, 18);
-            IterateOpponentKingRelative(features, phase, pos, pos.Queens, 19);
         }
 
         private static void IterateKingRelative(float[] features, float phase, BoardState pos, ulong pieces, int table)
@@ -137,22 +130,6 @@ namespace Leorik.Tuning
             //White!
             pieceCount = Bitboard.PopCount(pos.White & pieces);
             kingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
-            index = table * 128 + 2 * kingSquare;
-            features[index] += pieceCount;
-            features[index + 1] += (phase * pieceCount);
-        }
-
-        private static void IterateOpponentKingRelative(float[] features, float phase, BoardState pos, ulong pieces, int table)
-        {
-            //Black!
-            int pieceCount = Bitboard.PopCount(pos.Black & pieces);
-            int kingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
-            int index = table * 128 + 2 * kingSquare;
-            features[index] -= pieceCount;
-            features[index + 1] -= (phase * pieceCount);
-            //White!
-            pieceCount = Bitboard.PopCount(pos.White & pieces);
-            kingSquare = Bitboard.LSB(pos.Black & pos.Kings);
             index = table * 128 + 2 * kingSquare;
             features[index] += pieceCount;
             features[index + 1] += (phase * pieceCount);
