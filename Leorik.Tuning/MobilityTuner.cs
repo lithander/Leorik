@@ -15,6 +15,9 @@ namespace Leorik.Tuning
         //--------------
         //TOTAL     = 82        = 88
 
+        public const int Dimensions = 2;
+        public const int MobilityWeights = Dimensions * 88;
+
         static Move[] _moveBuffer = new Move[225];
         static MoveGen _moveGen = new MoveGen(_moveBuffer, 0);
         static short[] PieceMobilityIndices = new short[8] { 0, 0, 13, 22, 36, 51, 79, 88 };

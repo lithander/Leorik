@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace Leorik.Core
 {
@@ -26,10 +27,10 @@ namespace Leorik.Core
         const int HASH_TABLE_SIZE = 4999; //prime!
         static PawnHashEntry[] PawnHashTable = new PawnHashEntry[HASH_TABLE_SIZE];
 
-        const int IsolatedPawns = (6 << 6);
-        const int PassedPawns = (7 << 6);
-        const int ProtectedPawns = (8 << 6);
-        const int ConnectedPawns = (9 << 6);
+        const int IsolatedPawns = 0;
+        const int PassedPawns = 64;
+        const int ProtectedPawns = 128;
+        const int ConnectedPawns = 192;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Update(BoardState board, ref Move move, ref EvalTerm eval)
@@ -67,13 +68,13 @@ namespace Leorik.Core
             for (ulong bits = Features.GetPassedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                eval.SubtractFeature(PassedPawns | square);
+                eval.Subtract(ref Weights.PawnWeights[PassedPawns | square]);
             }
 
             for (ulong bits = Features.GetPassedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits) ^ 56;
-                eval.AddFeature(PassedPawns | square);
+                eval.Add(ref Weights.PawnWeights[PassedPawns | square]);
             }
         }
 
@@ -82,13 +83,13 @@ namespace Leorik.Core
             for (ulong bits = Features.GetIsolatedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                eval.SubtractFeature(IsolatedPawns | square);
+                eval.Subtract(ref Weights.PawnWeights[IsolatedPawns | square]);
             }
 
             for (ulong bits = Features.GetIsolatedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits) ^ 56;
-                eval.AddFeature(IsolatedPawns | square);
+                eval.Add(ref Weights.PawnWeights[IsolatedPawns | square]);
             }
         }
 
@@ -97,13 +98,13 @@ namespace Leorik.Core
             for (ulong bits = Features.GetConnectedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                eval.SubtractFeature(ConnectedPawns | square);
+                eval.Subtract(ref Weights.PawnWeights[ConnectedPawns | square]);
             }
 
             for (ulong bits = Features.GetConnectedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits) ^ 56;
-                eval.AddFeature(ConnectedPawns | square);
+                eval.Add(ref Weights.PawnWeights[ConnectedPawns | square]);
             }
         }
 
@@ -112,13 +113,13 @@ namespace Leorik.Core
             for (ulong bits = Features.GetProtectedBlackPawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                eval.SubtractFeature(ProtectedPawns | square);
+                eval.Subtract(ref Weights.PawnWeights[ProtectedPawns | square]);
             }
 
             for (ulong bits = Features.GetProtectedWhitePawns(pos); bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits) ^ 56;
-                eval.AddFeature(ProtectedPawns | square);
+                eval.Add(ref Weights.PawnWeights[ProtectedPawns | square]);
             }
         }
     }

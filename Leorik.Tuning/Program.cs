@@ -86,11 +86,11 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 100;
+int ITERATIONS = 20;
 
-int MATERIAL_ALPHA = 25;
+int MATERIAL_ALPHA = 50;
 int MATERIAL_BATCHES = 2000;
-int MATERIAL_BATCH_SIZE = 5000;
+int MATERIAL_BATCH_SIZE = 10000;
 
 int PHASE_ALPHA = 10;
 int PHASE_BATCHES = 500;
@@ -129,6 +129,7 @@ float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
 float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 //float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
 //float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+PrintCoefficients(cFeatures, cPhase);
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
 long t0 = Stopwatch.GetTimestamp();
@@ -141,6 +142,9 @@ foreach (Data entry in data)
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
+//PrintCoefficients(cFeatures, cPhase);
+TestMaterialMSE(cFeatures);
+
 Console.WriteLine($"Shuffling data...");
 t0 = Stopwatch.GetTimestamp();
 Tuner.Shuffle(tuningData);
@@ -150,11 +154,10 @@ GC.Collect();
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
-Console.WriteLine();
+//Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
+//Console.WriteLine();
 
 //RebalanceCoefficients(cFeatures);
-PrintCoefficients(cFeatures, cPhase);
 TestPhaseMSE(cPhase);
 TestMaterialMSE(cFeatures);
 PhaseTuner.Report(cPhase);
@@ -164,8 +167,8 @@ for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
     TuneMaterialMicroBatches();
-    TunePhaseMicroBatches();
-    Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
+    //TunePhaseMicroBatches();
+    //Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
 }
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -176,7 +179,7 @@ PrintCoefficients(cFeatures, cPhase);
 double mse = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
 Console.WriteLine($"MSE(cFeatures) with MSE_SCALING = {MSE_SCALING} on the dataset: {mse}");
 
-WriteResults($"completely_random_{data.Count}", cFeatures, data);
+//WriteResults($"completely_random_{data.Count}", cFeatures, data);
 Console.ReadKey();
 
 void WriteResults(string fileName, float[] cFeatures, List<Data> data)
@@ -354,20 +357,29 @@ void RebalanceCoefficients(float[] featureWeights)
 void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
 {
     Console.WriteLine("Features");
-    for (int i = 0; i < FeatureTuner.FeatureTables; i++)
+    var material = new string[] { "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings" };
+    for (int i = 0; i < material.Length; i++)
     {
-        Console.WriteLine($"//{FeatureTuner.TableNames[i]}");
+        Console.WriteLine($"//{material[i]}");
         FeatureTuner.Report(i, featureWeights);
     }
 
+    var pawns = new string[] { "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns" };
+    for (int i = 0; i < pawns.Length; i++)
+    {
+        Console.WriteLine($"//{pawns[i]}");
+        FeatureTuner.ReportMinimal(material.Length + i, featureWeights);
+    }
+
+
     Console.WriteLine();
     Console.WriteLine("Mobility");
-    MobilityTuner.Report(Piece.Pawn, FeatureTuner.MobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Knight, FeatureTuner.MobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Bishop, FeatureTuner.MobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Rook, FeatureTuner.MobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.Queen, FeatureTuner.MobilityOffset, featureWeights);
-    MobilityTuner.Report(Piece.King, FeatureTuner.MobilityOffset, featureWeights);
+    MobilityTuner.Report(Piece.Pawn, FeatureTuner.FeatureWeights, featureWeights);
+    MobilityTuner.Report(Piece.Knight, FeatureTuner.FeatureWeights, featureWeights);
+    MobilityTuner.Report(Piece.Bishop, FeatureTuner.FeatureWeights, featureWeights);
+    MobilityTuner.Report(Piece.Rook, FeatureTuner.FeatureWeights, featureWeights);
+    MobilityTuner.Report(Piece.Queen, FeatureTuner.FeatureWeights, featureWeights);
+    MobilityTuner.Report(Piece.King, FeatureTuner.FeatureWeights, featureWeights);
     Console.WriteLine();
 
     Console.WriteLine();

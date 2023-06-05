@@ -2,6 +2,8 @@
 using Leorik.Core;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Globalization;
+using System.Numerics;
 
 namespace Leorik.Tuning
 {
@@ -10,42 +12,28 @@ namespace Leorik.Tuning
         //(Midgame + Endgame) * (6 Pieces + Isolated + Passed + Protected + Connected) * 64 = 1280 coefficients
         public const int MaterialTables = 6;
         public const int PawnStructureTables = 4;
-        public const int KingRelativeTables = 5;
-        public const int FeatureTables = MaterialTables + PawnStructureTables + KingRelativeTables;
+        public const int FeatureTables = MaterialTables + PawnStructureTables;
 
-        public const int MaterialWeights = 2 * MaterialTables * 64;
-        public const int PawnStructureWeights = 2 * PawnStructureTables * 64;
-        public const int KingRelativeWeights = 2 * KingRelativeTables * 64;
+        public const int Dimensions = 14;
+        public const int MaterialWeights = Dimensions * MaterialTables * 64;
+        public const int PawnStructureWeights = Dimensions * PawnStructureTables * 64;
 
-        public const int MobilityOffset = MaterialWeights + PawnStructureWeights + KingRelativeWeights;
-        public const int MobilityWeights = 2 * 88;
-
-        public const int AllWeigths = MaterialWeights + PawnStructureWeights + KingRelativeWeights + MobilityWeights;
-
-        public static float[] AllocArray() => new float[AllWeigths];
-
-        public static string[] TableNames = new string[]
-        {
-            "Pawns", "Knights", "Bishops", "Rooks", "Queens", "Kings",
-            "Isolated Pawns", "Passed Pawns", "Protected Pawns", "Connected Pawns",
-            "KingRelative-Pawns", "KingRelative-Knights", "KingRelative-Bishops", "KingRelative-Rooks", "KingRelative-Queens",
-        };
-
+        public const int FeatureWeights = MaterialWeights + PawnStructureWeights;
 
         public static float[] GetUntrainedCoefficients()
         {
             float[] c = AllocArray();
 
             int index = 0;
-            for (int sq = 0; sq < 64; sq++, index += 2)
+            for (int sq = 0; sq < 64; sq++, index += Dimensions)
                 c[index] = 100; //Pawns
-            for (int sq = 0; sq < 64; sq++, index += 2)
+            for (int sq = 0; sq < 64; sq++, index += Dimensions)
                 c[index] = 300; //Knights
-            for (int sq = 0; sq < 64; sq++, index += 2)
+            for (int sq = 0; sq < 64; sq++, index += Dimensions)
                 c[index] = 300; //Bishops
-            for (int sq = 0; sq < 64; sq++, index += 2)
+            for (int sq = 0; sq < 64; sq++, index += Dimensions)
                 c[index] = 500; //Rooks
-            for (int sq = 0; sq < 64; sq++, index += 2)
+            for (int sq = 0; sq < 64; sq++, index += Dimensions)
                 c[index] = 900; //Queens
 
             return c;
@@ -55,42 +43,99 @@ namespace Leorik.Tuning
         {
             float[] result = AllocArray();
             int index = 0;
-            for (int piece = 0; piece < 10; piece++)
+            for (int piece = 0; piece < 6; piece++)
             {
                 for (int sq = 0; sq < 64; sq++)
                 {
-                    (short mg, short eg) = Weights.Features[64 * piece + sq];
-                    result[index++] = mg;
-                    result[index++] = eg;
+                    index = Dimensions * (64 * piece + sq);
+                    for(int i = 0; i < Dimensions; i++)
+                        result[index + i] = Weights.MaterialWeights[index + i];
                 }
             }
 
-            index = MobilityOffset;
+            for (int pawns = 0; pawns < 4; pawns++)
+            {
+                for (int sq = 0; sq < 64; sq++)
+                {
+                    index = Dimensions * (64 * (6 + pawns) + sq);
+                    (short mg, short eg) = Weights.PawnWeights[64 * pawns + sq];
+                    result[index] = mg;
+                    result[index + 1] = eg;
+                }
+            }
+
+            index = FeatureWeights;
             for (int i = 0; i < 88; i++)
             {
                 (short mg, short eg) = Weights.Mobility[i];
                 result[index++] = mg;
                 result[index++] = eg;
             }
+
             return result;
         }
 
         private static void IteratePieces(float[] features, float phase, BoardState pos, ulong pieces, int table)
         {
+            int blackKingSquare = Bitboard.LSB(pos.Black & pos.Kings);
+            int whiteKingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
+
             for (ulong bits = pieces & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
-                int index = table * 128 + 2 * square;
+                int index = Dimensions * (table * 64 + square);
+                AddFeatures(features, index, -1, phase, blackKingSquare, whiteKingSquare);
+            }
+
+            for (ulong bits = pieces & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits) ^ 56;
+                int index = Dimensions * (table * 64 + square);
+                AddFeatures(features, index, +1, phase, whiteKingSquare, blackKingSquare);
+            }
+        }
+
+        private static void IteratePiecesMinimal(float[] features, float phase, BoardState pos, ulong pieces, int table)
+        {
+            for (ulong bits = pieces & pos.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                int index = Dimensions * (table * 64 + square);
                 features[index]--;
                 features[index + 1] -= phase;
             }
             for (ulong bits = pieces & pos.White; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits) ^ 56;
-                int index = table * 128 + 2 * square;
+                int index = Dimensions * (table * 64 + square);
                 features[index]++;
                 features[index + 1] += phase;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void AddFeatures(float[] features, int index, int sign, float phase, int kingSqr, int oppKingSqr)
+        {
+            float kFile = Bitboard.File(kingSqr) / 3.5f - 1f;
+            float kRank = Bitboard.Rank(kingSqr) / 3.5f - 1f;
+            float oppKFile = Bitboard.File(oppKingSqr) / 3.5f - 1f;
+            float oppKRank = Bitboard.Rank(oppKingSqr) / 3.5f - 1f;
+            //Base
+            features[index++] += sign;
+            features[index++] += sign * kFile * kFile;
+            features[index++] += sign * kFile;
+            features[index++] += sign * kRank * kRank;
+            features[index++] += sign * kRank;
+            features[index++] += sign * oppKFile * oppKFile;
+            features[index++] += sign * oppKFile;
+            features[index++] += sign * oppKRank * oppKRank;
+            features[index++] += sign * oppKRank;
+            //Endgame (* phase)
+            features[index++] += sign * phase;
+            features[index++] += sign * kFile * phase;
+            features[index++] += sign * kRank * phase;
+            features[index++] += sign * oppKFile * phase;
+            features[index++] += sign * oppKRank * phase;
         }
 
         public static void AddFeatures(float[] features, BoardState pos, float phase)
@@ -106,33 +151,10 @@ namespace Leorik.Tuning
             IteratePieces(features, phase, pos, pos.Kings, 5);
 
             //Pawn Structure
-            IteratePieces(features, phase, pos, Features.GetIsolatedPawns(pos), 6);
-            IteratePieces(features, phase, pos, Features.GetPassedPawns(pos), 7);
-            IteratePieces(features, phase, pos, Features.GetProtectedPawns(pos), 8);
-            IteratePieces(features, phase, pos, Features.GetConnectedPawns(pos), 9);
-
-            //King Relative
-            IterateKingRelative(features, phase, pos, pos.Pawns, 10);
-            IterateKingRelative(features, phase, pos, pos.Knights, 11);
-            IterateKingRelative(features, phase, pos, pos.Bishops, 12);
-            IterateKingRelative(features, phase, pos, pos.Rooks, 13);
-            IterateKingRelative(features, phase, pos, pos.Queens, 14);
-        }
-
-        private static void IterateKingRelative(float[] features, float phase, BoardState pos, ulong pieces, int table)
-        {
-            //Black!
-            int pieceCount = Bitboard.PopCount(pos.Black & pieces);
-            int kingSquare = Bitboard.LSB(pos.Black & pos.Kings);
-            int index = table * 128 + 2 * kingSquare;
-            features[index] -= pieceCount;
-            features[index + 1] -= (phase * pieceCount);
-            //White!
-            pieceCount = Bitboard.PopCount(pos.White & pieces);
-            kingSquare = Bitboard.LSB(pos.White & pos.Kings) ^ 56;
-            index = table * 128 + 2 * kingSquare;
-            features[index] += pieceCount;
-            features[index + 1] += (phase * pieceCount);
+            IteratePiecesMinimal(features, phase, pos, Features.GetIsolatedPawns(pos), 6);
+            IteratePiecesMinimal(features, phase, pos, Features.GetPassedPawns(pos), 7);
+            IteratePiecesMinimal(features, phase, pos, Features.GetProtectedPawns(pos), 8);
+            IteratePiecesMinimal(features, phase, pos, Features.GetConnectedPawns(pos), 9);
         }
 
         internal static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
@@ -150,21 +172,41 @@ namespace Leorik.Tuning
             }
         }
 
-        internal static void Report(int table, float[] coefficients)
+
+        internal static void ReportMinimal(int table, float[] coefficients)
         {
-            const int step = 2;
-            int offset = table * 128;
+            int offset = Dimensions * table * 64;
             for (int i = 0; i < 8; i++)
             {
                 for (int j = 0; j < 8; j++)
                 {
-                    int k = offset + 8 * i * step + j * step;
+                    int k = offset + Dimensions * (8 * i + j);
                     float mg = (int)Math.Round(coefficients[k]);
                     Console.Write($"({mg,4}");
                     float eg = (int)Math.Round(coefficients[k + 1]);
                     Console.Write($",{eg,4}), ");
                 }
                 Console.WriteLine();
+            }
+        }
+
+        internal static void Report(int table, float[] coefficients)
+        {
+            for (int i = 0; i < 64; i++)
+            {
+                int k = Dimensions * (table * 64 + i);
+                for (int d = 0; d < Dimensions; d++)
+                {
+                    float c = coefficients[k + d];
+                    string cStr = c.ToString("F2", CultureInfo.InvariantCulture);
+                    if (d == 0)
+                        Console.Write($"{(int)Math.Round(c),4}, ");
+                    else if (d < Dimensions - 1)
+                        Console.Write($"{cStr,6}f, ");
+                    else
+                        Console.Write($"{cStr,6}f");
+                }
+                Console.WriteLine($", ");
             }
         }
 
@@ -224,11 +266,11 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        int N0 = MaterialWeights + PawnStructureWeights;
-                        int N1 = N0 + KingRelativeWeights + MobilityWeights;
+                        int N0 = FeatureWeights;
                         for (int i = 0; i < N0; i++)
                             coefficients[i] -= alpha * accu[i] / data.Length;
 
+                        int N1 = N0 + MobilityTuner.MobilityWeights;
                         for (int i = N0; i < N1; i++)
                             coefficients[i] -= 0.25f * alpha * accu[i] / data.Length;
                     }

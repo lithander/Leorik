@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.4.2 HalfKingRelative";
+        const string NAME_VERSION = "Leorik 2.4.3 Material[14]";
         const string AUTHOR = "Thomas Jahn";
 
         static Engine _engine = new Engine();
@@ -81,9 +81,8 @@ namespace Leorik.Engine
         private static void PrintEval(Evaluation eval)
         {
             Console.WriteLine($"             MG  +  EG");
-            Console.WriteLine($"Material: {eval.Material.Base,5} {eval.Material.Endgame,6} * {eval.Phase:0.##}");
+            Console.WriteLine($"Material: {(int)eval.Material.Base,5} {(int)eval.Material.Endgame,6} * {eval.Phase:0.##}");
             Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {eval.Phase:0.##}");
-            Console.WriteLine($" KingRel: {eval.KingRelative.Base,5} {eval.KingRelative.Endgame,6} * {eval.Phase:0.##}");
             Console.WriteLine($"Mobility: {eval.Mobility.Base,5}");
             Console.WriteLine($"--------+------------------------");
             Console.WriteLine($"   White: {eval.Score, 5}");

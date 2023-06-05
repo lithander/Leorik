@@ -25,6 +25,10 @@ namespace Leorik.Tuning
 
     static class Tuner
     {
+        public const int AllWeigths = FeatureTuner.FeatureWeights + MobilityTuner.MobilityWeights;
+        public static float[] AllocArray() => new float[AllWeigths];
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static float Sigmoid(float eval, float scalingCoefficient)
         {
@@ -38,7 +42,10 @@ namespace Leorik.Tuning
             //dot product of a selection (indices) of elements from the features vector with coefficients vector
             float result = 0;
             foreach (Feature f in features)
+            {
+                //Console.WriteLine($"{result} += {f.Value} * c[{f.Index}]={coefficients[f.Index]}");
                 result += f.Value * coefficients[f.Index];
+            }
             return result;
         }
 
@@ -96,10 +103,13 @@ namespace Leorik.Tuning
             byte[] pieceCounts = PhaseTuner.CountPieces(input.Position);
             float phase = PhaseTuner.GetPhase(pieceCounts, cPhase);
 
-            float[] sparseFeatures = FeatureTuner.AllocArray();
+            float[] sparseFeatures = AllocArray();
+            List<int> indices = new List<int>();
             FeatureTuner.AddFeatures(sparseFeatures, input.Position, phase);
-            MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, FeatureTuner.MobilityOffset);
-            Feature[] features = Condense(sparseFeatures);
+            IndexBuffer(indices, sparseFeatures, 0);
+            MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, FeatureTuner.FeatureWeights);
+            IndexBuffer(indices, sparseFeatures, FeatureTuner.FeatureWeights);
+            Feature[] features = Condense(indices.ToArray(), sparseFeatures);
             FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
 
             return new TuningData
@@ -113,22 +123,15 @@ namespace Leorik.Tuning
             };
         }
 
-        public static int[] IndexBuffer(float[] values)
+        public static void IndexBuffer(List<int> indices, float[] values, int offset)
         {
-            List<int> indices = new List<int>();
-            for (int i = 0; i < values.Length; i += 2)
+            for (int i = offset; i < values.Length; i++)
                 if (values[i] != 0)
-                {
                     indices.Add(i);
-                    indices.Add(i+1);
-                }
-
-            return indices.ToArray();
         }
 
-        public static Feature[] Condense(float[] features)
+        public static Feature[] Condense(int[] indices, float[] features)
         {
-            int[] indices = IndexBuffer(features);
             Feature[] denseFeatures = new Feature[indices.Length];
             for (int i = 0; i < indices.Length; i++)
             {
