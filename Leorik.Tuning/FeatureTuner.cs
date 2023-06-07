@@ -14,7 +14,7 @@ namespace Leorik.Tuning
         public const int PawnStructureTables = 4;
         public const int FeatureTables = MaterialTables + PawnStructureTables;
 
-        public const int Dimensions = 14;
+        public const int Dimensions = 18;
         public const int MaterialWeights = Dimensions * MaterialTables * 64;
         public const int PawnStructureWeights = Dimensions * PawnStructureTables * 64;
 
@@ -131,11 +131,15 @@ namespace Leorik.Tuning
             features[index++] += sign * oppKRank * oppKRank;
             features[index++] += sign * oppKRank;
             //Endgame (* phase)
-            features[index++] += sign * phase;
-            features[index++] += sign * kFile * phase;
-            features[index++] += sign * kRank * phase;
-            features[index++] += sign * oppKFile * phase;
-            features[index++] += sign * oppKRank * phase;
+            features[index++] += phase * sign;
+            features[index++] += phase * sign * kFile * kFile;
+            features[index++] += phase * sign * kFile;
+            features[index++] += phase * sign * kRank * kRank;
+            features[index++] += phase * sign * kRank;
+            features[index++] += phase * sign * oppKFile * oppKFile;
+            features[index++] += phase * sign * oppKFile;
+            features[index++] += phase * sign * oppKRank * oppKRank;
+            features[index++] += phase * sign * oppKRank;
         }
 
         public static void AddFeatures(float[] features, BoardState pos, float phase)

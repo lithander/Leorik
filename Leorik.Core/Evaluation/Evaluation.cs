@@ -13,9 +13,6 @@ namespace Leorik.Core
         public EvalTermFloat Material;
         public EvalTerm Mobility;
 
-        private int WhiteKingSquare;
-        private int BlackKingSquare;
-
         public float Phase => NormalizePhase(PhaseValue);
 
         public short Score { get; private set; }
@@ -27,7 +24,6 @@ namespace Leorik.Core
             PawnStructure.Update(board, ref Pawns);
             MobilityEval.Update(board, ref Mobility);
 
-            UpdateKingSquares(board);
             AddPieces(board);
             UpdateScore(board);
         }
@@ -57,7 +53,6 @@ namespace Leorik.Core
             {
                 PhaseValue = 0;
                 Material = default;
-                UpdateKingSquares(board);
                 AddPieces(board);
             }
             else
@@ -78,17 +73,12 @@ namespace Leorik.Core
             float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
             Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateKingSquares(BoardState board) 
-        {
-            WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
-            BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-        }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddPieces(BoardState board)
         {
+            UpdateVariables(board);
+
             ulong occupied = board.Black | board.White;
             for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
@@ -134,6 +124,18 @@ namespace Leorik.Core
             }
         }
 
+        private float[] _white;
+        private float[] _black;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateVariables(BoardState board)
+        {
+            int WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
+            int BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
+            _white = GetVariables(WhiteKingSquare, BlackKingSquare);
+            _black = GetVariables(BlackKingSquare, WhiteKingSquare);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddPiece(Piece piece, int squareIndex)
         {
@@ -141,11 +143,11 @@ namespace Leorik.Core
             PhaseValue += Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
             {
-                AddMaterial(pieceIndex, squareIndex ^ 56, WhiteKingSquare, BlackKingSquare);
+                AddMaterial(pieceIndex, squareIndex ^ 56, _white);
             }
             else
             {
-                SubtractMaterial(pieceIndex, squareIndex, BlackKingSquare, WhiteKingSquare);
+                SubtractMaterial(pieceIndex, squareIndex, _black);
             }
         }
 
@@ -156,66 +158,54 @@ namespace Leorik.Core
             PhaseValue -= Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
             {
-                SubtractMaterial(pieceIndex, squareIndex ^ 56, WhiteKingSquare, BlackKingSquare);
+                SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
             }
             else
             {
-                AddMaterial(pieceIndex, squareIndex, BlackKingSquare, WhiteKingSquare);
+                AddMaterial(pieceIndex, squareIndex, _black);
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddMaterial(int pieceIndex, int squareIndex, int myKingSqr, int oppKingSqr)
+        private float[] GetVariables(int myKingSqr, int oppKingSqr)
         {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            float whiteKingFile = Bitboard.File(myKingSqr) / 3.5f - 1f;
+            float whiteKingRank = Bitboard.Rank(myKingSqr) / 3.5f - 1f;
+            float blackKingFile = Bitboard.File(oppKingSqr) / 3.5f - 1f;
+            float blackKingRank = Bitboard.Rank(oppKingSqr) / 3.5f - 1f;
 
-            float kFile = Bitboard.File(myKingSqr) / 3.5f - 1f;
-            float kRank = Bitboard.Rank(myKingSqr) / 3.5f - 1f;
-            float oppKFile = Bitboard.File(oppKingSqr) / 3.5f - 1f;
-            float oppKRank = Bitboard.Rank(oppKingSqr) / 3.5f - 1f;
-
-            Material.Base += Weights.MaterialWeights[entryIndex + 0] // Base
-                + Weights.MaterialWeights[entryIndex + 1] * kFile * kFile
-                + Weights.MaterialWeights[entryIndex + 2] * kFile
-                + Weights.MaterialWeights[entryIndex + 3] * kRank * kRank
-                + Weights.MaterialWeights[entryIndex + 4] * kRank
-                + Weights.MaterialWeights[entryIndex + 5] * oppKFile * oppKFile
-                + Weights.MaterialWeights[entryIndex + 6] * oppKFile
-                + Weights.MaterialWeights[entryIndex + 7] * oppKRank * oppKRank
-                + Weights.MaterialWeights[entryIndex + 8] * oppKRank;
-
-            Material.Endgame += Weights.MaterialWeights[entryIndex + 9] // Phase-Bonus
-                + Weights.MaterialWeights[entryIndex + 10] * kFile
-                + Weights.MaterialWeights[entryIndex + 11] * kRank
-                + Weights.MaterialWeights[entryIndex + 12] * oppKFile
-                + Weights.MaterialWeights[entryIndex + 13] * oppKRank;
+            return new float[]
+            {
+                whiteKingFile * whiteKingFile,
+                whiteKingFile,
+                whiteKingRank * whiteKingRank,
+                whiteKingRank,
+                blackKingFile * blackKingFile,
+                blackKingFile,
+                blackKingRank * blackKingRank,
+                blackKingRank,
+            };
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SubtractMaterial(int pieceIndex, int squareIndex, int myKingSqr, int oppKingSqr)
+        private void AddMaterial(int pieceIndex, int squareIndex, float[] variables)
         {
             int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            Vector<float> vars = new Vector<float>(variables);
+            Vector<float> coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 1, 8));
+            Material.Base += Weights.MaterialWeights[entryIndex] + Vector.Dot(vars, coefs);
+            coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 10, 8));
+            Material.Endgame += Weights.MaterialWeights[entryIndex + 9] + Vector.Dot(vars, coefs);
+        }
 
-            float kFile = Bitboard.File(myKingSqr) / 3.5f - 1f;
-            float kRank = Bitboard.Rank(myKingSqr) / 3.5f - 1f;
-            float oppKFile = Bitboard.File(oppKingSqr) / 3.5f - 1f;
-            float oppKRank = Bitboard.Rank(oppKingSqr) / 3.5f - 1f;
-
-            Material.Base -= Weights.MaterialWeights[entryIndex + 0] // Base
-                + Weights.MaterialWeights[entryIndex + 1] * kFile * kFile
-                + Weights.MaterialWeights[entryIndex + 2] * kFile
-                + Weights.MaterialWeights[entryIndex + 3] * kRank * kRank
-                + Weights.MaterialWeights[entryIndex + 4] * kRank
-                + Weights.MaterialWeights[entryIndex + 5] * oppKFile * oppKFile
-                + Weights.MaterialWeights[entryIndex + 6] * oppKFile
-                + Weights.MaterialWeights[entryIndex + 7] * oppKRank * oppKRank
-                + Weights.MaterialWeights[entryIndex + 8] * oppKRank;
-
-            Material.Endgame -= Weights.MaterialWeights[entryIndex + 9] // Phase-Bonus
-                + Weights.MaterialWeights[entryIndex + 10] * kFile
-                + Weights.MaterialWeights[entryIndex + 11] * kRank
-                + Weights.MaterialWeights[entryIndex + 12] * oppKFile
-                + Weights.MaterialWeights[entryIndex + 13] * oppKRank;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SubtractMaterial(int pieceIndex, int squareIndex, float[] variables)
+        {
+            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            Vector<float> vars = new Vector<float>(variables);
+            Vector<float> coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 1, 8));
+            Material.Base -= Weights.MaterialWeights[entryIndex] + Vector.Dot(vars, coefs);
+            coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 10, 8));
+            Material.Endgame -= Weights.MaterialWeights[entryIndex + 9] + Vector.Dot(vars, coefs);
         }
 
         public const int CheckmateBase = 9000;

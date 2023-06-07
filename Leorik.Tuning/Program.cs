@@ -86,7 +86,7 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 20;
+int ITERATIONS = 150;
 
 int MATERIAL_ALPHA = 50;
 int MATERIAL_BATCHES = 2000;
@@ -126,9 +126,9 @@ DataUtils.CollectMetrics(data);
 TestLeorikMSE();
 
 float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 //float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 PrintCoefficients(cFeatures, cPhase);
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
