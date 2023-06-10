@@ -21,8 +21,8 @@ namespace Leorik.Core
         public short RawScore => (short)(EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame());
 
         //King-Relative Params
-        private Vector256<float> _white;
-        private Vector256<float> _black;
+        private Vector128<float> _white;
+        private Vector128<float> _black;
 
         public Evaluation(BoardState board) : this()
         {
@@ -182,21 +182,18 @@ namespace Leorik.Core
             float blackKingFile = 0.285714f * Bitboard.File(BlackKingSquare) - 1f;
             float blackKingRank = 0.285714f * Bitboard.Rank(BlackKingSquare) - 1f;
         
-            Vector128<float> white = Vector128.Create(
+            _white = Vector128.Create(
                 whiteKingFile * whiteKingFile,
                 whiteKingFile,
                 whiteKingRank * whiteKingRank,
                 whiteKingRank);
         
-            Vector128<float> black = Vector128.Create(
+            _black = Vector128.Create(
                 blackKingFile * blackKingFile,
                 blackKingFile,
                 blackKingRank * blackKingRank,
                 blackKingRank
-            );
-        
-            _white = Vector256.Create(white, black);
-            _black = Vector256.Create(black, white);
+            );       
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -204,7 +201,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
-            Material.SubtractMaterial(pieceIndex, squareIndex, _black);
+            Material.SubtractMaterial(pieceIndex, squareIndex, Vector256.Create(_black, _white));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -212,7 +209,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
-            Material.AddMaterial(pieceIndex, squareIndex, _black);
+            Material.AddMaterial(pieceIndex, squareIndex, Vector256.Create(_black, _white));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -220,7 +217,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
-            Material.AddMaterial(pieceIndex, squareIndex ^ 56, _white);
+            Material.AddMaterial(pieceIndex, squareIndex ^ 56, Vector256.Create(_white, _black));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -228,7 +225,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
-            Material.SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
+            Material.SubtractMaterial(pieceIndex, squareIndex ^ 56, Vector256.Create(_white, _black));
         }
 
         public const int CheckmateBase = 9000;
