@@ -10,6 +10,7 @@ namespace Leorik.Core
         public EvalTerm Pawns;
         public EvalTerm Material;
         public EvalTerm Positional;
+        public EvalTerm Nnue;
 
         public float Phase => NormalizePhase(PhaseValue);
 
@@ -26,6 +27,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void QuickUpdate(BoardState board, ref Move move)
         {
+            NNUE.Update(board, ref Nnue, ref move);
             PawnStructure.Update(board, ref Pawns);
             UpdateMaterial(board, ref move);
             UpdateScore(board);
@@ -35,6 +37,7 @@ namespace Leorik.Core
         internal void Update(BoardState board, ref Move move)
         {
             Positional = default;
+            NNUE.Update(board, ref Nnue, ref move);
             Mobility.Update(board, ref Positional);
             PawnStructure.Update(board, ref move, ref Pawns);
             UpdateMaterial(board, ref move);
@@ -50,8 +53,19 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore(BoardState board)
         {
-            float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
-            Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
+            //Todo - this is too slow - cache or seperate quiesce updatescore?
+            //Research requried: maybe this is called already only in quiet positions.
+            //NNue only valid when NOT in check. 
+            if (!board.InCheck())
+            {
+                //Todo - make sure to adjust nnue weight_scale to LEORIK range
+                Score = (short)(Endgame.IsDrawn(board) ? (int)Nnue.Base >> 4 : Nnue.Base);
+            }
+            else
+            {
+                float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
+                Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -111,6 +125,8 @@ namespace Leorik.Core
                 Material.AddFeature(pieceIndex, squareIndex ^ 56);
             else
                 Material.SubtractFeature(pieceIndex, squareIndex);
+
+            NNUE.AddPiece(piece, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -122,6 +138,8 @@ namespace Leorik.Core
                 Material.SubtractFeature(pieceIndex, squareIndex ^ 56);
             else
                 Material.AddFeature(pieceIndex, squareIndex);
+
+            NNUE.RemovePiece(piece, squareIndex);
         }
 
         public const int CheckmateBase = 9000;
