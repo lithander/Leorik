@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -42,6 +43,26 @@ namespace Leorik.Core
         {
             Base += (short)(count * tuple.mg);
             Endgame += (short)(count * tuple.eg);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
+        {
+            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            Vector256<float> weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
+            Base += (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex]);
+            weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
+            Endgame += (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex + 9]);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SubtractMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
+        {
+            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            Vector256<float> weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
+            Base -= (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex]);
+            weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
+            Endgame -= (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex + 9]);
         }
     }
 }

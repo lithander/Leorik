@@ -204,7 +204,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
-            SubtractMaterial(pieceIndex, squareIndex, _black);
+            Material.SubtractMaterial(pieceIndex, squareIndex, _black);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -212,7 +212,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
-            AddMaterial(pieceIndex, squareIndex, _black);
+            Material.AddMaterial(pieceIndex, squareIndex, _black);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -220,7 +220,7 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
-            AddMaterial(pieceIndex, squareIndex ^ 56, _white);
+            Material.AddMaterial(pieceIndex, squareIndex ^ 56, _white);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -228,35 +228,8 @@ namespace Leorik.Core
         {
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
-            SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
+            Material.SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
-        {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
-            Material.Add(MaterialValue(vars, entryIndex));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SubtractMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
-        {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
-            Material.Subtract(MaterialValue(vars, entryIndex));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private (short, short) MaterialValue(Vector256<float> vars, int entryIndex)
-        {
-            Vector256<float> cBase = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
-            float a = Vector256.Dot(vars, cBase) + Weights.MaterialWeights[entryIndex];
-
-            Vector256<float> cEndgame = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
-            float b = Vector256.Dot(vars, cEndgame) + Weights.MaterialWeights[entryIndex + 9];
-
-            return ((short)a, (short)b);
-        }
-
 
         public const int CheckmateBase = 9000;
         public const int CheckmateScore = 9999;
