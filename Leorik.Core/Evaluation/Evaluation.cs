@@ -82,7 +82,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddPieces(BoardState board)
         {
-            UpdateVariables(board);
+            UpdateKingParams(board);
 
             for (ulong bits = board.White; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
@@ -146,54 +146,23 @@ namespace Leorik.Core
             }
         }
 
-        //private static Vector256<int> WhiteToBlack = Vector256.Create(4, 5, 6, 7, 0, 1, 2, 3);
-        //
-        //private void UpdateVariables(BoardState board)
-        //{
-        //    int WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
-        //    float whiteKingFile = 0.285714f * Bitboard.File(WhiteKingSquare) - 1f;
-        //    float whiteKingRank = 0.285714f * Bitboard.Rank(WhiteKingSquare) - 1f;
-        //
-        //    int BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-        //    float blackKingFile = 0.285714f * Bitboard.File(BlackKingSquare) - 1f;
-        //    float blackKingRank = 0.285714f * Bitboard.Rank(BlackKingSquare) - 1f;
-        //
-        //    _white = Vector256.Create(
-        //        whiteKingFile * whiteKingFile,
-        //        whiteKingFile,
-        //        whiteKingRank * whiteKingRank,
-        //        whiteKingRank,
-        //        blackKingFile * blackKingFile,
-        //        blackKingFile,
-        //        blackKingRank * blackKingRank,
-        //        blackKingRank
-        //    );
-        //
-        //    _black = Vector256.Shuffle(_white, WhiteToBlack);
-        //}
-
-        private void UpdateVariables(BoardState board)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateKingParams(BoardState board)
         {
-            int WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
-            float whiteKingFile = 0.285714f * Bitboard.File(WhiteKingSquare) - 1f;
-            float whiteKingRank = 0.285714f * Bitboard.Rank(WhiteKingSquare) - 1f;
-        
-            int BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-            float blackKingFile = 0.285714f * Bitboard.File(BlackKingSquare) - 1f;
-            float blackKingRank = 0.285714f * Bitboard.Rank(BlackKingSquare) - 1f;
-        
-            _white = Vector128.Create(
-                whiteKingFile * whiteKingFile,
-                whiteKingFile,
-                whiteKingRank * whiteKingRank,
-                whiteKingRank);
-        
-            _black = Vector128.Create(
-                blackKingFile * blackKingFile,
-                blackKingFile,
-                blackKingRank * blackKingRank,
-                blackKingRank
-            );       
+            _white = GetKingParams(Bitboard.LSB(board.White & board.Kings) ^ 56);
+            _black = GetKingParams(Bitboard.LSB(board.Black & board.Kings));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Vector128<float> GetKingParams(int kingSquare)
+        {
+            float kingFile = 0.285714f * Bitboard.File(kingSquare) - 1f;
+            float kingRank = 0.285714f * Bitboard.Rank(kingSquare) - 1f;
+            return Vector128.Create(
+                kingFile * kingFile,
+                kingFile,
+                kingRank * kingRank,
+                kingRank);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

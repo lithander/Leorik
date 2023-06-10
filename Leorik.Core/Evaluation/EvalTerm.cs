@@ -14,21 +14,17 @@ namespace Leorik.Core
         public short Endgame;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float Eval(float phase) => Base + Endgame * phase;
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Subtract((short mg, short eg) tuple)
         {
-            Base -= tuple.mg;// Weights.MidgameTables[tableIndex];
-            Endgame -= tuple.eg;// Weights.EndgameTables[tableIndex];
+            Base -= tuple.mg;
+            Endgame -= tuple.eg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add((short mg, short eg) tuple)
         {
-            Base += tuple.mg;// Weights.MidgameTables[tableIndex];
-            Endgame += tuple.eg;// Weights.EndgameTables[tableIndex];
+            Base += tuple.mg;
+            Endgame += tuple.eg;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
