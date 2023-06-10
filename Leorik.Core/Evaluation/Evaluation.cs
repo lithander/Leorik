@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 namespace Leorik.Core
 {
@@ -10,7 +11,7 @@ namespace Leorik.Core
 
         public short PhaseValue;
         public EvalTerm Pawns;
-        public EvalTermFloat Material;
+        public EvalTerm Material;
         public EvalTerm Mobility;
 
         public float Phase => NormalizePhase(PhaseValue);
@@ -18,6 +19,10 @@ namespace Leorik.Core
         public short Score { get; private set; }
 
         public short RawScore => (short)(EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame());
+
+        //King-Relative Params
+        private Vector256<float> _white;
+        private Vector256<float> _black;
 
         public Evaluation(BoardState board) : this()
         {
@@ -73,144 +78,189 @@ namespace Leorik.Core
             float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
             Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddPieces(BoardState board)
         {
             UpdateVariables(board);
 
-            ulong occupied = board.Black | board.White;
-            for (ulong bits = occupied; bits != 0; bits = Bitboard.ClearLSB(bits))
+            for (ulong bits = board.White; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
                 Piece piece = board.GetPiece(square);
-                AddPiece(piece, square);
+                AddWhitePiece(piece, square);
+            }
+
+            for (ulong bits = board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                Piece piece = board.GetPiece(square);
+                AddBlackPiece(piece, square);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateMaterial(ref Move move)
         {
-            RemovePiece(move.MovingPiece(), move.FromSquare);
-            AddPiece(move.NewPiece(), move.ToSquare);
+            if ((move.MovingPiece() & Piece.ColorMask) == Piece.White)
+            {
+                RemoveWhitePiece(move.MovingPiece(), move.FromSquare);
+                AddWhitePiece(move.NewPiece(), move.ToSquare);
 
-            if (move.CapturedPiece() != Piece.None)
-                RemovePiece(move.CapturedPiece(), move.ToSquare);
+                if (move.CapturedPiece() != Piece.None)
+                    RemoveBlackPiece(move.CapturedPiece(), move.ToSquare);
+            }
+            else
+            {
+                RemoveBlackPiece(move.MovingPiece(), move.FromSquare);
+                AddBlackPiece(move.NewPiece(), move.ToSquare);
+
+                if (move.CapturedPiece() != Piece.None)
+                    RemoveWhitePiece(move.CapturedPiece(), move.ToSquare);
+            }
 
             switch (move.Flags)
             {
                 case Piece.EnPassant | Piece.BlackPawn:
-                    RemovePiece(Piece.WhitePawn, move.ToSquare + 8);
+                    RemoveWhitePiece(Piece.WhitePawn, move.ToSquare + 8);
                     break;
                 case Piece.EnPassant | Piece.WhitePawn:
-                    RemovePiece(Piece.BlackPawn, move.ToSquare - 8);
+                    RemoveBlackPiece(Piece.BlackPawn, move.ToSquare - 8);
                     break;
                 case Piece.CastleShort | Piece.Black:
-                    RemovePiece(Piece.BlackRook, 63);
-                    AddPiece(Piece.BlackRook, 61);
+                    RemoveBlackPiece(Piece.BlackRook, 63);
+                    AddBlackPiece(Piece.BlackRook, 61);
                     break;
                 case Piece.CastleLong | Piece.Black:
-                    RemovePiece(Piece.BlackRook, 56);
-                    AddPiece(Piece.BlackRook, 59);
+                    RemoveBlackPiece(Piece.BlackRook, 56);
+                    AddBlackPiece(Piece.BlackRook, 59);
                     break;
                 case Piece.CastleShort | Piece.White:
-                    RemovePiece(Piece.WhiteRook, 7);
-                    AddPiece(Piece.WhiteRook, 5);
+                    RemoveWhitePiece(Piece.WhiteRook, 7);
+                    AddWhitePiece(Piece.WhiteRook, 5);
                     break;
                 case Piece.CastleLong | Piece.White:
-                    RemovePiece(Piece.WhiteRook, 0);
-                    AddPiece(Piece.WhiteRook, 3);
+                    RemoveWhitePiece(Piece.WhiteRook, 0);
+                    AddWhitePiece(Piece.WhiteRook, 3);
                     break;
             }
         }
 
-        private float[] _white;
-        private float[] _black;
+        //private static Vector256<int> WhiteToBlack = Vector256.Create(4, 5, 6, 7, 0, 1, 2, 3);
+        //
+        //private void UpdateVariables(BoardState board)
+        //{
+        //    int WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
+        //    float whiteKingFile = 0.285714f * Bitboard.File(WhiteKingSquare) - 1f;
+        //    float whiteKingRank = 0.285714f * Bitboard.Rank(WhiteKingSquare) - 1f;
+        //
+        //    int BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
+        //    float blackKingFile = 0.285714f * Bitboard.File(BlackKingSquare) - 1f;
+        //    float blackKingRank = 0.285714f * Bitboard.Rank(BlackKingSquare) - 1f;
+        //
+        //    _white = Vector256.Create(
+        //        whiteKingFile * whiteKingFile,
+        //        whiteKingFile,
+        //        whiteKingRank * whiteKingRank,
+        //        whiteKingRank,
+        //        blackKingFile * blackKingFile,
+        //        blackKingFile,
+        //        blackKingRank * blackKingRank,
+        //        blackKingRank
+        //    );
+        //
+        //    _black = Vector256.Shuffle(_white, WhiteToBlack);
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateVariables(BoardState board)
         {
             int WhiteKingSquare = Bitboard.LSB(board.White & board.Kings) ^ 56;
+            float whiteKingFile = 0.285714f * Bitboard.File(WhiteKingSquare) - 1f;
+            float whiteKingRank = 0.285714f * Bitboard.Rank(WhiteKingSquare) - 1f;
+        
             int BlackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-            _white = GetVariables(WhiteKingSquare, BlackKingSquare);
-            _black = GetVariables(BlackKingSquare, WhiteKingSquare);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddPiece(Piece piece, int squareIndex)
-        {
-            int pieceIndex = PieceIndex(piece);
-            PhaseValue += Weights.PhaseValues[pieceIndex];
-            if ((piece & Piece.ColorMask) == Piece.White)
-            {
-                AddMaterial(pieceIndex, squareIndex ^ 56, _white);
-            }
-            else
-            {
-                SubtractMaterial(pieceIndex, squareIndex, _black);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RemovePiece(Piece piece, int squareIndex)
-        {
-            int pieceIndex = PieceIndex(piece);
-            PhaseValue -= Weights.PhaseValues[pieceIndex];
-            if ((piece & Piece.ColorMask) == Piece.White)
-            {
-                SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
-            }
-            else
-            {
-                AddMaterial(pieceIndex, squareIndex, _black);
-            }
-        }
-
-        private float[] GetVariables(int myKingSqr, int oppKingSqr)
-        {
-            float whiteKingFile = Bitboard.File(myKingSqr) / 3.5f - 1f;
-            float whiteKingRank = Bitboard.Rank(myKingSqr) / 3.5f - 1f;
-            float blackKingFile = Bitboard.File(oppKingSqr) / 3.5f - 1f;
-            float blackKingRank = Bitboard.Rank(oppKingSqr) / 3.5f - 1f;
-
-            return new float[]
-            {
+            float blackKingFile = 0.285714f * Bitboard.File(BlackKingSquare) - 1f;
+            float blackKingRank = 0.285714f * Bitboard.Rank(BlackKingSquare) - 1f;
+        
+            Vector128<float> white = Vector128.Create(
                 whiteKingFile * whiteKingFile,
                 whiteKingFile,
                 whiteKingRank * whiteKingRank,
-                whiteKingRank,
+                whiteKingRank);
+        
+            Vector128<float> black = Vector128.Create(
                 blackKingFile * blackKingFile,
                 blackKingFile,
                 blackKingRank * blackKingRank,
-                blackKingRank,
-            };
+                blackKingRank
+            );
+        
+            _white = Vector256.Create(white, black);
+            _black = Vector256.Create(black, white);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddMaterial(int pieceIndex, int squareIndex, float[] variables)
+        private void AddBlackPiece(Piece piece, int squareIndex)
         {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
-            Vector<float> vars = new Vector<float>(variables);
-            Vector<float> coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 1, 8));
-            Material.Base += Weights.MaterialWeights[entryIndex] + Vector.Dot(vars, coefs);
-            coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 10, 8));
-            Material.Endgame += Weights.MaterialWeights[entryIndex + 9] + Vector.Dot(vars, coefs);
+            int pieceIndex = PieceIndex(piece);
+            PhaseValue += Weights.PhaseValues[pieceIndex];
+            SubtractMaterial(pieceIndex, squareIndex, _black);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SubtractMaterial(int pieceIndex, int squareIndex, float[] variables)
+        private void RemoveBlackPiece(Piece piece, int squareIndex)
+        {
+            int pieceIndex = PieceIndex(piece);
+            PhaseValue -= Weights.PhaseValues[pieceIndex];
+            AddMaterial(pieceIndex, squareIndex, _black);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddWhitePiece(Piece piece, int squareIndex)
+        {
+            int pieceIndex = PieceIndex(piece);
+            PhaseValue += Weights.PhaseValues[pieceIndex];
+            AddMaterial(pieceIndex, squareIndex ^ 56, _white);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RemoveWhitePiece(Piece piece, int squareIndex)
+        {
+            int pieceIndex = PieceIndex(piece);
+            PhaseValue -= Weights.PhaseValues[pieceIndex];
+            SubtractMaterial(pieceIndex, squareIndex ^ 56, _white);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
         {
             int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
-            Vector<float> vars = new Vector<float>(variables);
-            Vector<float> coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 1, 8));
-            Material.Base -= Weights.MaterialWeights[entryIndex] + Vector.Dot(vars, coefs);
-            coefs = new Vector<float>(new Span<float>(Weights.MaterialWeights, entryIndex + 10, 8));
-            Material.Endgame -= Weights.MaterialWeights[entryIndex + 9] + Vector.Dot(vars, coefs);
+            Material.Add(MaterialValue(vars, entryIndex));
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SubtractMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
+        {
+            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            Material.Subtract(MaterialValue(vars, entryIndex));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private (short, short) MaterialValue(Vector256<float> vars, int entryIndex)
+        {
+            Vector256<float> cBase = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
+            float a = Vector256.Dot(vars, cBase) + Weights.MaterialWeights[entryIndex];
+
+            Vector256<float> cEndgame = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
+            float b = Vector256.Dot(vars, cEndgame) + Weights.MaterialWeights[entryIndex + 9];
+
+            return ((short)a, (short)b);
+        }
+
 
         public const int CheckmateBase = 9000;
         public const int CheckmateScore = 9999;
-                
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetMateDistance(int score)
