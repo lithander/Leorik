@@ -28,25 +28,22 @@ namespace Leorik.Tuning
         public const int AllWeigths = FeatureTuner.FeatureWeights + MobilityTuner.MobilityWeights;
         public static float[] AllocArray() => new float[AllWeigths];
 
+        private static int[] FeaturePairs; //stores the 'source' index of features that were multiplied with phase
+        private static int[] SparseToDense; //temporary buffer mapping sparse indices to dense indices
+
+        static Tuner()
+        {
+            FeaturePairs = new int[AllWeigths];
+            SparseToDense = new int[AllWeigths];
+            FeatureTuner.DescribeFeaturePairs(FeaturePairs);
+            MobilityTuner.DescribeFeaturePairs(FeaturePairs, FeatureTuner.FeatureWeights);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static float Sigmoid(float eval, float scalingCoefficient)
         {
             //[-1..1] f(0) = 0
             return (float)(2 / (1 + Math.Exp(-(eval / scalingCoefficient))) - 1);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Evaluate(Feature[] features, float[] coefficients)
-        {
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
-            float result = 0;
-            foreach (Feature f in features)
-            {
-                //Console.WriteLine($"{result} += {f.Value} * c[{f.Index}]={coefficients[f.Index]}");
-                result += f.Value * coefficients[f.Index];
-            }
-            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -110,9 +107,9 @@ namespace Leorik.Tuning
             MobilityTuner.AddFeatures(sparseFeatures, input.Position, phase, FeatureTuner.FeatureWeights);
             IndexBuffer(indices, sparseFeatures, FeatureTuner.FeatureWeights);
             Feature[] features = Condense(indices.ToArray(), sparseFeatures);
-            FeatureTuner.GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
+            GetEvalTerms(features, cFeatures, out float mgEval, out float egEval);
 
-            return new TuningData
+            var td = new TuningData
             {
                 Result = input.Result,               
                 Features = features,
@@ -121,6 +118,7 @@ namespace Leorik.Tuning
                 PieceCounts = pieceCounts,
                 Phase = phase,
             };
+            return td;
         }
 
         public static void IndexBuffer(List<int> indices, float[] values, int offset)
@@ -149,7 +147,7 @@ namespace Leorik.Tuning
             for (int i = 0; i < data.Length; i++)
             {
                 ref TuningData td = ref data[i];
-                FeatureTuner.GetEvalTerms(td.Features, cFeatures, out float mgEval, out float egEval);
+                GetEvalTerms(td.Features, cFeatures, out float mgEval, out float egEval);
                 td.MidgameEval = mgEval;
                 td.EndgameEval = egEval;
             }
@@ -180,11 +178,38 @@ namespace Leorik.Tuning
             }
         }
 
+        public static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
+        {
+            midgame = 0;
+            endgame = 0;
+            //dot product of a selection (indices) of elements from the features vector with coefficients vector
+            foreach (Feature feature in features)
+            {
+                if (FeaturePairs[feature.Index] > 0)//this is an endgame feature and scaled by phase
+                    endgame += feature.Value * coefficients[feature.Index];
+                else
+                    midgame += feature.Value * coefficients[feature.Index];
+            }
+        }
+
         internal static Feature[] AdjustPhase(Feature[] features, float phase)
         {
-            for (int i = 0; i < features.Length; i += 2)
-                features[i + 1].Value = features[i].Value * phase;
-
+            for(int i = 0; i < features.Length; i++)
+            {
+                int sparseIndex = features[i].Index;
+                if (FeaturePairs[sparseIndex] > 0)
+                {
+                    //this is an endgame feature and scaled by phase - restore it from unscaled partner
+                    int sparseMgIndex = FeaturePairs[sparseIndex];
+                    int denseMgIndex = SparseToDense[sparseMgIndex];
+                    features[i].Value = phase * features[denseMgIndex].Value;
+                }
+                else
+                {
+                    //this is a midgame feature
+                    SparseToDense[sparseIndex] = i;
+                }
+            }
             return features;
         }
 
@@ -195,16 +220,6 @@ namespace Leorik.Tuning
             var avg = MobilityTuner.Rebalance(piece, mobilityOffset, featureWeights);
             FeatureTuner.Rebalance(piece, avg, featureWeights);
         }
-
-        internal static void SampleRandomly(TuningData[] source, TuningData[] batch)
-        {
-            Random rng = new Random();
-            for (int i = 0; i < batch.Length; i++)
-            {
-                batch[i] = source[rng.Next(source.Length)];
-            }
-        }
-
         internal static void SampleRandomSlice(TuningData[] source, TuningData[] batch)
         {
             Random rng = new Random();

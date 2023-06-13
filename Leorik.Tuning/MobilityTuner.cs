@@ -1,5 +1,6 @@
 ﻿
 using Leorik.Core;
+using System.Numerics;
 
 namespace Leorik.Tuning
 {
@@ -64,6 +65,21 @@ namespace Leorik.Tuning
                 int index = offset + 2 * (PieceMobilityIndices[order] + moveCount);
                 features[index] += value;
                 features[index + 1] += value * phase;
+            }
+        }
+
+        internal static void DescribeFeaturePairs(int[] featurePairs, int offset)
+        {
+            for (int order = Move.Order(Piece.Pawn); order < Move.Order(Piece.Queen); order++)
+            {
+                int zeroMoves = PieceMobilityIndices[order];
+                int maxMoves = PieceMobilityIndices[order - 1];
+                for (int tuple = zeroMoves; tuple < maxMoves; tuple++)
+                {
+                    int index = offset + 2 * tuple;
+                    //mobility features are tuples of two elements
+                    featurePairs[index + 1] = index;
+                }
             }
         }
 

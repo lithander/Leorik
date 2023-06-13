@@ -80,7 +80,10 @@ namespace Leorik.Tuning
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float phase)
         {
-            return entry.MidgameEval + phase * entry.EndgameEval;
+            if (entry.Phase == 0)
+                return entry.MidgameEval;
+
+            return entry.MidgameEval + (phase / entry.Phase) * entry.EndgameEval;
         }
 
         internal static void Report(float[] cPhase)

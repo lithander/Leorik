@@ -34,11 +34,11 @@ namespace Leorik.Tuning
             };
         }
 
-        public static void LoadData(List<Data> data, string epdFile)
+        public static void LoadData(List<Data> data, string epdFile, int maxCount = int.MaxValue)
         {
             Console.WriteLine($"Loading DATA from '{epdFile}'");
             var file = File.OpenText(epdFile);
-            while (!file.EndOfStream)
+            while (!file.EndOfStream && data.Count < maxCount)
             {
                 string line = file.ReadLine();
                 if (IsComment(line))

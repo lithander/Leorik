@@ -161,21 +161,30 @@ namespace Leorik.Tuning
             IteratePiecesMinimal(features, phase, pos, Features.GetConnectedPawns(pos), 9);
         }
 
-        internal static void GetEvalTerms(Feature[] features, float[] coefficients, out float midgame, out float endgame)
+        internal static void DescribeFeaturePairs(int[] featurePairs)
         {
-            midgame = 0;
-            endgame = 0;
-            //dot product of a selection (indices) of elements from the features vector with coefficients vector
-            foreach (Feature feature in features)
+            int halfDim = Dimensions / 2;
+            //for each feature scaled by phase store index of the unmodified feature
+            for (int table = 0; table < MaterialTables; table++)
             {
-                if (feature.Index % 2 != 0)
-                    continue; //ignore features with built-in phase!
-
-                midgame += feature.Value * coefficients[feature.Index];
-                endgame += feature.Value * coefficients[feature.Index + 1];
+                for (int sq = 0; sq < 64; sq++)
+                {
+                    int index = Dimensions * (table * 64 + sq);
+                    //map the 9 features with phase to the 9 prior features without
+                    for (int i = 0; i <= 8; i++)
+                        featurePairs[index + i + halfDim] = index + i;
+                }
+            }
+            for (int table = 0; table < PawnStructureTables; table++)
+            {
+                for(int sq = 0; sq < 64; sq++)
+                {
+                    int index = Dimensions * ((MaterialTables + table) * 64 + sq);
+                    //pawn features are not king-relative yet and just use 2 of the 18 dimensions
+                    featurePairs[index + 1] = index;
+                }
             }
         }
-
 
         internal static void ReportMinimal(int table, float[] coefficients)
         {
@@ -229,7 +238,14 @@ namespace Leorik.Tuning
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Evaluate(TuningData entry, float[] coefficients)
         {
-            return Tuner.Evaluate(entry.Features, coefficients);
+            //dot product of a selection (indices) of elements from the features vector with coefficients vector
+            float result = 0;
+            foreach (Feature f in entry.Features)
+            {
+                //Console.WriteLine($"{result} += {f.Value} * c[{f.Index}]={coefficients[f.Index]}");
+                result += f.Value * coefficients[f.Index];
+            }
+            return result;
         }
 
         public static void Minimize(TuningData[] data, float[] coefficients, float evalScaling, float alpha)
