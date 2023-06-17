@@ -9,6 +9,7 @@ namespace Leorik.Tuning
 {
     struct Feature
     {
+        public short Complement;
         public short Index;
         public float Value;
     }
@@ -28,15 +29,16 @@ namespace Leorik.Tuning
         public const int AllWeigths = FeatureTuner.FeatureWeights + MobilityTuner.MobilityWeights;
         public static float[] AllocArray() => new float[AllWeigths];
 
-        private static int[] FeaturePairs; //stores the 'source' index of features that were multiplied with phase
-        private static int[] SparseToDense; //temporary buffer mapping sparse indices to dense indices
+        private static int[] Complements; //stores the 'source' index of features that were multiplied with phase
+        private static short[] SparseToDense; //temporary buffer mapping sparse indices to dense indices
 
         static Tuner()
         {
-            FeaturePairs = new int[AllWeigths];
-            SparseToDense = new int[AllWeigths];
-            FeatureTuner.DescribeFeaturePairs(FeaturePairs);
-            MobilityTuner.DescribeFeaturePairs(FeaturePairs, FeatureTuner.FeatureWeights);
+            SparseToDense = new short[AllWeigths];
+            Complements = new int[AllWeigths];
+            Array.Fill(Complements, -1);
+            FeatureTuner.DescribeFeaturePairs(Complements);
+            MobilityTuner.DescribeFeaturePairs(Complements, FeatureTuner.FeatureWeights);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,6 +138,18 @@ namespace Leorik.Tuning
                 int index = indices[i];
                 denseFeatures[i].Index = (short)index;
                 denseFeatures[i].Value = features[index];
+                int compl = Complements[index];
+                if (compl >= 0)
+                {
+                    //this is an endgame feature: map sparse complement to dense complement and store
+                    denseFeatures[i].Complement = SparseToDense[compl];
+                }
+                else
+                {
+                    //this is a midgame feature, we'll need it later
+                    denseFeatures[i].Complement = -1;
+                    SparseToDense[index] = (short)i;
+                }
             }
             return denseFeatures;
         }
@@ -185,7 +199,7 @@ namespace Leorik.Tuning
             //dot product of a selection (indices) of elements from the features vector with coefficients vector
             foreach (Feature feature in features)
             {
-                if (FeaturePairs[feature.Index] > 0)//this is an endgame feature and scaled by phase
+                if (feature.Complement >= 0)//this is an endgame feature and scaled by phase
                     endgame += feature.Value * coefficients[feature.Index];
                 else
                     midgame += feature.Value * coefficients[feature.Index];
@@ -196,18 +210,11 @@ namespace Leorik.Tuning
         {
             for(int i = 0; i < features.Length; i++)
             {
-                int sparseIndex = features[i].Index;
-                if (FeaturePairs[sparseIndex] > 0)
+                int compl = features[i].Complement;
+                if (compl >= 0)
                 {
                     //this is an endgame feature and scaled by phase - restore it from unscaled partner
-                    int sparseMgIndex = FeaturePairs[sparseIndex];
-                    int denseMgIndex = SparseToDense[sparseMgIndex];
-                    features[i].Value = phase * features[denseMgIndex].Value;
-                }
-                else
-                {
-                    //this is a midgame feature
-                    SparseToDense[sparseIndex] = i;
+                    features[i].Value = phase * features[compl].Value;
                 }
             }
             return features;
@@ -215,9 +222,7 @@ namespace Leorik.Tuning
 
         internal static void Rebalance(Piece piece, float[] featureWeights)
         {
-            int featureTables = FeatureTuner.MaterialTables + FeatureTuner.PawnStructureTables;
-            int mobilityOffset = 128 * featureTables;
-            var avg = MobilityTuner.Rebalance(piece, mobilityOffset, featureWeights);
+            var avg = MobilityTuner.Rebalance(piece, FeatureTuner.FeatureWeights, featureWeights);
             FeatureTuner.Rebalance(piece, avg, featureWeights);
         }
         internal static void SampleRandomSlice(TuningData[] source, TuningData[] batch)

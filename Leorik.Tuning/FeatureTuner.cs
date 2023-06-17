@@ -212,9 +212,7 @@ namespace Leorik.Tuning
                 {
                     float c = coefficients[k + d];
                     string cStr = c.ToString("F2", CultureInfo.InvariantCulture);
-                    if (d == 0)
-                        Console.Write($"{(int)Math.Round(c),4}, ");
-                    else if (d < Dimensions - 1)
+                    if (d < Dimensions - 1)
                         Console.Write($"{cStr,6}f, ");
                     else
                         Console.Write($"{cStr,6}f");
@@ -286,13 +284,8 @@ namespace Leorik.Tuning
                 {
                     lock (coefficients)
                     {
-                        int N0 = FeatureWeights;
-                        for (int i = 0; i < N0; i++)
+                        for (int i = 0; i < AllWeigths; i++)
                             coefficients[i] -= alpha * accu[i] / data.Length;
-
-                        int N1 = N0 + MobilityTuner.MobilityWeights;
-                        for (int i = N0; i < N1; i++)
-                            coefficients[i] -= 0.25f * alpha * accu[i] / data.Length;
                     }
                 }
             );
@@ -301,12 +294,14 @@ namespace Leorik.Tuning
         internal static void Rebalance(Piece piece, (int mg, int eg) delta, float[] coefficients)
         {
             int table = ((int)piece >> 2) - 1; //Pawn: 0, Knight: 1 ... King: 5
-            int index = table * 128;
-            for (int sq = 0; sq < 64; sq++)
+            int halfDim = Dimensions / 2;
+
+            for (int i = 0; i < 64; i++)
             {
-                coefficients[index++] += delta.mg;
-                coefficients[index++] += delta.eg;
-            }
+                int index = Dimensions * (table * 64 + i);
+                coefficients[index] += delta.mg;
+                coefficients[index + halfDim] += delta.eg;
+            } 
         }
 
         //public static void MinimizeSIMD(List<Data2> data, float[] coefficients, double scalingCoefficient, float alpha)
