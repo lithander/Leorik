@@ -232,19 +232,50 @@ namespace Leorik.Core
         static Accumulator accumulator = new Accumulator();
 
 
-        public static void AddPiece(Piece piece, int squareIndex)
+        public static void AddPiece(Piece piece, int squareIndex, Color movingColor)
         {
             //Todo - update accumulator, lower half = us, upper half = them
         }
 
-        public static void RemovePiece(Piece piece, int squareIndex)
+        public static void RemovePiece(Piece piece, int squareIndex, Color movingColor)
         {
             //Todo - update accumulator, lower half = us, upper half = them
         }
 
         public static void Update(BoardState board, ref EvalTerm nnue, ref Move move)
         {
-            //Todo - resolve this to enumeration of add/removePiece calls
+            Color movingColor = board.SideToMove; 
+            RemovePiece(move.MovingPiece(), move.FromSquare, movingColor);
+            AddPiece(move.NewPiece(), move.ToSquare, movingColor);
+
+            if (move.CapturedPiece() != Piece.None)
+                RemovePiece(move.CapturedPiece(), move.ToSquare, movingColor);
+
+            switch (move.Flags)
+            {
+                case Piece.EnPassant | Piece.BlackPawn:
+                    RemovePiece(Piece.WhitePawn, move.ToSquare + 8, movingColor);
+                    break;
+                case Piece.EnPassant | Piece.WhitePawn:
+                    RemovePiece(Piece.BlackPawn, move.ToSquare - 8, movingColor);
+                    break;
+                case Piece.CastleShort | Piece.Black:
+                    RemovePiece(Piece.BlackRook, 63, movingColor);
+                    AddPiece(Piece.BlackRook, 61, movingColor);
+                    break;
+                case Piece.CastleLong | Piece.Black:
+                    RemovePiece(Piece.BlackRook, 56, movingColor);
+                    AddPiece(Piece.BlackRook, 59, movingColor);
+                    break;
+                case Piece.CastleShort | Piece.White:
+                    RemovePiece(Piece.WhiteRook, 7, movingColor);
+                    AddPiece(Piece.WhiteRook, 5, movingColor);
+                    break;
+                case Piece.CastleLong | Piece.White:
+                    RemovePiece(Piece.WhiteRook, 0, movingColor);
+                    AddPiece(Piece.WhiteRook, 3, movingColor);
+                    break;
+            }
         }
     }
 }

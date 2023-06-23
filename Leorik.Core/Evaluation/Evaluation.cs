@@ -53,19 +53,9 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore(BoardState board)
         {
-            //Todo - this is too slow - cache or seperate quiesce updatescore?
-            //Research requried: maybe this is called already only in quiet positions.
-            //NNue only valid when NOT in check. 
-            if (!board.InCheck())
-            {
-                //Todo - make sure to adjust nnue weight_scale to LEORIK range
-                Score = (short)(Endgame.IsDrawn(board) ? (int)Nnue.Base >> 4 : Nnue.Base);
-            }
-            else
-            {
-                float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
-                Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
-            }
+            //We just use Nnue.Base
+            float score = Nnue.Base + NormalizePhase(PhaseValue) * EvalEndgame();
+            Score = (short)(Endgame.IsDrawn(board) ? (int)score >> 4 : score);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -122,11 +112,16 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             PhaseValue += Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
+            {
                 Material.AddFeature(pieceIndex, squareIndex ^ 56);
+                NNUE.AddPiece(piece, squareIndex, Color.White);
+            }
             else
+            {
                 Material.SubtractFeature(pieceIndex, squareIndex);
+                NNUE.AddPiece(piece, squareIndex, Color.Black);
+            }
 
-            NNUE.AddPiece(piece, squareIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -135,11 +130,16 @@ namespace Leorik.Core
             int pieceIndex = PieceIndex(piece);
             PhaseValue -= Weights.PhaseValues[pieceIndex];
             if ((piece & Piece.ColorMask) == Piece.White)
+            {
                 Material.SubtractFeature(pieceIndex, squareIndex ^ 56);
+                NNUE.RemovePiece(piece, squareIndex, Color.White);
+            }
             else
+            {
                 Material.AddFeature(pieceIndex, squareIndex);
+                NNUE.RemovePiece(piece, squareIndex, Color.Black);
+            }
 
-            NNUE.RemovePiece(piece, squareIndex);
         }
 
         public const int CheckmateBase = 9000;
