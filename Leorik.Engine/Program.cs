@@ -139,7 +139,7 @@ namespace Leorik.Engine
             TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MAX_PLY);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
-            TryParse(tokens, "movestogo", out int movesToGo, 40); //assuming 40 e.g. spend 1/40th of total budget on the move
+            TryParse(tokens, "movestogo", out int movesToGo, GuessMovesToGo());
 
             if (_engine.SideToMove == Color.White && TryParse(tokens, "wtime", out int whiteTime))
             {
@@ -156,6 +156,12 @@ namespace Leorik.Engine
                 //Searching infinite within optional constraints
                 _engine.Go(maxDepth, maxTime, maxNodes);
             }
+        }
+
+        private static int GuessMovesToGo()
+        {
+            int playedMoves = _engine.HistoryPlys / 2;
+            return Math.Max(50 - playedMoves, 20);
         }
 
         private static bool TryParse(string[] tokens, string name, out int value, int defaultValue = 0)

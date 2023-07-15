@@ -15,6 +15,7 @@ namespace Leorik.Engine
         public SearchOptions Options = SearchOptions.Default;
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
+        public int HistoryPlys => _history.Count;
         public string GetFen() => Notation.GetFen(_board);
         public Evaluation GetEval() => _board.Eval;
         public void Flip() => _board.Flip();
