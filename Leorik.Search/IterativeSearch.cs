@@ -11,12 +11,12 @@ namespace Leorik.Search
         public long MaxNodes;
         public int NullMoveCutoff;
 
-        internal int Randomness(float phase)
+        internal readonly int Randomness(float phase)
         {
             return Math.Max(0, (int)(MidgameRandomness + (EndgameRandomness - MidgameRandomness) * phase));
         }
 
-        public static SearchOptions Default = new();
+        public readonly static SearchOptions Default = new();
 
         public SearchOptions()
         {
@@ -34,18 +34,17 @@ namespace Leorik.Search
         private const int MAX_BETA = Evaluation.CheckmateScore;
         private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
 
-        private BoardState[] Positions;
-        private Move[] Moves;
-        private int[] RootMoveOffsets;
-        private Move[] PrincipalVariations;
+        private readonly BoardState[] Positions;
+        private readonly Move[] Moves;
+        private readonly int[] RootMoveOffsets;
+        private readonly Move[] PrincipalVariations;
+        private readonly History _history;
+        private readonly KillerMoves _killers;
+        private readonly StaticExchange _see = new();
+        private readonly ulong[] _legacy; //hashes of positons that we need to eval as repetitions
+        private readonly SearchOptions _options;
+
         private KillSwitch _killSwitch;
-        private History _history;
-        private KillerMoves _killers;
-        private StaticExchange _see = new StaticExchange();
-        private ulong[] _legacy; //hashes of positons that we need to eval as repetitions
-
-
-        SearchOptions _options;
 
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
@@ -75,7 +74,7 @@ namespace Leorik.Search
             Positions[0].Copy(board);
 
             //Initialize a random bonus added to each root move
-            Random random = new Random();
+            Random random = new();
             int maxRandomCpBonus = _options.Randomness(board.Eval.Phase);
             RootMoveOffsets = new int[MAX_MOVES];
             for (int i = 0; i < MAX_MOVES; i++)
@@ -87,7 +86,7 @@ namespace Leorik.Search
             if(history == null)
                 return Array.Empty<ulong>();
 
-            List<ulong> reps = new List<ulong>();
+            List<ulong> reps = new();
             foreach (BoardState state in history) 
             {
                 if (state.HalfmoveClock == 0)
@@ -151,7 +150,7 @@ namespace Leorik.Search
             _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
             Move bestMove = PrincipalVariations[0];
-            MoveGen moveGen = new MoveGen(Moves, 0);
+            MoveGen moveGen = new(Moves, 0);
             int score = EvaluateRoot(Depth, moveGen, ref bestMove);
 
             Score = (int)Positions[0].SideToMove * score;
@@ -175,9 +174,7 @@ namespace Leorik.Search
             //...swap best with first
             if (best != first)
             {
-                Move temp = Moves[best];
-                Moves[best] = Moves[first];
-                Moves[first] = temp;
+                (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
             }
         }
 
@@ -223,12 +220,10 @@ namespace Leorik.Search
             public Stage Stage;
             public int Next;
             public byte PlayedMoves;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private PlayState InitPlay(ref MoveGen moveGen, ref Move pvMove)
-        {
-            return new PlayState { Stage = Stage.New, Next = moveGen.Collect(pvMove) };
+            public PlayState(int next)
+            {
+                Next = next;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -335,9 +330,7 @@ namespace Leorik.Search
             //...swap best with first
             if (best != first)
             {
-                Move temp = Moves[best];
-                Moves[best] = Moves[first];
-                Moves[first] = temp;
+                (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
             }
             return bestScore;
         }
@@ -360,7 +353,7 @@ namespace Leorik.Search
             int alpha = MIN_ALPHA;
 
             //init staged move generation and play all moves
-            PlayState playState = InitPlay(ref moveGen, ref bestMove);
+            PlayState playState = new(moveGen.Collect(bestMove));
             while (Play(0, ref playState, ref moveGen))
             {
                 ref Move move = ref Moves[playState.Next - 1];
@@ -426,7 +419,7 @@ namespace Leorik.Search
             }
 
             //init staged move generation and play all moves
-            PlayState playState = InitPlay(ref moveGen, ref bestMove);
+            PlayState playState = new(moveGen.Collect(bestMove));
             while (Play(ply, ref playState, ref moveGen))
             {
                 ref Move move = ref Moves[playState.Next - 1];

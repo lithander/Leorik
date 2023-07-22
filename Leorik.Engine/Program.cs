@@ -8,7 +8,7 @@ namespace Leorik.Engine
         const string NAME_VERSION = "Leorik 2.4.3 L26-all";
         const string AUTHOR = "Thomas Jahn";
 
-        static Engine _engine = new Engine();
+        static readonly Engine _engine = new();
 
         private static async Task Main()
         {

@@ -8,9 +8,9 @@ namespace Leorik.Engine
         IterativeSearch _search = null;
         Thread _searching = null;
         Move _best = default;
-        TimeControl _time = new TimeControl();
+        TimeControl _time = new();
         BoardState _board = Notation.GetStartingPosition();
-        List<BoardState> _history = new List<BoardState>();
+        List<BoardState> _history = new();
 
         public SearchOptions Options = SearchOptions.Default;
         public bool Running { get; private set; }
@@ -26,7 +26,7 @@ namespace Leorik.Engine
 
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
-            IterativeSearch search = new IterativeSearch(Notation.GetStartingPosition(), SearchOptions.Default, null);
+            IterativeSearch search = new(Notation.GetStartingPosition(), SearchOptions.Default, null);
             search.Search(3);
             Reset();
             Uci.Silent = false;
