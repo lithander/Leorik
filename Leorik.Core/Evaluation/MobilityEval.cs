@@ -45,13 +45,13 @@ namespace Leorik.Core
             for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = ClearLSB(bishops))
             {
                 square = LSB(bishops);
-                moves = PopCount(GetBishopTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetBishopTargets(occupied, square));
                 eval.Subtract(Weights.Mobility[Bishop + moves]);
             }
             for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = ClearLSB(bishops))
             {
                 square = LSB(bishops);
-                moves = PopCount(GetBishopTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetBishopTargets(occupied, square));
                 eval.Add(Weights.Mobility[Bishop + moves]);
             }
 
@@ -59,13 +59,13 @@ namespace Leorik.Core
             for (ulong rooks = board.Rooks & board.Black; rooks != 0; rooks = ClearLSB(rooks))
             {
                 square = LSB(rooks);
-                moves = PopCount(GetRookTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetRookTargets(occupied, square));
                 eval.Subtract(Weights.Mobility[Rook + moves]);
             }
             for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = ClearLSB(rooks))
             {
                 square = LSB(rooks);
-                moves = PopCount(GetRookTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetRookTargets(occupied, square));
                 eval.Add(Weights.Mobility[Rook + moves]);
             }
 
@@ -73,13 +73,13 @@ namespace Leorik.Core
             for (ulong queens = board.Queens & board.Black; queens != 0; queens = ClearLSB(queens))
             {
                 square = LSB(queens);
-                moves = PopCount(GetQueenTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetQueenTargets(occupied, square));
                 eval.Subtract(Weights.Mobility[Queen + moves]);
             }
             for (ulong queens = board.Queens & board.White; queens != 0; queens = ClearLSB(queens))
             {
                 square = LSB(queens);
-                moves = PopCount(GetQueenTargets(occupied, square) & ~occupied);
+                moves = PopCount(GetQueenTargets(occupied, square));
                 eval.Add(Weights.Mobility[Queen + moves]);
             }
 

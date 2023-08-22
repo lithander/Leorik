@@ -34,14 +34,6 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void QuickUpdate(BoardState board, ref Move move)
-        {
-            PawnStructure.Update(board, ref move, ref Pawns);
-            TryUpdateMaterial(board, ref move);
-            UpdateScore(board);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
             Mobility = default;

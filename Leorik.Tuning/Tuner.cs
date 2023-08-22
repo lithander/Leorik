@@ -16,6 +16,7 @@ namespace Leorik.Tuning
 
     struct TuningData
     {
+        public BoardState Position;
         public sbyte Result;
         public Feature[] Features;
         public float MidgameEval;
@@ -113,6 +114,7 @@ namespace Leorik.Tuning
 
             var td = new TuningData
             {
+                Position = input.Position,
                 Result = input.Result,               
                 Features = features,
                 MidgameEval = mgEval,

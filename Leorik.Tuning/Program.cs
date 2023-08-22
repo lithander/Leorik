@@ -157,6 +157,7 @@ foreach (Data entry in data)
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
+ValidateLeorikEval(20f);
 
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
@@ -276,6 +277,31 @@ void TunePhaseMicroBatches()
     double msePost = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
     Console.Write($" Delta={msePre - msePost:N10} Time={Seconds(t_1 - t_0):0.###}s ");
     PhaseTuner.Report(cPhase);
+}
+
+void ValidateLeorikEval(float errorThreshold)
+{
+    //the idea is that with identical coefficients and proper implementation the tuner should evaluate
+    //positions not significantly different than the engine.
+    float accError = 0;
+    float maxError = 0;
+    for(int i = 0; i < tuningData.Length; i++)
+    {
+        TuningData entry = tuningData[i];
+        float eval = FeatureTuner.Evaluate(entry, cFeatures);
+        float eval2 = entry.Position.Eval.RawScore;
+        float error = Math.Abs(eval - eval2);
+        accError += error;
+        maxError = Math.Max(error, maxError);
+
+        if (Math.Abs(error) > errorThreshold)
+        {
+            Console.WriteLine(Notation.GetFen(entry.Position));
+            Console.WriteLine($"Phase: {entry.Phase} vs {entry.Position.Eval.Phase}");
+            Console.WriteLine($"{i}: {eval} vs {eval2} Delta: {error}");
+        }
+    }
+    Console.WriteLine($"Difference between Tuner's and Leorik's eval: {accError / tuningData.Length} avg, {maxError} max");
 }
 
 void TestLeorikMSE()

@@ -162,7 +162,7 @@ namespace Leorik.Core
             }
             Eval = from.Eval;
             //compared to normal play only parts of the eval are updated, no hash and no half-move clock
-            Eval.QuickUpdate(this, ref move);
+            Eval.Update(this, ref move);
             return true;
         }
 

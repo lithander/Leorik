@@ -1,6 +1,6 @@
 ﻿
 using Leorik.Core;
-using System.Numerics;
+using static Leorik.Core.Bitboard;
 
 namespace Leorik.Tuning
 {
@@ -37,35 +37,95 @@ namespace Leorik.Tuning
             return result;
         }
 
-        internal static void AddFeatures(float[] features, BoardState position, float phase, int offset)
+        const int Pawn = 0;
+        //const int Knight = 13;
+        const int Bishop = 22;
+        const int Rook = 36;
+        const int Queen = 51;
+        const int King = 79;
+
+        internal static void AddFeatures(float[] features, BoardState board, float phase, int offset)
         {
-            int[] moveCounts = new int[64];
-            Move[] moves = GetMoves(position);
-            for (int i = 0; i < moves.Length; i++)
+            void Add(int value, int index, float phase)
             {
-                //TODO: count captures? Count promotions as one?
-                moveCounts[moves[i].FromSquare]++;
-            }
-
-            for (int i = 0; i < 64; i++)
-            {
-                int moveCount = moveCounts[i];
-                Piece piece = position.GetPiece(i);
-
-                if (piece == Piece.None)
-                    continue;
-                if ((piece & Piece.TypeMask) == Piece.Knight)
-                    continue;
-                    //only blocked or promoting pawns are interesting
-                if ((piece & Piece.TypeMask) == Piece.Pawn && moveCount > 0 && moveCount < 3)
-                    continue;
-
-                int value = (piece & Piece.ColorMask) == Piece.White ? 1 : -1;
-                int order = Move.Order(piece);
-                int index = offset + 2 * (PieceMobilityIndices[order] + moveCount);
+                index = offset + 2 * index;
                 features[index] += value;
                 features[index + 1] += value * phase;
             }
+
+            ulong occupied = board.Black | board.White;
+
+            //Kings
+            int square = LSB(board.Kings & board.Black);
+            int moves = PopCount(KingTargets[square] & ~occupied);
+            Add(-1, King + moves, phase);
+
+            square = LSB(board.Kings & board.White);
+            moves = PopCount(KingTargets[square] & ~occupied);
+            Add(1, King + moves, phase);
+
+            //Bishops
+            for (ulong bishops = board.Bishops & board.Black; bishops != 0; bishops = ClearLSB(bishops))
+            {
+                square = LSB(bishops);
+                moves = PopCount(GetBishopTargets(occupied, square));
+                Add(-1, Bishop + moves, phase);
+            }
+            for (ulong bishops = board.Bishops & board.White; bishops != 0; bishops = ClearLSB(bishops))
+            {
+                square = LSB(bishops);
+                moves = PopCount(GetBishopTargets(occupied, square));
+                Add(1, Bishop + moves, phase);
+            }
+
+            //Rooks
+            for (ulong rooks = board.Rooks & board.Black; rooks != 0; rooks = ClearLSB(rooks))
+            {
+                square = LSB(rooks);
+                moves = PopCount(GetRookTargets(occupied, square));
+                Add(-1, Rook + moves, phase);
+            }
+            for (ulong rooks = board.Rooks & board.White; rooks != 0; rooks = ClearLSB(rooks))
+            {
+                square = LSB(rooks);
+                moves = PopCount(GetRookTargets(occupied, square));
+                Add(1, Rook + moves, phase);
+            }
+
+            //Queens
+            for (ulong queens = board.Queens & board.Black; queens != 0; queens = ClearLSB(queens))
+            {
+                square = LSB(queens);
+                moves = PopCount(GetQueenTargets(occupied, square));
+                Add(-1, Queen + moves, phase);
+            }
+            for (ulong queens = board.Queens & board.White; queens != 0; queens = ClearLSB(queens))
+            {
+                square = LSB(queens);
+                moves = PopCount(GetQueenTargets(occupied, square));
+                Add(1, Queen + moves, phase);
+            }
+
+            //Black Pawns
+            ulong blackPawns = board.Pawns & board.Black;
+            ulong oneStep = (blackPawns >> 8) & ~occupied;
+            //not able to move one square down
+            int blocked = PopCount(blackPawns) - PopCount(oneStep);
+            Add(-blocked, Pawn, phase);
+            //promotion square not blocked?
+            int promo = PopCount(oneStep & 0x00000000000000FFUL);
+            Add(-promo, Pawn + 3, phase);
+
+
+            //White Pawns
+            ulong whitePawns = board.Pawns & board.White;
+            oneStep = (whitePawns << 8) & ~occupied;
+            //not able to move one square up
+            blocked = PopCount(whitePawns) - PopCount(oneStep);
+            Add(blocked, Pawn, phase);
+            //promotion square not blocked?
+            promo = PopCount(oneStep & 0xFF00000000000000UL);
+            Add(promo, Pawn + 3, phase);
         }
 
         internal static void DescribeFeaturePairs(int[] featurePairs, int offset)
