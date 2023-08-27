@@ -1,6 +1,7 @@
 ﻿using Leorik.Core;
 using System.Data;
 using System.Runtime.CompilerServices;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Leorik.Search
 {
@@ -422,6 +423,11 @@ namespace Leorik.Search
             PlayState playState = new(moveGen.Collect(bestMove));
             while (Play(ply, ref playState, ref moveGen))
             {
+                //Score of Leorik - 2.4.6e vs Leorik-2.4.6c: 2698 - 1920 - 4386[0.543] 9004
+                //Elo difference: 30.1 +/ -5.1, LOS: 100.0 %, DrawRatio: 48.7 %
+                if (playState.Stage == Stage.Quiets && !inCheck && remaining <= 2 && Math.Abs(alpha - beta) == 1)
+                    return alpha;
+
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
