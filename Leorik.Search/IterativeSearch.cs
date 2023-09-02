@@ -304,7 +304,6 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void StripKillers(int first, ref MoveGen moveGen, Span<Move> span)
         {
-            //find the best move...
             for (int i = first; i < moveGen.Next; i++)
             {
                 ref Move move = ref Moves[i];
@@ -425,7 +424,8 @@ namespace Leorik.Search
             {
                 //Score of Leorik - 2.4.6e vs Leorik-2.4.6c: 2698 - 1920 - 4386[0.543] 9004
                 //Elo difference: 30.1 +/ -5.1, LOS: 100.0 %, DrawRatio: 48.7 %
-                if (playState.Stage == Stage.Quiets && !inCheck && remaining <= 2 && Math.Abs(alpha - beta) == 1)
+                bool zeroWindow = Math.Abs(alpha - beta) == 1;
+                if (zeroWindow && playState.Stage == Stage.Quiets && !inCheck && remaining <= 2)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
@@ -434,22 +434,25 @@ namespace Leorik.Search
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
                 if (remaining > 1 && playState.PlayedMoves > 1)
                 {
-                    int R = 0;
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
+                    int R = 0;
                     if (!inCheck && playState.Stage >= Stage.Quiets && !next.InCheck())
                         R += 2;
                     //when not in check moves with a negative SEE score are reduced further
                     if (!inCheck && _see.IsBad(current, ref move))
                         R += 2;
 
+                    //early out if reduced search doesn't beat alpha
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
 
-                    //...but if against expectations the move does NOT fail low we research it at full depth!
+                    //if this is the main search conduct a 2nd zero window search - this time without reduction
+                    if (!zeroWindow && R > 0 && EvaluateNext(ply, remaining, alpha, alpha + 1, moveGen) <= alpha)
+                        continue;
                 }
 
+                //finally a full window search without reduction
                 int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
-
                 if (score <= alpha)
                     continue;
 
@@ -541,10 +544,6 @@ namespace Leorik.Search
             }
 
             return movesPlayed ? alpha : Evaluation.Checkmate(ply);
-
-            //NOTE: this kind of stale-mate detection was a loss for Leorik 1.0!
-            //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
-            //    return 0;
         }
     }
 }
