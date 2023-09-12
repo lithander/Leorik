@@ -30,7 +30,6 @@ namespace Leorik.Search
 
         }
 
-        public const short HISTORY_DEPTH = 255;
         public const int DEFAULT_SIZE_MB = 50;
         const int ENTRY_SIZE = 16; //BYTES
         static HashEntry[] _table;
