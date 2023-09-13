@@ -33,7 +33,7 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
         private const int MAX_BETA = Evaluation.CheckmateScore;
-        private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
+        private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
@@ -51,9 +51,7 @@ namespace Leorik.Search
         public int Depth { get; private set; }
         public int Score { get; private set; }
         public bool Aborted { get; private set; }
-        public Move BestMove => PrincipalVariations[0];
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
-
 
         public IterativeSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
         {
