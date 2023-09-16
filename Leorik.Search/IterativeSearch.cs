@@ -1,7 +1,5 @@
 ﻿using Leorik.Core;
-using System.Data;
 using System.Runtime.CompilerServices;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace Leorik.Search
 {
@@ -11,6 +9,7 @@ namespace Leorik.Search
         public int EndgameRandomness;
         public long MaxNodes;
         public int NullMoveCutoff;
+        public int Threads;
 
         internal readonly int Randomness(float phase)
         {
@@ -19,8 +18,10 @@ namespace Leorik.Search
 
         public readonly static SearchOptions Default = new();
 
+
         public SearchOptions()
         {
+            Threads = 1;
             MaxNodes = long.MaxValue;
             MidgameRandomness = 0;
             EndgameRandomness = 0;
@@ -28,7 +29,62 @@ namespace Leorik.Search
         }
     }
 
-    public class IterativeSearch
+    public interface ISearch
+    {
+        bool Aborted { get; }
+        int Depth { get; }
+        int Score { get; }
+        long NodesVisited { get; }
+        Span<Move> PrincipalVariation { get; }
+        void SearchDeeper(Func<bool> checkTimeBudget);
+        void Search(int depth);
+    }
+
+    public class ParallelSearch : ISearch
+    {
+        List<IterativeSearch> _worker = new List<IterativeSearch>();
+
+        public ParallelSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
+        {
+            for(int i = 0; i < options.Threads; i++)
+            {
+                var worker = new IterativeSearch(board, options, history);
+                worker.Schuffle();
+                _worker.Add(worker);
+            }
+        }
+
+        public bool Aborted => _worker[0].Aborted;
+
+        public int Depth => _worker[0].Depth;
+
+        public int Score => _worker[0].Score;
+
+        public long NodesVisited => _worker[0].NodesVisited;
+
+        public Span<Move> PrincipalVariation => _worker[0].PrincipalVariation;
+
+        public void SearchDeeper(Func<bool>? killSwitch = null)
+        {
+            // Using a lambda expression.
+            Parallel.For(0, _worker.Count, i =>
+            {
+                _worker[i].SearchDeeper(killSwitch);
+            });
+        }
+
+        public void Search(int maxDepth)
+        {
+            // Using a lambda expression.
+            Parallel.For(0, _worker.Count, i =>
+            {
+                while (_worker[i].Depth < maxDepth)
+                    _worker[i].SearchDeeper(null);
+            });
+        }
+    }
+
+    public class IterativeSearch : ISearch
     {
         public const int MAX_PLY = 99;
         private const int MIN_ALPHA = -Evaluation.CheckmateScore;
@@ -37,6 +93,7 @@ namespace Leorik.Search
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
+        private readonly Move[] RootMoves;
         private readonly int[] RootMoveOffsets;
         private readonly Move[] PrincipalVariations;
         private readonly History _history;
@@ -61,6 +118,10 @@ namespace Leorik.Search
             _legacy = SelectMoveHistory(history);
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
+            MoveGen moveGen = new(Moves, 0);
+            moveGen.Collect(board);
+            RootMoves = new Move[moveGen.Next];
+            Array.Copy(Moves, RootMoves, RootMoves.Length);
 
             //PV-length = depth + (depth - 1) + (depth - 2) + ... + 1
             const int d = MAX_PLY + 1;
@@ -75,9 +136,20 @@ namespace Leorik.Search
             //Initialize a random bonus added to each root move
             Random random = new();
             int maxRandomCpBonus = _options.Randomness(board.Eval.Phase);
-            RootMoveOffsets = new int[MAX_MOVES];
-            for (int i = 0; i < MAX_MOVES; i++)
+            RootMoveOffsets = new int[RootMoves.Length];
+            for (int i = 0; i < RootMoveOffsets.Length; i++)
                 RootMoveOffsets[i] = random.Next(maxRandomCpBonus);
+        }
+
+        public void Schuffle()
+        {
+            Random random = new();
+            int len = RootMoves.Length;
+            for (int i = 0; i < len - 1; ++i)
+            {
+                int r = random.Next(i, len);
+                (RootMoves[r], RootMoves[i]) = (RootMoves[i], RootMoves[r]);
+            }
         }
 
         private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
@@ -148,10 +220,7 @@ namespace Leorik.Search
             Depth++;
             _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
-            Move bestMove = PrincipalVariations[0];
-            MoveGen moveGen = new(Moves, 0);
-            int score = EvaluateRoot(Depth, moveGen, ref bestMove);
-
+            int score = EvaluateRoot(Depth);
             Score = (int)Positions[0].SideToMove * score;
         }
 
@@ -341,55 +410,56 @@ namespace Leorik.Search
             return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
         }
 
-        private int EvaluateRoot(int depth, MoveGen moveGen, ref Move bestMove)
+        private int EvaluateRoot(int depth)
         {
             NodesVisited++;
 
             BoardState root = Positions[0];
             BoardState next = Positions[1];
+            MoveGen moveGen = new(Moves, 0);
             bool inCheck = root.InCheck();
             int alpha = MIN_ALPHA;
 
             //init staged move generation and play all moves
-            PlayState playState = new(moveGen.Collect(bestMove));
-            while (Play(0, ref playState, ref moveGen))
+            for(int i = 0; i < RootMoves.Length; i++)
             {
-                ref Move move = ref Moves[playState.Next - 1];
-                _history.Played(depth, ref move);
+                Move move = RootMoves[i];
+                if (!next.Play(root, ref move))
+                    continue;
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[playState.PlayedMoves - 1];
+                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (depth >= 2 && playState.PlayedMoves > 1)
+                if (depth >= 2 && i > 0)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = (playState.Stage < Stage.Quiets || inCheck || next.InCheck()) ? 0 : 2;
+                    int R = (move.CapturedPiece() != Piece.None || inCheck || next.InCheck()) ? 0 : 2;
+
                     //Fail low but with BONUS!
-                    if (EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha - bonus)
+                    if (bonus + EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha)
                         continue;
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
                 int score = bonus + EvaluateNext(0, depth, alpha - bonus, MAX_BETA - bonus, moveGen);
 
-                if (score > alpha)
-                {
-                    alpha = score;
-                    bestMove = move;
-                    ExtendPV(0, depth, bestMove);
+                if (score <= alpha)
+                    continue;
 
-                    if (playState.Stage >= Stage.Killers)
-                    {
-                        _history.Good(depth, ref bestMove);
-                        _killers.Add(0, bestMove);
-                    }
-                }
+                //New best move!
+                alpha = score;
+                ExtendPV(0, depth, move);
+
+                //insert new best move at the front
+                for (int j = i; j > 0; j--)
+                    RootMoves[j] = RootMoves[j - 1];
+                RootMoves[0] = move;
             }
 
             //checkmate or draw?
-            if (playState.PlayedMoves == 0)
-                return inCheck ? Evaluation.Checkmate(0) : 0;
+            if (alpha == MIN_ALPHA)
+                return root.InCheck() ? Evaluation.Checkmate(0) : 0;
 
             return alpha;
         }
@@ -420,32 +490,25 @@ namespace Leorik.Search
             PlayState playState = new(moveGen.Collect(bestMove));
             while (Play(ply, ref playState, ref moveGen))
             {
-                //Score of Leorik - 2.4.6e vs Leorik-2.4.6c: 2698 - 1920 - 4386[0.543] 9004
-                //Elo difference: 30.1 +/ -5.1, LOS: 100.0 %, DrawRatio: 48.7 %
-                bool zeroWindow = Math.Abs(alpha - beta) == 1;
-                if (zeroWindow && playState.Stage == Stage.Quiets && !inCheck && remaining <= 2)
+                if (playState.Stage == Stage.Quiets && !inCheck && remaining <= 2 && Math.Abs(alpha - beta) == 1)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (remaining > 1 && playState.PlayedMoves > 1)
+                if (remaining > 1 && playState.PlayedMoves > 1 && !inCheck)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = 0;
-                    if (!inCheck && playState.Stage >= Stage.Quiets && !next.InCheck())
+                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
                         R += 2;
                     //when not in check moves with a negative SEE score are reduced further
-                    if (!inCheck && _see.IsBad(current, ref move))
+                    if (_see.IsBad(current, ref move))
                         R += 2;
 
-                    //early out if reduced search doesn't beat alpha
+                    //early out if reduced zero window search doesn't beat alpha
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
-                        continue;
-
-                    //if this is the main search conduct a 2nd zero window search - this time without reduction
-                    if (!zeroWindow && R > 0 && EvaluateNext(ply, remaining, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
 

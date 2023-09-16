@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     class Engine
     {
-        IterativeSearch _search = null;
+        ISearch _search = null;
         Thread _searching = null;
         Move _best = default;
         TimeControl _time = new();
@@ -105,9 +105,9 @@ namespace Leorik.Engine
             SearchOptions options = Options;
             options.MaxNodes = maxNodes;
 
-            _search = new IterativeSearch(_board, options, _history);
+            _search = new ParallelSearch(_board, options, _history);
             _time.StartInterval();
-            _search.SearchDeeper();
+            _search.SearchDeeper(() => false);
             Collect();
 
             //start the search thread

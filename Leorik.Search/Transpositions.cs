@@ -85,8 +85,11 @@ namespace Leorik.Search
 
         public static void Clear()
         {
-            _age = 0;
-            Array.Clear(_table, 0, _table.Length);
+            lock (_table)
+            {
+                _age = 0;
+                Array.Clear(_table, 0, _table.Length);
+            }
         }
 
         public static void IncreaseAge()
@@ -96,32 +99,35 @@ namespace Leorik.Search
 
         public static void Store(ulong zobristHash, int depth, int ply, int alpha, int beta, int score, Move bestMove)
         {
-            ref HashEntry entry = ref _table[Index(zobristHash, depth)];
+            lock (_table)
+            {
+                ref HashEntry entry = ref _table[Index(zobristHash, depth)];
 
-            //don't overwrite a bestmove with 'default' unless it's a new position
-            if (entry.Hash == zobristHash && bestMove == default)
-            {
-                bestMove = entry.GetMove();
-            }
+                //don't overwrite a bestmove with 'default' unless it's a new position
+                if (entry.Hash == zobristHash && bestMove == default)
+                {
+                    bestMove = entry.GetMove();
+                }
 
-            entry.Hash = zobristHash;
-            entry.Depth = depth < 0 ? default : (byte)depth;
-            entry.Age = _age;
+                entry.Hash = zobristHash;
+                entry.Depth = depth < 0 ? default : (byte)depth;
+                entry.Age = _age;
 
-            if (score >= beta)
-            {
-                entry.MoveAndType = Encode(bestMove, ScoreType.GreaterOrEqual);
-                entry.Score = AdjustMateDistance(beta, ply);
-            }
-            else if (score <= alpha)
-            {
-                entry.MoveAndType = Encode(bestMove, ScoreType.LessOrEqual);
-                entry.Score = AdjustMateDistance(alpha, ply);
-            }
-            else
-            {
-                entry.MoveAndType = Encode(bestMove, ScoreType.Exact);
-                entry.Score = AdjustMateDistance(score, ply);
+                if (score >= beta)
+                {
+                    entry.MoveAndType = Encode(bestMove, ScoreType.GreaterOrEqual);
+                    entry.Score = AdjustMateDistance(beta, ply);
+                }
+                else if (score <= alpha)
+                {
+                    entry.MoveAndType = Encode(bestMove, ScoreType.LessOrEqual);
+                    entry.Score = AdjustMateDistance(alpha, ply);
+                }
+                else
+                {
+                    entry.MoveAndType = Encode(bestMove, ScoreType.Exact);
+                    entry.Score = AdjustMateDistance(score, ply);
+                }
             }
         }
 
@@ -133,7 +139,7 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static short AdjustMateDistance(int score, int ply)
+        private static short AdjustMateDistance(int score, int ply)
         {
             //a checkmate score is reduced by the number of plies from the root so that shorter mates are preferred
             //but when we talk about a position being 'mate in X' then X is independent of the root distance. So we store
@@ -147,41 +153,47 @@ namespace Leorik.Search
 
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
-            bestMove = Find(position.ZobristHash, out int index) ? _table[index].GetMove() : default;
-            return bestMove != default;
+            lock (_table)
+            {
+                bestMove = Find(position.ZobristHash, out int index) ? _table[index].GetMove() : default;
+                return bestMove != default;
+            }
         }
 
         public static bool GetScore(ulong zobristHash, int depth, int ply, int alpha, int beta, out Move bestMove, out int score)
         {
-            //init out paramters to allow early out
-            bestMove = default;
-            score = 0;
-
-            //does an entry exist?
-            if (!Find(zobristHash, out int index))
-                return false;
-
-            ref HashEntry entry = ref _table[index];
-            //yes! we can at least use the best move
-            bestMove = entry.GetMove();
-
-            //is the quality of the entry good enough?
-            if (entry.Depth < depth)
-                return false;
-
-            //is what we know enough to give a definitive answer within the alpha/beta window?
-            score = AdjustMateDistance(entry.Score, -ply);
-            switch (entry.GetScoreType())
+            lock(_table)
             {
-                //2.) we don't know the score but that's okay if it is >= beta
-                case ScoreType.GreaterOrEqual:
-                    return score >= beta;
-                //3.) we don't know the score but that's okay if it is <= alpha
-                case ScoreType.LessOrEqual:
-                    return score <= alpha;
-                //1.) score is exact and within window
-                default: //ScoreType.Exact
-                    return true;
+                //init out paramters to allow early out
+                bestMove = default;
+                score = 0;
+
+                //does an entry exist?
+                if (!Find(zobristHash, out int index))
+                    return false;
+
+                ref HashEntry entry = ref _table[index];
+                //yes! we can at least use the best move
+                bestMove = entry.GetMove();
+
+                //is the quality of the entry good enough?
+                if (entry.Depth < depth)
+                    return false;
+
+                //is what we know enough to give a definitive answer within the alpha/beta window?
+                score = AdjustMateDistance(entry.Score, -ply);
+                switch (entry.GetScoreType())
+                {
+                    //2.) we don't know the score but that's okay if it is >= beta
+                    case ScoreType.GreaterOrEqual:
+                        return score >= beta;
+                    //3.) we don't know the score but that's okay if it is <= alpha
+                    case ScoreType.LessOrEqual:
+                        return score <= alpha;
+                    //1.) score is exact and within window
+                    default: //ScoreType.Exact
+                        return true;
+                }
             }
         }
     }
