@@ -1,5 +1,6 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Leorik.Search
 {
@@ -12,15 +13,23 @@ namespace Leorik.Search
             Exact
         }
 
+        [StructLayout(LayoutKind.Explicit)]
         public struct HashEntry
         {
-            public ulong Hash;       //8 Bytes
+            [FieldOffset(0)]
+            public ulong Key;        //8 Bytes
+            [FieldOffset(8)]
             public short Score;      //2 Bytes
+            [FieldOffset(10)]
             public byte Depth;       //1 Byte
+            [FieldOffset(11)]
             public byte Age;         //1 Byte
+            [FieldOffset(12)]
             public int MoveAndType;  //4 Byte
             //=================================
-            //                        16 Bytes 
+            //                        16 Bytes
+            [FieldOffset(8)]
+            public ulong Data;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ScoreType GetScoreType() => (ScoreType)(MoveAndType >> 29);
@@ -28,49 +37,17 @@ namespace Leorik.Search
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Move GetMove() => (Move)(MoveAndType & 0x1FFFFFFF);
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ulong GetHash() => Key ^ Data;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void SetHash(ulong hash) => Key = hash ^ Data;
         }
 
         public const int DEFAULT_SIZE_MB = 50;
         const int ENTRY_SIZE = 16; //BYTES
         static HashEntry[] _table;
         static byte _age = 0;
-
-        static bool Find(in ulong hash, out int index)
-        {
-            index = (int)(hash % (ulong)_table.Length);
-            if (_table[index].Hash != hash)
-                index ^= 1; //try other slot
-
-            if (_table[index].Hash != hash)
-                return false; //both slots missed
-
-            //a table hit resets the age
-            _table[index].Age = _age;
-            return true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static int Index(in ulong hash, int newDepth)
-        {
-            int index = (int)(hash % (ulong)_table.Length);
-            ref HashEntry e0 = ref _table[index];
-            ref HashEntry e1 = ref _table[index ^ 1];
-
-            if (e0.Hash == hash)
-                return index;
-
-            if (e1.Hash == hash)
-                return index ^ 1;
-
-            if (e0.Depth < e1.Depth)
-                return index;
-
-            //undercut replacement prevents deep entries from sticking around forever.
-            if (newDepth >= e0.Depth - 1 - (byte)(_age - e0.Age))
-                return index;
-
-            return index ^ 1;
-        }
 
         static Transpositions()
         {
@@ -85,11 +62,8 @@ namespace Leorik.Search
 
         public static void Clear()
         {
-            lock (_table)
-            {
-                _age = 0;
-                Array.Clear(_table, 0, _table.Length);
-            }
+            _age = 0;
+            Array.Clear(_table, 0, _table.Length);
         }
 
         public static void IncreaseAge()
@@ -99,36 +73,44 @@ namespace Leorik.Search
 
         public static void Store(ulong zobristHash, int depth, int ply, int alpha, int beta, int score, Move bestMove)
         {
-            lock (_table)
+            int index = (int)(zobristHash % (ulong)_table.Length);
+            HashEntry entry = _table[index];
+            if (entry.GetHash() != zobristHash)
             {
-                ref HashEntry entry = ref _table[Index(zobristHash, depth)];
-
-                //don't overwrite a bestmove with 'default' unless it's a new position
-                if (entry.Hash == zobristHash && bestMove == default)
+                HashEntry other = _table[index ^ 1];
+                //other slot is correct -OR- both are wrong but other is shallower -OR- undercut replacement prevents deep entries from sticking around forever.
+                if (other.GetHash() == zobristHash || entry.Depth >= other.Depth && entry.Depth + entry.Age > depth + 1 + _age)
                 {
-                    bestMove = entry.GetMove();
-                }
-
-                entry.Hash = zobristHash;
-                entry.Depth = depth < 0 ? default : (byte)depth;
-                entry.Age = _age;
-
-                if (score >= beta)
-                {
-                    entry.MoveAndType = Encode(bestMove, ScoreType.GreaterOrEqual);
-                    entry.Score = AdjustMateDistance(beta, ply);
-                }
-                else if (score <= alpha)
-                {
-                    entry.MoveAndType = Encode(bestMove, ScoreType.LessOrEqual);
-                    entry.Score = AdjustMateDistance(alpha, ply);
-                }
-                else
-                {
-                    entry.MoveAndType = Encode(bestMove, ScoreType.Exact);
-                    entry.Score = AdjustMateDistance(score, ply);
+                    index ^= 1;
+                    entry = other;
                 }
             }
+
+            //don't overwrite a bestmove with 'default' unless it's a new position
+            if (bestMove == default && entry.GetHash() == zobristHash)
+                bestMove = entry.GetMove();
+
+            entry.Depth = depth < 0 ? default : (byte)depth;
+            entry.Age = _age;
+
+            if (score >= beta)
+            {
+                entry.MoveAndType = Encode(bestMove, ScoreType.GreaterOrEqual);
+                entry.Score = AdjustMateDistance(beta, ply);
+            }
+            else if (score <= alpha)
+            {
+                entry.MoveAndType = Encode(bestMove, ScoreType.LessOrEqual);
+                entry.Score = AdjustMateDistance(alpha, ply);
+            }
+            else
+            {
+                entry.MoveAndType = Encode(bestMove, ScoreType.Exact);
+                entry.Score = AdjustMateDistance(score, ply);
+            }
+
+            entry.SetHash(zobristHash);
+            _table[index] = entry;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -153,47 +135,65 @@ namespace Leorik.Search
 
         public static bool GetBestMove(BoardState position, out Move bestMove)
         {
-            lock (_table)
-            {
-                bestMove = Find(position.ZobristHash, out int index) ? _table[index].GetMove() : default;
-                return bestMove != default;
-            }
+            ulong hash = position.ZobristHash;
+            int index = (int)(hash % (ulong)_table.Length);
+
+            HashEntry entry = _table[index];
+            if (entry.GetHash() == hash)
+                return (bestMove = entry.GetMove()) != default;
+
+            entry = _table[index ^ 1]; //try other slot
+            if (entry.GetHash() == hash)
+                return (bestMove = entry.GetMove()) != default;
+
+            bestMove = default;
+            return false; //both slots missed
         }
 
         public static bool GetScore(ulong zobristHash, int depth, int ply, int alpha, int beta, out Move bestMove, out int score)
         {
-            lock(_table)
+            //init out paramters to allow early out
+            bestMove = default;
+            score = 0;
+
+            int index = (int)(zobristHash % (ulong)_table.Length);
+
+            HashEntry entry = _table[index];
+
+            if (entry.GetHash() != zobristHash)
             {
-                //init out paramters to allow early out
-                bestMove = default;
-                score = 0;
+                index ^= 1; //try other slot
+                entry = _table[index];
+            }
 
-                //does an entry exist?
-                if (!Find(zobristHash, out int index))
-                    return false;
+            if (entry.GetHash() != zobristHash)
+                return false; //both slots missed
 
-                ref HashEntry entry = ref _table[index];
-                //yes! we can at least use the best move
-                bestMove = entry.GetMove();
+            //a table hit resets the age
+            entry.Age = _age;
+            entry.SetHash(zobristHash);
+            _table[index] = entry;
 
-                //is the quality of the entry good enough?
-                if (entry.Depth < depth)
-                    return false;
+            //yes! we can at least use the best move
+            bestMove = entry.GetMove();
 
-                //is what we know enough to give a definitive answer within the alpha/beta window?
-                score = AdjustMateDistance(entry.Score, -ply);
-                switch (entry.GetScoreType())
-                {
-                    //2.) we don't know the score but that's okay if it is >= beta
-                    case ScoreType.GreaterOrEqual:
-                        return score >= beta;
-                    //3.) we don't know the score but that's okay if it is <= alpha
-                    case ScoreType.LessOrEqual:
-                        return score <= alpha;
-                    //1.) score is exact and within window
-                    default: //ScoreType.Exact
-                        return true;
-                }
+            //is the quality of the entry good enough?
+            if (entry.Depth < depth)
+                return false;
+
+            //is what we know enough to give a definitive answer within the alpha/beta window?
+            score = AdjustMateDistance(entry.Score, -ply);
+            switch (entry.GetScoreType())
+            {
+                //2.) we don't know the score but that's okay if it is >= beta
+                case ScoreType.GreaterOrEqual:
+                    return score >= beta;
+                //3.) we don't know the score but that's okay if it is <= alpha
+                case ScoreType.LessOrEqual:
+                    return score <= alpha;
+                //1.) score is exact and within window
+                default: //ScoreType.Exact
+                    return true;
             }
         }
     }

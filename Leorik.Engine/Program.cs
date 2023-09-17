@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.4.7a 4-Threads";
+        const string NAME_VERSION = "Leorik 2.4.7b";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -52,6 +52,7 @@ namespace Leorik.Engine
                     UciGo(tokens);
                     break;
                 case "ucinewgame":
+                    _engine.Stop();
                     _engine.Reset();
                     break;
                 case "stop":
@@ -94,7 +95,7 @@ namespace Leorik.Engine
         {
             if (token[1] == "name" && token[2] == "Hash" && token[3] == "value" && int.TryParse(token[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
-            if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
+            else if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
                 _engine.Options.Threads = threads;
             else if (token[1] == "name" && token[2] == "Midgame" && token[3] == "Randomness" && token[4] == "value" && int.TryParse(token[5], out int mgRandomness))
                 _engine.Options.MidgameRandomness = mgRandomness;
