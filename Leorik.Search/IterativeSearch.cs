@@ -43,6 +43,7 @@ namespace Leorik.Search
     public class ParallelSearch : ISearch
     {
         List<IterativeSearch> _worker = new List<IterativeSearch>();
+        int _best = 0;
 
         public ParallelSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
         {
@@ -54,15 +55,15 @@ namespace Leorik.Search
             }
         }
 
-        public bool Aborted => _worker[0].Aborted;
+        public bool Aborted => _worker[_best].Aborted;
 
-        public int Depth => _worker[0].Depth;
+        public int Depth => _worker[_best].Depth;
 
-        public int Score => _worker[0].Score;
+        public int Score => _worker[_best].Score;
 
-        public long NodesVisited => _worker[0].NodesVisited;
+        public long NodesVisited => _worker[_best].NodesVisited;
 
-        public Span<Move> PrincipalVariation => _worker[0].PrincipalVariation;
+        public Span<Move> PrincipalVariation => _worker[_best].PrincipalVariation;
 
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
@@ -70,6 +71,7 @@ namespace Leorik.Search
             Parallel.For(0, _worker.Count, i =>
             {
                 _worker[i].SearchDeeper(killSwitch);
+                _best = i;
             });
         }
 
@@ -80,6 +82,8 @@ namespace Leorik.Search
             {
                 while (_worker[i].Depth < maxDepth)
                     _worker[i].SearchDeeper(null);
+
+                _best = i;
             });
         }
     }
