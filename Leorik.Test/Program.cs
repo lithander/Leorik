@@ -37,7 +37,11 @@ namespace Leorik.Test
             if (int.TryParse(Console.ReadLine(), out int hashSize))
                 Transpositions.Resize(hashSize);
 
-            CompareBestMove(File.OpenText("wac.epd"), depth, count, IterativeSearch, "", DETAILS);
+            Console.WriteLine("Threads:");
+            if (!int.TryParse(Console.ReadLine(), out int threads))
+                threads = 1;
+
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, ParallelSearch, DETAILS);
             //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
@@ -60,16 +64,16 @@ namespace Leorik.Test
         {
             for (int depth = 14; depth <= 20; depth += 2)
             {
-                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, IterativeSearch, "", DETAILS);
+                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, 1, ParallelSearch, DETAILS);
             }
         }
 
 
-        private delegate Span<Move> SearchDelegate(BoardState state, int depth);
+        private delegate Span<Move> SearchDelegate(BoardState state, int depth, int threads);
 
-        private static void CompareBestMove(StreamReader file, int depth, int maxCount, SearchDelegate search, string label, bool logDetails)
+        private static void CompareBestMove(StreamReader file, int depth, int maxCount, int threads, SearchDelegate search, bool logDetails)
         {
-            Console.WriteLine($"Searching {label}({depth})");
+            Console.WriteLine($"Searching {maxCount} positions on {threads} thread(s) to depth {depth}...");
             double freq = Stopwatch.Frequency;
             long totalTime = 0;
             long totalNodes = 0;
@@ -81,7 +85,7 @@ namespace Leorik.Test
                 //Transpositions.Clear();
                 Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
-                Span<Move> pv = search(board, depth);
+                Span<Move> pv = search(board, depth, threads);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
@@ -107,7 +111,7 @@ namespace Leorik.Test
 
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
-            Console.WriteLine($"Searched {count} positions with {label}({depth})");
+            Console.WriteLine($"{threads} thread(s) searched {count} positions to depth {depth}.");
             Console.WriteLine($"{totalNodes} nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions! Score: {totalScore}/{count * 100}");
@@ -399,6 +403,18 @@ namespace Leorik.Test
             NodesVisited = search.NodesVisited;
             return search.PrincipalVariation;
         }
+
+        private static Span<Move> ParallelSearch(BoardState board, int depth, int threads)
+        {
+            var settings = SearchOptions.Default;
+            settings.Threads = threads;
+            ISearch search = threads > 1 ? new ParallelSearch(board, settings, null) : new IterativeSearch(board, settings, null);
+            search.Search(depth);
+            Score = search.Score;
+            NodesVisited = search.NodesVisited;
+            return search.PrincipalVariation;
+        }
+
 
         /*********************/
         /***    NegaMax     ***/

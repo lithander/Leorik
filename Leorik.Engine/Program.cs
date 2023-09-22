@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.4.6f L26-all";
+        const string NAME_VERSION = "Leorik 2.4.7d";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -38,6 +38,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Midgame Randomness type spin default {SearchOptions.Default.MidgameRandomness} min -1000 max 1000");
                     Console.WriteLine($"option name Endgame Randomness type spin default {SearchOptions.Default.EndgameRandomness} min -1000 max 1000");
+                    Console.WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
                     //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
                     Console.WriteLine("uciok");
                     break;
@@ -51,6 +52,7 @@ namespace Leorik.Engine
                     UciGo(tokens);
                     break;
                 case "ucinewgame":
+                    _engine.Stop();
                     _engine.Reset();
                     break;
                 case "stop":
@@ -93,6 +95,8 @@ namespace Leorik.Engine
         {
             if (token[1] == "name" && token[2] == "Hash" && token[3] == "value" && int.TryParse(token[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
+            else if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
+                _engine.Options.Threads = threads;
             else if (token[1] == "name" && token[2] == "Midgame" && token[3] == "Randomness" && token[4] == "value" && int.TryParse(token[5], out int mgRandomness))
                 _engine.Options.MidgameRandomness = mgRandomness;
             else if (token[1] == "name" && token[2] == "Endgame" && token[3] == "Randomness" && token[4] == "value" && int.TryParse(token[5], out int egRandomness))
