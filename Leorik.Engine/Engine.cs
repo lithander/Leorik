@@ -104,8 +104,11 @@ namespace Leorik.Engine
 
             SearchOptions options = Options;
             options.MaxNodes = maxNodes;
+            if(options.Threads > 1)
+                _search = new ParallelSearch(_board, options, _history);
+            else
+                _search = new IterativeSearch(_board, options, _history);
 
-            _search = new ParallelSearch(_board, options, _history);
             _time.StartInterval();
             _search.SearchDeeper(() => false);
             Collect();
