@@ -19,7 +19,6 @@ namespace Leorik.Search
             for (int i = 0; i < options.Threads; i++)
             {
                 var worker = new IterativeSearch(board, options, history);
-                worker.Schuffle();
                 _worker.Add(worker);
             }
         }

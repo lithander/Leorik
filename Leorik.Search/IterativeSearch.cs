@@ -60,17 +60,6 @@ namespace Leorik.Search
                 RootMoveOffsets[i] = random.Next(maxRandomCpBonus);
         }
 
-        public void Schuffle()
-        {
-            Random random = new();
-            int len = RootMoves.Length;
-            for (int i = 0; i < len - 1; ++i)
-            {
-                int r = random.Next(i, len);
-                (RootMoves[r], RootMoves[i]) = (RootMoves[i], RootMoves[r]);
-            }
-        }
-
         private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
         {
             if(history == null)
@@ -410,7 +399,7 @@ namespace Leorik.Search
             while (Play(ply, ref playState, ref moveGen))
             {
                 //skip late quiet moves when almost in Qsearch depth
-                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && Math.Abs(alpha - beta) == 1)
+                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
@@ -477,8 +466,7 @@ namespace Leorik.Search
                     alpha = standPatScore;
             }
 
-            Aborted |= ForcedCut(ply);
-            if (Aborted)
+            if (Aborted |= ForcedCut(ply))
                 return current.RelativeScore();
 
             //To quiesce a position play all the Captures!
