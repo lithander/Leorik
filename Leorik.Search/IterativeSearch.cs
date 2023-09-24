@@ -409,24 +409,25 @@ namespace Leorik.Search
             PlayState playState = new(moveGen.Collect(bestMove));
             while (Play(ply, ref playState, ref moveGen))
             {
-                if (playState.Stage == Stage.Quiets && !inCheck && remaining <= 2 && Math.Abs(alpha - beta) == 1)
+                //skip late quiet moves when almost in Qsearch depth
+                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && Math.Abs(alpha - beta) == 1)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (remaining > 1 && playState.PlayedMoves > 1 && !inCheck)
+                if (remaining > 1 && playState.PlayedMoves > 1)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = 0;
-                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
+                    if (!inCheck && playState.Stage >= Stage.Quiets && !next.InCheck())
                         R += 2;
                     //when not in check moves with a negative SEE score are reduced further
-                    if (_see.IsBad(current, ref move))
+                    if (!inCheck && _see.IsBad(current, ref move))
                         R += 2;
 
-                    //early out if reduced zero window search doesn't beat alpha
+                    //early out if reduced search doesn't beat alpha
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
@@ -456,7 +457,7 @@ namespace Leorik.Search
                 return inCheck ? Evaluation.Checkmate(ply) : 0;
 
             return alpha;
-        }                
+        }
 
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
