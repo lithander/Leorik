@@ -13,7 +13,6 @@ namespace Leorik.Search
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
         private readonly Move[] RootMoves;
-        private readonly int[] RootMoveOffsets;
         private readonly Move[] PrincipalVariations;
         private readonly History _history;
         private readonly KillerMoves _killers;
@@ -51,13 +50,6 @@ namespace Leorik.Search
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Positions[0].Copy(board);
-
-            //Initialize a random bonus added to each root move
-            Random random = new();
-            int maxRandomCpBonus = _options.Randomness(board.Eval.Phase);
-            RootMoveOffsets = new int[RootMoves.Length];
-            for (int i = 0; i < RootMoveOffsets.Length; i++)
-                RootMoveOffsets[i] = random.Next(maxRandomCpBonus);
         }
 
         private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
@@ -335,9 +327,6 @@ namespace Leorik.Search
                 if (!next.Play(root, ref move))
                     continue;
 
-                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
-
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (depth >= 2 && i > 0)
                 {
@@ -345,24 +334,22 @@ namespace Leorik.Search
                     int R = (move.CapturedPiece() != Piece.None || inCheck || next.InCheck()) ? 0 : 2;
 
                     //Fail low but with BONUS!
-                    if (bonus + EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha)
+                    if (EvaluateNext(0, depth - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int score = bonus + EvaluateNext(0, depth, alpha - bonus, MAX_BETA - bonus, moveGen);
+                int score = EvaluateNext(0, depth, alpha, MAX_BETA, moveGen);
 
-                if (score <= alpha)
-                    continue;
-
-                //New best move!
-                alpha = score;
-                ExtendPV(0, depth, move);
-
-                //insert new best move at the front
-                for (int j = i; j > 0; j--)
-                    RootMoves[j] = RootMoves[j - 1];
-                RootMoves[0] = move;
+                if (score > alpha)
+                {
+                    alpha = score;
+                    ExtendPV(0, depth, move);
+                    //promote new best move to the front
+                    for (int j = i; j > 0; j--)
+                        RootMoves[j] = RootMoves[j - 1];
+                    RootMoves[0] = move;
+                }
             }
 
             //checkmate or draw?
