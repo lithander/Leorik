@@ -1,5 +1,6 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
+using System.Security.Principal;
 
 namespace Leorik.Search
 {
@@ -312,13 +313,29 @@ namespace Leorik.Search
 
         private int EvaluateRoot(int depth)
         {
+            int eval = (int)Positions[0].SideToMove * Score;
+            int window = 40;
+            while (true)
+            {
+                int alpha = eval - window;
+                int beta = eval + window;
+                eval = EvaluateRoot(depth, alpha, beta);
+                if (eval > alpha && eval < beta)
+                    break;
+
+                window *= 2;
+            }
+            return eval;
+        }
+
+        private int EvaluateRoot(int depth, int alpha, int beta)
+        {
             NodesVisited++;
 
             BoardState root = Positions[0];
             BoardState next = Positions[1];
             MoveGen moveGen = new(Moves, 0);
             bool inCheck = root.InCheck();
-            int alpha = MIN_ALPHA;
 
             //init staged move generation and play all moves
             for(int i = 0; i < RootMoves.Length; i++)
@@ -339,7 +356,7 @@ namespace Leorik.Search
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int score = EvaluateNext(0, depth, alpha, MAX_BETA, moveGen);
+                int score = EvaluateNext(0, depth, alpha, beta, moveGen);
 
                 if (score > alpha)
                 {
@@ -353,7 +370,7 @@ namespace Leorik.Search
             }
 
             //checkmate or draw?
-            if (alpha == MIN_ALPHA)
+            if (alpha <= MIN_ALPHA)
                 return root.InCheck() ? Evaluation.Checkmate(0) : 0;
 
             return alpha;
