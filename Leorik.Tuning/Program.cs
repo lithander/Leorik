@@ -95,15 +95,18 @@ string[] PGN_FILES = {
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L26-all.epd";
+string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
+string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
 int FEN_PER_GAME = 10;
 int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 150;
+int PHASE_ITERATIONS = 5;
+int ITERATIONS = 10;
 
-int MATERIAL_ALPHA = 50;
+int MATERIAL_ALPHA = 25;
 int MATERIAL_BATCHES = 2000;
 int MATERIAL_BATCH_SIZE = 10000;
 
@@ -112,7 +115,7 @@ int PHASE_BATCHES = 500;
 int PHASE_BATCH_SIZE = 5000;
 
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v26 ");
+Console.WriteLine(" Leorik Tuning v27 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
@@ -134,7 +137,13 @@ Console.WriteLine();
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //ExtractPositions(PGN_FILES, EPD_FILE);
 List<Data> data = new List<Data>();
-DataUtils.LoadData(data, DATA_PATH + EPD_FILE);
+//DataUtils.LoadData(data, DATA_PATH + EPD_FILE);
+long t0 = Stopwatch.GetTimestamp();
+//DataUtils.LoadBinaryData(data, BIN_FILE_PATH, 3_000_000);
+DataUtils.LoadWdlData(data, BOOK_FILE_PATH);
+long t1 = Stopwatch.GetTimestamp();
+Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+//DataUtils.LoadBinary(data, "C:/Lager/net010_standard_shuffled_20m.book");
 //DataUtils.CollectMetrics(data);
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
@@ -147,17 +156,17 @@ float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
 //PrintCoefficients(cFeatures, cPhase);
 
 Console.WriteLine($"Preparing TuningData for {data.Count} positions");
-long t0 = Stopwatch.GetTimestamp();
+t0 = Stopwatch.GetTimestamp();
 TuningData[] tuningData = new TuningData[data.Count];
 int tdIndex = 0;
 foreach (Data entry in data)
 {
     tuningData[tdIndex++] = Tuner.GetTuningData(entry, cPhase, cFeatures);
 }
-long t1 = Stopwatch.GetTimestamp();
+t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
-ValidateLeorikEval(20f);
+//ValidateLeorikEval(20f);
 
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
@@ -186,8 +195,11 @@ for (int it = 0; it < ITERATIONS; it++)
     Console.WriteLine($"{it}/{ITERATIONS} ");
     //TunePhase();
     TuneMaterialMicroBatches();
-    TunePhaseMicroBatches();
-    Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
+    if(it < PHASE_ITERATIONS)
+    {
+        TunePhaseMicroBatches();
+        Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
+    }
 }
 t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Tuning took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");

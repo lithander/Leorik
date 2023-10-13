@@ -12,10 +12,10 @@ namespace Leorik.Tuning
         {
             var c = new float[]
             {
-                300, //4xKnight
-                300, //4xBishop
-                500, //4xRook  
-                900, //2xQueen 
+                175, //4xKnight
+                225, //4xBishop
+                400, //4xRook  
+                950, //2xQueen 
             };
             //This needs to sum up to Evaluation.PhaseSum .e.g. 5000
             Resize(c, Evaluation.PhaseSum);
@@ -24,13 +24,13 @@ namespace Leorik.Tuning
 
         public static float[] GetLeorikPhaseCoefficients()
         {
-            return new float[]
-            {
+            return
+            [
                 Weights.PhaseValues[1], //Knight
                 Weights.PhaseValues[2], //Bishop
                 Weights.PhaseValues[3], //Rook
                 Weights.PhaseValues[4], //Queen
-            };
+            ];
         }
 
         public static byte[] CountPieces(BoardState pos)
