@@ -234,7 +234,7 @@ namespace Leorik.Tuning
             Array.Copy(source, start, batch, 0, batch.Length);
         }
 
-        internal static void Shuffle(TuningData[] data)
+        internal static void Shuffle(int[] data)
         {
             //https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
             Random rng = new Random();
@@ -245,16 +245,6 @@ namespace Leorik.Tuning
                 int k = rng.Next(n + 1);
                 (data[k], data[n]) = (data[n], data[k]);
             }
-        }
-
-        internal static void Localize(TuningData[] tuningData)
-        {
-            for (int i = 0; i < tuningData.Length; i++)
-                tuningData[i].Features = (Feature[])tuningData[i].Features.Clone();
-
-            for (int i = 0; i < tuningData.Length; i++)
-                tuningData[i].PieceCounts = (byte[])tuningData[i].PieceCounts.Clone();
-
         }
     }
 }

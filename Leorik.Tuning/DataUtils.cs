@@ -66,7 +66,7 @@ namespace Leorik.Tuning
             string label = line.Substring(iLabel + 1, 3);
 
             Debug.Assert(label == "0.5" || label == "1.0" || label == "0.0");
-            var result = (sbyte)(2 * float.Parse(label, NumberFormatInfo.InvariantInfo) - 1);
+            sbyte result = (sbyte)(2 * float.Parse(label, NumberFormatInfo.InvariantInfo) - 1);
             return new Data
             {
                 Position = Notation.GetBoardState(fen),
@@ -102,12 +102,13 @@ namespace Leorik.Tuning
 
                 BoardState unpacked = new BoardState();
                 PackedBoard.Unpack(ref packed, unpacked, out int eval, out int wdl);
+                sbyte result = (sbyte)(wdl - 1);//convert from 2 = White, 1 = Draw, 0 = Black
                 data.Add(new Data
                 {
                     Position = unpacked,
-                    Result = (sbyte)(wdl - 1)//convert from 2 = White, 1 = Draw, 0 = Black
+                    Result = result
                 });
-                if (data.Count % 1000_000 == 0)
+                if (data.Count % 1_000_000 == 0)
                     Console.Write('.');
                 //Console.Write(Notation.GetFen(PackedBoard.Unpack(ref packed), packed.FullmoveNumber));
                 //string wdl = (packed.Wdl / 2f).ToString("F1", CultureInfo.InvariantCulture);
