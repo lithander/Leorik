@@ -132,9 +132,9 @@ namespace Leorik.Tuning
         {
             for (int order = Move.Order(Piece.Pawn); order < Move.Order(Piece.Queen); order++)
             {
-                int zeroMoves = PieceMobilityIndices[order];
-                int maxMoves = PieceMobilityIndices[order - 1];
-                for (int tuple = zeroMoves; tuple < maxMoves; tuple++)
+                int i0 = PieceMobilityIndices[order];
+                int iNext = PieceMobilityIndices[order + 1];
+                for (int tuple = i0; tuple < iNext; tuple++)
                 {
                     int index = offset + 2 * tuple;
                     //mobility features are tuples of two elements

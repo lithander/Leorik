@@ -180,7 +180,6 @@ for (int it = 0; it < ITERATIONS; it++)
     double mse = TuneMaterialMicroBatches();
     if(mse < bestMse)
     {
-        Console.WriteLine($"  New best: {mse}");
         RebalanceCoefficients(cFeatures);
         TunePhaseMicroBatches();
         Tuner.ValidateConsistency(tuningData, cPhase, cFeatures);
@@ -259,7 +258,7 @@ double TuneMaterialMicroBatches()
 double TunePhaseMicroBatches()
 {
     double msePre = PhaseTuner.MeanSquareError(tuningData, cPhase, MSE_SCALING);
-    Console.Write($"     Phase MSE={msePre:N12} Alpha={PHASE_ALPHA,5} ");
+    Console.Write($"  Phase    MSE={msePre:N12} Alpha={PHASE_ALPHA,5} ");
     long t_0 = Stopwatch.GetTimestamp();
     for (int i = 0; i < PHASE_BATCHES; i++)
     {
