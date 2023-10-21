@@ -103,11 +103,11 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 150;
+int ITERATIONS = 400;
 
-int MATERIAL_ALPHA = 100;
-int MATERIAL_BATCHES = 2000;
-int PHASE_ALPHA = 10;
+int MATERIAL_ALPHA = 50;
+int MATERIAL_BATCHES = 1500;
+int PHASE_ALPHA = 20;
 int PHASE_BATCHES = 500;
 
 int MINI_BATCH_SIZE = 10_000;
@@ -146,30 +146,18 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
 TuningData[] tuningData = new TuningData[dataSource.Count];
 TuningData[] miniBatch = new TuningData[MINI_BATCH_SIZE];
+CreateTrainingData();
+ValidateLeorikEval(0.1f);
 
-t0 = Stopwatch.GetTimestamp();
-int[] indices = new int[dataSource.Count];
-for (int i = 0; i < dataSource.Count; i++)
-    indices[i] = i;
-Tuner.Shuffle(indices);
-t1 = Stopwatch.GetTimestamp();
-Console.WriteLine($"Creating shuffled indices took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
-
-t0 = Stopwatch.GetTimestamp();
-for(int i = 0; i < indices.Length; i++)
-{
-    tuningData[i] = Tuner.GetTuningData(dataSource[indices[i]], cPhase, cFeatures);
-}
-t1 = Stopwatch.GetTimestamp();
-Console.WriteLine($"Creating tuningData took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+MobilityTuner.AnalyzeTuningData(tuningData, FeatureTuner.FeatureWeights);
 
 t0 = Stopwatch.GetTimestamp();
 double bestMse = double.MaxValue;
@@ -178,7 +166,7 @@ for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
     double mse = TuneMaterialMicroBatches();
-    if(mse < bestMse)
+    if (mse < bestMse)
     {
         RebalanceCoefficients(cFeatures);
         TunePhaseMicroBatches();
@@ -236,6 +224,23 @@ void ExtractPositions(string[] pgnFileNames, string epdFileName)
     output.Close();
 }
 
+void CreateTrainingData()
+{
+    long t0 = Stopwatch.GetTimestamp();
+
+    int[] indices = new int[dataSource.Count];
+    for (int i = 0; i < dataSource.Count; i++)
+        indices[i] = i;
+
+    Tuner.Shuffle(indices);
+    
+    for (int i = 0; i < indices.Length; i++)
+        tuningData[i] = Tuner.GetTuningData(dataSource[indices[i]], cPhase, cFeatures);
+    
+    long t1 = Stopwatch.GetTimestamp();
+    Console.WriteLine($"Creating tuningData took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+}
+
 double TuneMaterialMicroBatches()
 {
     double msePre = FeatureTuner.MeanSquareError(tuningData, cFeatures, MSE_SCALING);
@@ -283,7 +288,7 @@ void ValidateLeorikEval(float errorThreshold)
     //positions not significantly different than the engine.
     float accError = 0;
     float maxError = 0;
-    for(int i = 0; i < tuningData.Length; i++)
+    for (int i = 0; i < tuningData.Length; i++)
     {
         TuningData entry = tuningData[i];
         float eval = FeatureTuner.Evaluate(entry, cFeatures);
@@ -327,11 +332,12 @@ void RebalanceCoefficients(float[] featureWeights)
 {
     //Both the square-feature of a piece and the mobility-feature of a piece can encode material.
     //...but if mobility isn't updated in Qsearch for performance reasons it should all go into the square-features
-    Tuner.Rebalance(Piece.Knight, featureWeights);
-    Tuner.Rebalance(Piece.Bishop, featureWeights);
-    Tuner.Rebalance(Piece.Rook, featureWeights);
-    Tuner.Rebalance(Piece.Queen, featureWeights);
-    Tuner.Rebalance(Piece.King, featureWeights);
+    int[] buckets = MobilityTuner.GetFeatureDistribution(tuningData, FeatureTuner.FeatureWeights);
+    //Tuner.Rebalance(Piece.Knight, buckets, featureWeights);
+    Tuner.Rebalance(Piece.Bishop, buckets, featureWeights);
+    Tuner.Rebalance(Piece.Rook, buckets, featureWeights);
+    Tuner.Rebalance(Piece.Queen, buckets, featureWeights);
+    Tuner.Rebalance(Piece.King, buckets, featureWeights);
 }
 
 void PrintCoefficients(float[] featureWeights, float[] phaseWeights)

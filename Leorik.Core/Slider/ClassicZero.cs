@@ -23,7 +23,10 @@ namespace Leorik.Core.Slider
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong BishopAttacks(ulong occupation, int square)
         {
-            Deconstruct(occupation, square, out ulong bbBlocker, out ulong bbBelow);
+            ulong bbPiece = 1UL << square;
+            ulong bbBlocker = occupation & ~bbPiece;
+            //mask the bits below bbPiece
+            ulong bbBelow = bbPiece - 1;
             //compute rank and file of square
             int rank = square >> 3;
             int file = square & 7;
@@ -32,30 +35,24 @@ namespace Leorik.Core.Slider
             //antidiagonal line through square
             ulong bbAntiDiagonal = VerticalShift(ANTIDIAGONAL, 7 - file - rank);
 
-            return Subset(bbDiagonal, bbBlocker & bbDiagonal, bbBelow)
-                 | Subset(bbAntiDiagonal, bbBlocker & bbAntiDiagonal, bbBelow);
+            return (Subset(bbDiagonal, bbBlocker & bbDiagonal, bbBelow)
+                  | Subset(bbAntiDiagonal, bbBlocker & bbAntiDiagonal, bbBelow)) & ~bbPiece;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong RookAttacks(ulong occupation, int square)
         {
-            Deconstruct(occupation, square, out ulong bbBlocker, out ulong bbBelow);
+            ulong bbPiece = 1UL << square;
+            ulong bbBlocker = occupation & ~bbPiece;
+            //mask the bits below bbPiece
+            ulong bbBelow = bbPiece - 1;
             //horizontal line through square
             ulong bbHorizontal = HORIZONTAL << (square & 56);
             //vertical line through square
             ulong bbVertical = VERTICAL << (square & 7);
 
-            return Subset(bbHorizontal, bbBlocker & bbHorizontal, bbBelow)
-                 | Subset(bbVertical, bbBlocker & bbVertical, bbBelow);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Deconstruct(ulong occupation, int square, out ulong bbBlocker, out ulong bbBelow)
-        {
-            ulong bbPiece = 1UL << square;
-            bbBlocker = occupation & ~bbPiece;
-            //mask the bits below bbPiece
-            bbBelow = bbPiece - 1;
+            return (Subset(bbHorizontal, bbBlocker & bbHorizontal, bbBelow)
+                  | Subset(bbVertical, bbBlocker & bbVertical, bbBelow)) & ~bbPiece;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

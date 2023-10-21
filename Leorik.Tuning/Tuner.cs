@@ -222,11 +222,12 @@ namespace Leorik.Tuning
             return features;
         }
 
-        internal static void Rebalance(Piece piece, float[] featureWeights)
+        internal static void Rebalance(Piece piece, int[] buckets, float[] featureWeights)
         {
-            var avg = MobilityTuner.Rebalance(piece, FeatureTuner.FeatureWeights, featureWeights);
+            var avg = MobilityTuner.Rebalance(piece, FeatureTuner.FeatureWeights, buckets, featureWeights);
             FeatureTuner.Rebalance(piece, avg, featureWeights);
         }
+
         internal static void SampleRandomSlice(TuningData[] source, TuningData[] batch)
         {
             Random rng = new Random();
