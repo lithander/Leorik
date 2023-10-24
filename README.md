@@ -8,7 +8,7 @@ Unshackled from the constraints of minimalism and simplicity **Leorik** is the s
 ## Features
 * Pseudo-legal move generator, bitboards and copy/make
 * Negamax search with Alpha-Beta pruning and Iterative Deepening
-* Transposition Table with two buckets and aging
+* Lockless Transposition Table with two buckets and aging
 * Principal Variation Search (PVS)
 * Static Exchange Evalution (SEE)
 * Staged move generation
@@ -16,9 +16,10 @@ Unshackled from the constraints of minimalism and simplicity **Leorik** is the s
 * History & Killer Heuristic for sorting quiets
 * Late Move reductions
 * Null-Move pruning
+* Parallel Search via Lazy SMP
 * A fast, multi-threaded Tuner using gradient descent
 #### Evaluation
-* Tapered PSQTs, tuned from scratch on selfplay games
+* Advanced Piece-Square Functions tuned from scratch on selfplay games
 * Mobility: counting non-captures per piece
 * Pawn Structure: considering isolated, connected, protected and passed pawns 
 * Pawn Hash Table
@@ -39,10 +40,15 @@ As a final step you have to register the engine with the GUI. The details depend
 Now you should be ready to select **Leorik** as a player!
 
 ## Version History
+### Leorik 2.5
+[__Version 2.5__](https://github.com/lithander/Leorik/releases/tag/2.5) now employs a faster move generator based on PEXT by default. The evaluation replaces the standard PSQTs with linear functions that calculate the piece-square values using 18 parameters reflecting the positions of both kings and the game phase. To compute these values at a high speed the engine uses AVX2. Leorik now supports the 'Threads' UCI option. Each thread searches independentaly ("Lazy SMP") but can share information with each others through the lockless transposition table.
+
+Version 2.5 is expected to play at a strength of roughly 2900 Elo. It's also the first version that is published under the permissive **MIT open-source license**.
+
 ### Leorik 2.4
 [__Version 2.4__](https://github.com/lithander/Leorik/releases/tag/2.4) uses Static-Exchange-Evaluation (SEE) to skip bad captures in quiescence search and to search bad moves at a reduced depth in the main search. Futility Pruning was removed from the main search but the idea of basing a pruning-decision on the static evaluation of a position is now used in a much more radical Null Move Pruning implementation. Last but not least Leorik now recognizes certain drawn positions with a material advantage for one side (e.g. KvKNN) and evaluates them much closer to zero.
 
-Version 2.4 is expected to play at around 2800 Elo.
+Version 2.4 is listed at [2860 Elo](http://ccrl.chessdom.com/ccrl/404/cgi/engine_details.cgi?match_length=30&each_game=1&print=Details&each_game=1&eng=Leorik%202.4%2064-bit#Leorik_2_4_64-bit) on the CCRL Blitz and [2790 Elo](http://ccrl.chessdom.com/ccrl/4040/cgi/engine_details.cgi?print=Details&each_game=0&eng=Leorik%202.4%2064-bit#Leorik_2_4_64-bit) on the CCRL 40/15 rating lists.
 
 ### Leorik 2.3
 [__Version 2.3__](https://github.com/lithander/Leorik/releases/tag/2.3) replaces all previously handcrafted evaluation terms with tunable weights and all weights are tuned from scratch on selfplay games.
