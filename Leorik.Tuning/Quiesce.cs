@@ -117,7 +117,7 @@ namespace Leorik.Tuning
                 }
             }
 
-            return movesPlayed ? alpha : Evaluation.Checkmate(ply);
+            return movesPlayed ? alpha : Evaluation.MatedScore(ply);
         }
 
         private void PickBestCapture(int first, int end)

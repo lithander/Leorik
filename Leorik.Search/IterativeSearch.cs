@@ -159,6 +159,29 @@ namespace Leorik.Search
             if (Aborted)
                 return Positions[ply].RelativeScore();
 
+            //Score of Leorik - B vs Leorik-A: 2207 - 2212 - 5581[0.500] 10000
+            //...      Leorik - B playing White: 1313 - 843 - 2844[0.547] 5000
+            //...      Leorik - B playing Black: 894 - 1369 - 2737[0.453] 5000
+            //...      White vs Black: 2682 - 1737 - 5581[0.547] 10000
+            //Elo difference: -0.2 +/ -4.5, LOS: 47.0 %, DrawRatio: 55.8 %
+                        
+            //Finished game 9998 (Leorik-A vs Leorik-B): 1/2-1/2 {Draw by fifty moves rule}
+            //Score of Leorik-B vs Leorik-A: 2164 - 2226 - 5610  [0.497] 10000
+            //...      Leorik-B playing White: 1268 - 899 - 2833  [0.537] 5000
+            //...      Leorik-B playing Black: 896 - 1327 - 2777  [0.457] 5000
+            //...      White vs Black: 2595 - 1795 - 5610  [0.540] 10000
+            //Elo difference: -2.2 +/- 4.5, LOS: 17.5 %, DrawRatio: 56.1 %
+            
+            int upperBound = Evaluation.MateScore(ply + 1);
+            int lowerBound = Evaluation.MatedScore(ply);
+            alpha = Math.Max(alpha, lowerBound);
+            beta = Math.Min(beta, upperBound);
+            if (alpha >= beta)
+            {
+                //Console.Write('.');
+                return beta;
+            }
+
             if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
 
@@ -371,7 +394,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (alpha <= MIN_ALPHA)
-                return root.InCheck() ? Evaluation.Checkmate(0) : 0;
+                return root.InCheck() ? Evaluation.MatedScore(0) : 0;
 
             return alpha;
         }
@@ -447,7 +470,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (playState.PlayedMoves == 0)
-                return inCheck ? Evaluation.Checkmate(ply) : 0;
+                return inCheck ? Evaluation.MatedScore(ply) : 0;
 
             return alpha;
         }
@@ -516,7 +539,7 @@ namespace Leorik.Search
                 }
             }
 
-            return movesPlayed ? alpha : Evaluation.Checkmate(ply);
+            return movesPlayed ? alpha : Evaluation.MatedScore(ply);
         }
     }
 }

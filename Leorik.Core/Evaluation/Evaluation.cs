@@ -208,7 +208,10 @@ namespace Leorik.Core
         public static int Checkmate(Color color, int ply) => (int)color * (ply - CheckmateScore);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Checkmate(int ply) => (ply - CheckmateScore);
+        public static int MatedScore(int ply) => ply - CheckmateScore;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MateScore(int ply) => CheckmateScore - ply;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float NormalizePhase(float phaseValue) => (PhaseSum - phaseValue) / PhaseSum;
