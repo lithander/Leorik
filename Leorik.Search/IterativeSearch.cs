@@ -1,6 +1,8 @@
 ﻿using Leorik.Core;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Security.Principal;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Leorik.Search
 {
@@ -122,7 +124,8 @@ namespace Leorik.Search
             _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
             int score = EvaluateRoot(Depth);
-            Score = (int)Positions[0].SideToMove * score;
+            if(!Aborted)
+                Score = (int)Positions[0].SideToMove * score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -376,6 +379,17 @@ namespace Leorik.Search
             return alpha;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsEndgame(BoardState board)
+        {
+            if (board.SideToMove == Color.White)
+                return board.White == (board.White & (board.Kings | board.Pawns));
+            else
+                return board.Black == (board.Black & (board.Kings | board.Pawns));
+        }
+
+        private static LegalMoveCount legalMoves = new LegalMoveCount();
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -385,8 +399,51 @@ namespace Leorik.Search
             bool inCheck = current.InCheck();
             int eval = current.RelativeScore();
 
+            //JUST COUNTING MOVES BUT WITHOUT CHECKING THEIR LEGALITY!
+            //--> MoveCount.HasMoves()
+
+            //tc=10+0.1 CC=12
+            //if (!inCheck && eval > beta && MoveCount.HasMoves(current, 8))
+            //Score of Leorik-2.5.3a vs Leorik-2.5.1a: 1071 - 1259 - 2670  [0.481] 5000
+            //...      Leorik-2.5.3a playing White: 637 - 547 - 1316  [0.518] 2500
+            //...      Leorik-2.5.3a playing Black: 434 - 712 - 1354  [0.444] 2500
+            //...      White vs Black: 1349 - 981 - 2670  [0.537] 5000
+            //Elo difference: -13.1 +/- 6.6, LOS: 0.0 %, DrawRatio: 53.4 %
+
+            //if (!inCheck && eval > beta && MoveCount.HasMoves(current, 9))
+            //tc=10+0.1 CC=12
+            //Score of Leorik-2.5.3a vs Leorik-2.5.1a: 1142 - 1144 - 2714  [0.500] 5000
+            //...      Leorik-2.5.3a playing White: 677 - 463 - 1360  [0.543] 2500<
+            //...      Leorik-2.5.3a playing Black: 465 - 681 - 1354  [0.457] 2500
+            //...      White vs Black: 1358 - 928 - 2714  [0.543] 5000
+            //Elo difference: -0.1 +/- 6.5, LOS: 48.3 %, DrawRatio: 54.3 %
+            //tc=10+0.2 CC=20
+            //Score of Leorik-2.5.3a vs Leorik-2.5.1a: 1303 - 1454 - 3243  [0.487] 6000
+            //...      Leorik-2.5.3a playing White: 783 - 606 - 1611  [0.529] 3000
+            //...      Leorik-2.5.3a playing Black: 520 - 848 - 1632  [0.445] 3000
+            //...      White vs Black: 1631 - 1126 - 3243  [0.542] 6000
+            //Elo difference: -8.7 +/- 6.0, LOS: 0.2 %, DrawRatio: 54.0 %
+
+            //if (!inCheck && eval > beta && MoveCount.HasMoves(current, 10))
+            //tc=10+0.1 CC=12
+            //Score of Leorik-2.5.3a vs Leorik-2.5.1a: 1104 - 1157 - 2739  [0.495] 5000
+            //...      Leorik-2.5.3a playing White: 617 - 500 - 1383  [0.523] 2500
+            //...      Leorik-2.5.3a playing Black: 487 - 657 - 1356  [0.466] 2500
+            //...      White vs Black: 1274 - 987 - 2739  [0.529] 5000
+            //Elo difference: -3.7 +/- 6.5, LOS: 13.3 %, DrawRatio: 54.8 %
+
+            //if (!inCheck && eval > beta && legalMoves.HasLegalMoves(current, 10))
+            //tc=10+0.2 CC=12
+            //Score of Leorik-2.5.3b vs Leorik-2.5.1a: 1057 - 1151 - 2792  [0.491] 5000
+            //...      Leorik-2.5.3b playing White: 606 - 512 - 1382  [0.519] 2500
+            //...      Leorik-2.5.3b playing Black: 451 - 639 - 1410  [0.462] 2500
+            //...      White vs Black: 1245 - 963 - 2792  [0.528] 5000
+            //Elo difference: -6.5 +/- 6.4, LOS: 2.3 %, DrawRatio: 55.8 %
+
             //consider null move pruning first
-            if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && eval > beta && legalMoves.HasLegalMoves(current, 10))
+            //if (!inCheck && eval > beta && MoveCount.HasMoves(current, 8))
+            //if (!inCheck && eval > beta && !IsEndgame(current) && AllowNullMove(ply))
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
                 if (remaining < 6 && eval > beta + _options.NullMoveCutoff)

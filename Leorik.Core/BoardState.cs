@@ -212,7 +212,6 @@ namespace Leorik.Core
                 ZobristHash ^= Zobrist.Flags(LSB(from.EnPassant));
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool PlayWithoutHashAndEval(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
@@ -362,15 +361,6 @@ namespace Leorik.Core
                     White ^= 0x0000000000000009UL;
                     break;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsEndgame()
-        {
-            if (SideToMove == Color.White)
-                return White == (White & (Kings | Pawns));
-            else
-                return Black == (Black & (Kings | Pawns));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

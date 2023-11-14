@@ -41,11 +41,11 @@ namespace Leorik.Test
             if (!int.TryParse(Console.ReadLine(), out int threads))
                 threads = 1;
 
-            CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, ParallelSearch, DETAILS);
+            //CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, ParallelSearch, DETAILS);
             //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
-            //RunMateTests();
+            RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
@@ -238,6 +238,7 @@ namespace Leorik.Test
             long totalNodes = 0;
             int count = 0;
             int foundMate = 0;
+            int cmScore = -Evaluation.Checkmate(2 * mateDepth - 1);
             while (count < maxCount && !file.EndOfStream)
             {
                 //The parser expects a fen-string with bm delimited by a ';'
@@ -250,18 +251,20 @@ namespace Leorik.Test
 
                 Transpositions.Clear();
                 long t0 = Stopwatch.GetTimestamp();
-                var search = new IterativeSearch(board, SearchOptions.Default, null);
-                search.Search(mateDepth * 2);
+                var options = SearchOptions.Default;
+                options.MaxNodes = 100_000;
+                var search = new IterativeSearch(board, options, null);
+                search.Search(99);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
                 if (Evaluation.IsCheckmate(search.Score))
                 {
-                    Console.Write('.');
+                    Console.Write(Math.Abs(search.Score) == cmScore ? '!' : '?');
                     foundMate++;
                 }
                 else
-                    Console.Write('!');
+                    Console.Write('.');
 
                 count++;
                 totalTime += dt;
