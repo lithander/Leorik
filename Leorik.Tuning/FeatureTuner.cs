@@ -41,6 +41,7 @@ namespace Leorik.Tuning
 
         public static float[] GetLeorikCoefficients()
         {
+
             float[] result = AllocArray();
             int index = 0;
             for (int piece = 0; piece < 6; piece++)
@@ -57,10 +58,13 @@ namespace Leorik.Tuning
             {
                 for (int sq = 0; sq < 64; sq++)
                 {
-                    index = Dimensions * (64 * (6 + pawns) + sq);
-                    (short mg, short eg) = Weights.PawnWeights[64 * pawns + sq];
-                    result[index] = mg;
-                    result[index + 1] = eg;
+                    int indexTo = Dimensions * (64 * (6 + pawns) + sq);
+                    int indexFrom = Dimensions * (64 * pawns + sq);
+                    for (int i = 0; i < Dimensions; i++)
+                        result[indexTo + i] = Weights.PawnWeights[indexFrom + i];
+                    //(short mg, short eg) = Weights.PawnWeights[64 * pawns + sq];
+                    //result[index] = mg;
+                    //result[index + halfDim] = eg;
                 }
             }
 
@@ -155,10 +159,10 @@ namespace Leorik.Tuning
             IteratePieces(features, phase, pos, pos.Kings, 5);
 
             //Pawn Structure
-            IteratePiecesMinimal(features, phase, pos, Features.GetIsolatedPawns(pos), 6);
-            IteratePiecesMinimal(features, phase, pos, Features.GetPassedPawns(pos), 7);
-            IteratePiecesMinimal(features, phase, pos, Features.GetProtectedPawns(pos), 8);
-            IteratePiecesMinimal(features, phase, pos, Features.GetConnectedPawns(pos), 9);
+            IteratePieces(features, phase, pos, Features.GetIsolatedPawns(pos), 6);
+            IteratePieces(features, phase, pos, Features.GetPassedPawns(pos), 7);
+            IteratePieces(features, phase, pos, Features.GetProtectedPawns(pos), 8);
+            IteratePieces(features, phase, pos, Features.GetConnectedPawns(pos), 9);
         }
 
         internal static void DescribeFeaturePairs(int[] featurePairs)
@@ -181,7 +185,11 @@ namespace Leorik.Tuning
                 {
                     int index = Dimensions * ((MaterialTables + table) * 64 + sq);
                     //pawn features are not king-relative yet and just use 2 of the 18 dimensions
-                    featurePairs[index + 1] = index;
+                    //featurePairs[index + 1] = index;
+
+                    //map the 9 features with phase to the 9 prior features without
+                    for (int i = 0; i <= 8; i++)
+                        featurePairs[index + i + halfDim] = index + i;
                 }
             }
         }

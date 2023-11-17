@@ -44,7 +44,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
         {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            int entryIndex = Weights.Dimensions * ((pieceIndex << 6) | squareIndex);
             Vector256<float> weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
             Base += (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex]);
             weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
@@ -54,11 +54,31 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SubtractMaterial(int pieceIndex, int squareIndex, Vector256<float> vars)
         {
-            int entryIndex = Weights.MaterialTerms * ((pieceIndex << 6) | squareIndex);
+            int entryIndex = Weights.Dimensions * ((pieceIndex << 6) | squareIndex);
             Vector256<float> weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 1);
             Base -= (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex]);
             weights = Vector256.Create(Weights.MaterialWeights, entryIndex + 10);
             Endgame -= (short)(Vector256.Dot(vars, weights) + Weights.MaterialWeights[entryIndex + 9]);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddPawns(int index, Vector256<float> vars)
+        {
+            int entryIndex = Weights.Dimensions * index;
+            Vector256<float> weights = Vector256.Create(Weights.PawnWeights, entryIndex + 1);
+            Base += (short)(Vector256.Dot(vars, weights) + Weights.PawnWeights[entryIndex]);
+            weights = Vector256.Create(Weights.PawnWeights, entryIndex + 10);
+            Endgame += (short)(Vector256.Dot(vars, weights) + Weights.PawnWeights[entryIndex + 9]);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SubtractPawns(int index, Vector256<float> vars)
+        {
+            int entryIndex = Weights.Dimensions * index;
+            Vector256<float> weights = Vector256.Create(Weights.PawnWeights, entryIndex + 1);
+            Base -= (short)(Vector256.Dot(vars, weights) + Weights.PawnWeights[entryIndex]);
+            weights = Vector256.Create(Weights.PawnWeights, entryIndex + 10);
+            Endgame -= (short)(Vector256.Dot(vars, weights) + Weights.PawnWeights[entryIndex + 9]);
         }
     }
 }

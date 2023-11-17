@@ -96,16 +96,16 @@ string[] PGN_FILES = {
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L26-all.epd";
 //string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
-//string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
+string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
 int FEN_PER_GAME = 10;
 int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 400;
+int ITERATIONS = 500;
 
-int MATERIAL_ALPHA = 50;
+int MATERIAL_ALPHA = 33;
 int MATERIAL_BATCHES = 1500;
 int PHASE_ALPHA = 20;
 int PHASE_BATCHES = 500;
@@ -146,16 +146,17 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
+
 TuningData[] tuningData = new TuningData[dataSource.Count];
 TuningData[] miniBatch = new TuningData[MINI_BATCH_SIZE];
 CreateTrainingData();
-ValidateLeorikEval(0.1f);
+//ValidateLeorikEval(10);
 
 MobilityTuner.AnalyzeTuningData(tuningData, FeatureTuner.FeatureWeights);
 
@@ -354,7 +355,7 @@ void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
     for (int i = 0; i < pawns.Length; i++)
     {
         Console.WriteLine($"//{pawns[i]}");
-        FeatureTuner.ReportMinimal(material.Length + i, featureWeights);
+        FeatureTuner.Report(material.Length + i, featureWeights);
     }
 
 
