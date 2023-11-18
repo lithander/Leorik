@@ -96,12 +96,26 @@ namespace Leorik.Tuning
             var stream = mmf.CreateViewStream();
             BinaryReader reader = new BinaryReader(stream);
             PackedBoard packed = new();
+            PackedBoard repacked = new();
             while (stream.Position < stream.Length && data.Count < maxCount)
             {
                 PackedBoard.Read(reader, ref packed);
 
                 BoardState unpacked = new BoardState();
-                PackedBoard.Unpack(ref packed, unpacked, out int eval, out int wdl);
+                PackedBoard.Unpack(ref packed, unpacked, out short moveNr, out short eval, out byte wdl, out byte extra);               
+                PackedBoard.Pack(ref repacked, unpacked, moveNr, eval, wdl, extra);
+
+                if (!repacked.Equals(packed))
+                {
+                    Console.WriteLine($"Occupancy: {repacked.Occupancy} vs {packed.Occupancy} = {repacked.Occupancy == packed.Occupancy}");
+                    Console.Write($"Pieces:    ");
+                    for (int i = 0; i < 16; i++)
+                        Console.Write($"{(repacked.Pieces[i] == packed.Pieces[i] ? '-' : 'X')} ");
+                    Console.WriteLine();
+                    Console.WriteLine($"Occupancy: {repacked.Data} vs {packed.Data} = {repacked.Data == packed.Data}");
+                    Console.WriteLine();
+                }
+
                 sbyte result = (sbyte)(wdl - 1);//convert from 2 = White, 1 = Draw, 0 = Black
                 data.Add(new Data
                 {

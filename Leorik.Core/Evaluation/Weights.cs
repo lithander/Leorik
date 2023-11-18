@@ -13,6 +13,13 @@
 
             MMSE(cFeatures) with MSE_SCALING = 100 on the dataset: 0,4601286313579521
             --> [0.520] against 2.5.1a
+
+            King-relative Pawn is neither winning nor losing... maybe with more/better data it's a win?
+            Score of Leorik-2.5.4b vs Leorik-2.5.4a: 1238 - 1241 - 2521  [0.500] 5000
+            ...      Leorik-2.5.4b playing White: 672 - 541 - 1287  [0.526] 2500
+            ...      Leorik-2.5.4b playing Black: 566 - 700 - 1234  [0.473] 2500
+            ...      White vs Black: 1372 - 1107 - 2521  [0.526] 5000
+            Elo difference: -0.2 +/- 6.8, LOS: 47.6 %, DrawRatio: 50.4 %
         */
 
         public static readonly short[] PhaseValues = new short[6] { 0, 168, 190, 408, 1032, 0 };

@@ -1,5 +1,7 @@
 ﻿using Leorik.Core;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.MemoryMappedFiles;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 
 namespace Leorik.Tuning
@@ -36,6 +38,25 @@ namespace Leorik.Tuning
             Pieces = new byte[16];
         }
 
+        public PackedBoard(PackedBoard other)
+        {
+            Occupancy = other.Occupancy;
+            Data = other.Data;
+            Pieces = (byte[])other.Pieces.Clone();
+        }
+
+        public bool Equals(PackedBoard other)
+        {
+            if (Occupancy != other.Occupancy || Data != other.Data)
+                return false;
+
+            for(int i = 0; i < 16; i++)
+                if (Pieces[i] != other.Pieces[i]) 
+                    return false;
+
+            return true;
+        }
+
         public static void Read(BinaryReader reader, ref PackedBoard packed)
         {
             packed.Occupancy = reader.ReadUInt64();
@@ -43,7 +64,7 @@ namespace Leorik.Tuning
             packed.Data = reader.ReadUInt64();
         }
 
-        public static void Unpack(ref PackedBoard packed, BoardState board, out int eval, out int wdl)
+        public static void Unpack(ref PackedBoard packed, BoardState board, out short fullMoveNumber, out short eval, out byte wdl, out byte extra)
         {
             //Setup BoardState
             int i = 0;
@@ -65,15 +86,50 @@ namespace Leorik.Tuning
                     board.SetBit(square, type | color);
                 }
             }
-            //STM
             board.SideToMove = packed.StmEpSquare >= 128 ? Color.Black : Color.White;
             int epSquare = packed.StmEpSquare & 63;
             if (epSquare != 0)
                 board.EnPassant = 1UL << epSquare;
             board.HalfmoveClock = packed.HalfmoveClock;
-            //WDL & EVAL
+
+            //EVAL, WDL etc
+            fullMoveNumber = packed.FullmoveNumber;
             eval = packed.Eval;
             wdl = packed.Wdl;
+            extra = packed.Extra;
+        }
+
+        internal static void Pack(ref PackedBoard packed, BoardState board, short fullMoveNumber, short eval, byte wdl, byte extra)
+        {
+            //DATA
+            packed.Extra = 0;
+            packed.Wdl = wdl;
+            packed.Eval = eval;
+            packed.FullmoveNumber = fullMoveNumber;
+            packed.HalfmoveClock = board.HalfmoveClock;
+            packed.StmEpSquare = (byte)Bitboard.LSB(board.EnPassant);
+            if (board.SideToMove == Color.Black)
+                packed.StmEpSquare |= 128;
+            //OCCUPANCY
+            packed.Occupancy = board.Black | board.White;
+            //PIECES
+            Array.Clear(packed.Pieces);
+            int nextPiece = 0;
+            for (ulong bits = packed.Occupancy; bits != 0; bits = Bitboard.ClearLSB(bits), nextPiece++)
+            {
+                int square = Bitboard.LSB(bits);
+                byte piece = (byte)board.GetPiece(square);
+                //4th bit set == Black, else White
+                int pieceBits = (~piece & 2) << 2;
+                //0 = Pawn, 1 = Knight .. 5 = King, 6 = Unmoved Rook
+                if ((board.CastleFlags & (1UL << square)) > 0)
+                    pieceBits |= 6;
+                else
+                    pieceBits |= (piece >> 2) - 1;
+                //put two pieces into one byte
+                int offset = 4 * (nextPiece & 1);
+                packed.Pieces[nextPiece>>1] |= (byte)(pieceBits << offset);
+            }
         }
     }
 }
