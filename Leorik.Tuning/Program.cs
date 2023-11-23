@@ -95,7 +95,7 @@ string[] PGN_FILES = {
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L26-all.epd";
-//string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
+string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
 string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
 int FEN_PER_GAME = 10;
@@ -112,6 +112,7 @@ int PHASE_BATCHES = 500;
 
 int MINI_BATCH_SIZE = 10_000;
 
+DataGen.RunPrompt();
 
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine(" Leorik Tuning v28 ");
@@ -130,7 +131,6 @@ Console.WriteLine();
 Console.WriteLine($"PHASE_ALPHA = {PHASE_ALPHA}");
 Console.WriteLine($"PHASE_BATCHES = {PHASE_BATCHES}");
 Console.WriteLine();
-
 //BitboardUtils.Repl();
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //ExtractPositions(PGN_FILES, EPD_FILE);

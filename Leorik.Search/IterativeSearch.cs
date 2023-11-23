@@ -13,7 +13,7 @@ namespace Leorik.Search
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
-        private readonly Move[] RootMoves;
+        public readonly Move[] RootMoves;
         private readonly Move[] PrincipalVariations;
         private readonly History _history;
         private readonly KillerMoves _killers;
@@ -29,12 +29,12 @@ namespace Leorik.Search
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        public IterativeSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
+        public IterativeSearch(BoardState board, SearchOptions options, ulong[] history)
         {
             _options = options;
             _killers = new KillerMoves(2);
             _history = new History();
-            _legacy = SelectMoveHistory(history);
+            _legacy = history;
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
             MoveGen moveGen = new(Moves, 0);
@@ -51,21 +51,6 @@ namespace Leorik.Search
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Positions[0].Copy(board);
-        }
-
-        private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
-        {
-            if(history == null)
-                return Array.Empty<ulong>();
-
-            List<ulong> reps = new();
-            foreach (BoardState state in history) 
-            {
-                if (state.HalfmoveClock == 0)
-                    reps.Clear();
-                reps.Add(state.ZobristHash);
-            }
-            return reps.ToArray();
         }
 
         public void Search(int maxDepth)

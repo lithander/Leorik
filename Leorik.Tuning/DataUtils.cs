@@ -99,11 +99,9 @@ namespace Leorik.Tuning
             PackedBoard repacked = new();
             while (stream.Position < stream.Length && data.Count < maxCount)
             {
-                PackedBoard.Read(reader, ref packed);
-
-                BoardState unpacked = new BoardState();
-                PackedBoard.Unpack(ref packed, unpacked, out short moveNr, out short eval, out byte wdl, out byte extra);               
-                PackedBoard.Pack(ref repacked, unpacked, moveNr, eval, wdl, extra);
+                packed.Read(reader);
+                BoardState unpacked = packed.Unpack(out short moveNr, out short eval, out byte wdl, out byte extra);
+                repacked.Pack(unpacked, moveNr, eval, wdl, extra);
 
                 if (!repacked.Equals(packed))
                 {

@@ -24,7 +24,7 @@ namespace Leorik.Search
         }
 
 
-        public ParallelSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
+        public ParallelSearch(BoardState board, SearchOptions options, ulong[] history)
         {
             for (int i = 0; i < options.Threads; i++)
             {

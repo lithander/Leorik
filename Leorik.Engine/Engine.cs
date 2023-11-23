@@ -98,6 +98,21 @@ namespace Leorik.Engine
         //*** INTERNALS ***
         //*****************
 
+        private ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
+        {
+            if (history == null)
+                return Array.Empty<ulong>();
+
+            List<ulong> reps = new();
+            foreach (BoardState state in history)
+            {
+                if (state.HalfmoveClock == 0)
+                    reps.Clear();
+                reps.Add(state.ZobristHash);
+            }
+            return reps.ToArray();
+        }
+
         private void StartSearch(long maxNodes)
         {
             Transpositions.IncreaseAge();
@@ -105,9 +120,9 @@ namespace Leorik.Engine
             SearchOptions options = Options;
             options.MaxNodes = maxNodes;
             if(options.Threads > 1)
-                _search = new ParallelSearch(_board, options, _history);
+                _search = new ParallelSearch(_board, options, SelectMoveHistory(_history));
             else
-                _search = new IterativeSearch(_board, options, _history);
+                _search = new IterativeSearch(_board, options, SelectMoveHistory(_history));
 
             _time.StartInterval();
             _search.SearchDeeper(() => false);
