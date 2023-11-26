@@ -34,7 +34,7 @@ namespace Leorik.Search
             _options = options;
             _killers = new KillerMoves(2);
             _history = new History();
-            _legacy = history;
+            _legacy = history ?? Array.Empty<ulong>();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
             MoveGen moveGen = new(Moves, 0);

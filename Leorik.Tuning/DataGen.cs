@@ -6,7 +6,7 @@ namespace Leorik.Tuning
 {
     interface IPlayoutWriter
     {
-        void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves);
+        void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves, List<short> scores);
     }
 
     class BinaryPlayoutWriter : IPlayoutWriter, IDisposable
@@ -24,13 +24,16 @@ namespace Leorik.Tuning
             _stream.Dispose();
         }
 
-        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves)
+        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves, List<short> scores)
         {
             byte moveCount = (byte)moves.Count;
             _packedBoard.Pack(position, (short)randomMoves, position.Eval.Score, wdl, moveCount);
             _packedBoard.Write(_stream);
             for (int i = 0; i < moveCount; i++)
+            {
                 _stream.Write((int)moves[i]);
+                _stream.Write(scores[i]);
+            }
             _stream.Flush();
         }
     }
@@ -44,7 +47,7 @@ namespace Leorik.Tuning
             _stream = File.CreateText(filePath);
         }
 
-        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves)
+        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves, List<short> scores)
         {
             byte moveCount = (byte)moves.Count;
             _stream.WriteLine(Notation.GetFen(position, randomMoves));
@@ -55,7 +58,9 @@ namespace Leorik.Tuning
             {
                 if (i > 0)
                     _stream.Write(' ');
-                _stream.Write((int)moves[i]);
+                _stream.Write(Notation.GetMoveName(moves[i]));
+                _stream.Write(' ');
+                _stream.Write(scores[i]);
             }
             _stream.WriteLine();
             _stream.Flush();
@@ -74,54 +79,106 @@ namespace Leorik.Tuning
             _writerB = new BinaryPlayoutWriter($"{path}/{fileName}.playout.bin");
         }
 
-        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves)
+        public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves, List<short> scores)
         {
-            _writerA.Write(position, randomMoves, wdl, moves);
-            _writerB.Write(position, randomMoves, wdl, moves);
+            _writerA.Write(position, randomMoves, wdl, moves, scores);
+            _writerB.Write(position, randomMoves, wdl, moves, scores);
+        }
+
+        public static void ValidatePlayout(string filePath)
+        {
+            var binFile = File.OpenRead(filePath + ".bin");
+            var txtFile = File.OpenRead(filePath + ".txt");
+
+            var binReader = new BinaryReader(binFile);
+            var txtReader = new StreamReader(txtFile);
+
+            PackedBoard packed = new PackedBoard();
+            while (binFile.Position < binFile.Length)
+            {
+                packed.Read(binReader);
+                BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+                string fen = Notation.GetFen(board, fullMoveNumber);
+                string fen2 = txtReader.ReadLine();
+                Debug.Assert(fen == fen2);
+                short eval2 = short.Parse(txtReader.ReadLine());
+                Debug.Assert(eval == eval2);
+                byte wdl2 = byte.Parse(txtReader.ReadLine());
+                Debug.Assert(wdl == wdl2);
+                byte moveCount = byte.Parse(txtReader.ReadLine());
+                Debug.Assert(extra == moveCount);
+
+                string[] movesAndScores = txtReader.ReadLine().Split(' ');
+                for (int iMove = 0; iMove < extra; iMove++)
+                {
+                    Move move = (Move)binReader.ReadInt32();
+                    string move2 = movesAndScores[iMove * 2];
+                    Debug.Assert(move2 == Notation.GetMoveName(move));
+
+                    short score = binReader.ReadInt16();
+                    short score2 = short.Parse(movesAndScores[iMove * 2 + 1]);
+                    Debug.Assert(score == score2);
+                }
+            }
+            Console.WriteLine("All good!");
         }
     }
 
     internal class DataGen
     {
+        const int VERSION = 3;
         const int RANDOM_MOVES = 12;
-        const int NODE_COUNT = 100_000;
+        const int DEPTH = 12;
+        const int NODE_COUNT = int.MaxValue;
         const string OUTPUT_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 
         public static void RunPrompt()
         {
             Console.WriteLine("~~~~~~~~~~~~~~~~~~~~");
-            Console.WriteLine(" Leorik DataGen v2 ");
+            Console.WriteLine($" Leorik DataGen v{VERSION}");
             Console.WriteLine("~~~~~~~~~~~~~~~~~~~~");
             Console.WriteLine();
 
-            Console.WriteLine("Threads:");
-            if (!int.TryParse(Console.ReadLine(), out int threads))
-                threads = 1;
+            Query("Threads", 1, out int threads);
+            Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
+            Query("Nodes", NODE_COUNT, out int nodes);
+            Query("Depth", DEPTH, out int depth);
 
-            Console.WriteLine("Number of random moves:");
-            if (!int.TryParse(Console.ReadLine(), out int randomMoves))
-                randomMoves = RANDOM_MOVES;
+            Query("Path", OUTPUT_PATH, out string path);
 
-            Console.WriteLine("Nodes:");
-            if (!int.TryParse(Console.ReadLine(), out int nodes))
-                nodes = NODE_COUNT;
-
-            Console.WriteLine("Path:");
-            string path = Console.ReadLine();
-            if (string.IsNullOrEmpty(path))
-                path = OUTPUT_PATH;
-
-            Console.WriteLine("File:");
-            string suffix = $"_{nodes / 1000}K_{randomMoves}RM";
-            string fileName = Console.ReadLine();
-            if (string.IsNullOrEmpty(fileName))
-                fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
+            string suffix = $"_{nodes / 1000}K_D{depth}_{randomMoves}RM_v{VERSION}";
+            string fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
+            Query("File", fileName, out fileName);
 
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
-            RunDatagen(randomMoves, nodes, writer, threads);
+            RunDatagen(randomMoves, nodes, depth, writer, threads);
         }
 
-        private static void RunDatagen(int randomMoves, int nodes, IPlayoutWriter writer, int threads)
+        private static void Query(string label, int devaultValue, out int value)
+        {
+            Console.Write($"{label}: ");
+            if (!int.TryParse(Console.ReadLine(), out value))
+            {
+                value = devaultValue;
+                Console.WriteLine(value);
+            }
+            Console.WriteLine();
+        }
+
+        private static void Query(string label, string devaultValue, out string value)
+        {
+            Console.Write($"{label}: ");
+            value = Console.ReadLine();
+            if (string.IsNullOrEmpty(value))
+            {
+                value = devaultValue;
+                Console.WriteLine($" {value}");
+            }
+            else
+                Console.WriteLine();
+        }
+
+        private static void RunDatagen(int randomMoves, int nodes, int depth, IPlayoutWriter writer, int threads)
         {
             long positionCount = 0;
             long startTicks = Stopwatch.GetTimestamp();
@@ -130,13 +187,15 @@ namespace Leorik.Tuning
                 BoardState startPos = Notation.GetStartingPosition();
                 BoardState board = new BoardState();
                 List<Move> moves = new List<Move>();
+                List<short> scores = new List<short>();
                 while (true)
                 {
                     board.Copy(startPos);
                     if (PlayRandom(board, randomMoves))
                     {
                         moves.Clear();
-                        byte wdl = Playout(board.Clone(), 50, nodes, moves);
+                        scores.Clear();
+                        byte wdl = Playout(board.Clone(), depth, nodes, moves, scores);
                         lock (writer)
                         {
                             positionCount += moves.Count;
@@ -144,7 +203,7 @@ namespace Leorik.Tuning
                             float positionsPerSecond = positionCount * Stopwatch.Frequency / (float)delta;
                             Console.WriteLine($"T#{i} {positionCount} {(int)positionsPerSecond}pos/s");
 
-                            writer.Write(board, randomMoves, wdl, moves);
+                            writer.Write(board, randomMoves, wdl, moves, scores);
                         }
                     }
                 }
@@ -169,7 +228,7 @@ namespace Leorik.Tuning
             return true;
         }
 
-        private static byte Playout(BoardState board, int maxDepth, int maxNodes, List<Move> moves)
+        private static byte Playout(BoardState board, int maxDepth, int maxNodes, List<Move> moves, List<short> scores)
         {
             SearchOptions searchOptions = SearchOptions.Default;
             searchOptions.MaxNodes = maxNodes;
@@ -184,6 +243,7 @@ namespace Leorik.Tuning
 
                 Move bestMove = default;
                 var search = new IterativeSearch(board, searchOptions, reps.ToArray());
+                int score = 0;
                 while (search.Depth < maxDepth)
                 {
                     search.SearchDeeper();
@@ -191,9 +251,10 @@ namespace Leorik.Tuning
                         break;
 
                     bestMove = search.PrincipalVariation[0];
+                    score = search.Score;
                 }
 
-                if (search.Score == 0 && bestMove == default)
+                if (score == 0 && bestMove == default)
                 {
                     Console.WriteLine($"Stalemate! {Notation.GetFen(board)}");
                     return 1; //2 = White, 1 = Draw, 0 = Black
@@ -202,13 +263,13 @@ namespace Leorik.Tuning
                 if (!board.Play(bestMove))
                     break;
 
-                if (Evaluation.IsCheckmate(search.Score) && Evaluation.GetMateDistance(search.Score) == 1)
+                if (Evaluation.IsCheckmate(score) && Evaluation.GetMateDistance(score) == 1)
                 {
-                    Console.WriteLine($"{board.SideToMove} lost! {Notation.GetFen(board)}");
+                    Console.WriteLine($"{board.SideToMove} wins! {Notation.GetFen(board)}");
                     if (board.SideToMove == Color.White)
-                        return 0; //Black
-                    else
                         return 2; //White
+                    else
+                        return 0; //Black
                 }
 
                 if (board.HalfmoveClock > 99)
@@ -229,6 +290,7 @@ namespace Leorik.Tuning
                 //Console.Write($"{Notation.GetMoveName(bestMove)} ");
                 hashes[board.ZobristHash] = count + 1;
                 moves.Add(bestMove);
+                scores.Add((short)score);
             }
             throw new Exception("Unreachable!");
         }

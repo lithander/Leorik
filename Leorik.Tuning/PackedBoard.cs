@@ -1,7 +1,4 @@
 ﻿using Leorik.Core;
-using System.Diagnostics.CodeAnalysis;
-using System.IO.MemoryMappedFiles;
-using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 
 namespace Leorik.Tuning

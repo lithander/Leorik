@@ -101,7 +101,7 @@ namespace Leorik.Engine
         private ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
         {
             if (history == null)
-                return Array.Empty<ulong>();
+                return null;
 
             List<ulong> reps = new();
             foreach (BoardState state in history)

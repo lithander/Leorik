@@ -93,8 +93,14 @@ string[] PGN_FILES = {
     "leorik243bpext_selfplay_3_varied_RND50--50-5s_100ms.pgn",
 };
 
+string[] BIN_PLAYOUT_FILES = {
+    "2023-11-25T19.21.51_2147483K_D12_12RM_v2.playout.bin",
+    "2023-11-25T22.40.26_50K_D20_14RM_v2.playout.bin"
+};
+
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L26-all.epd";
+string TD_FILE = "DATA-100K_12RM_v1.wdl";
 string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
 string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
@@ -103,7 +109,7 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 500;
+int ITERATIONS = 20;
 
 int MATERIAL_ALPHA = 33;
 int MATERIAL_BATCHES = 1500;
@@ -133,11 +139,12 @@ Console.WriteLine($"PHASE_BATCHES = {PHASE_BATCHES}");
 Console.WriteLine();
 //BitboardUtils.Repl();
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
-//ExtractPositions(PGN_FILES, EPD_FILE);
-List<Data> dataSource = new List<Data>();
+//DoublePlayoutWriter.ValidatePlayout(DATA_PATH + "2023-11-23T10.39.08_100K_12RM_v1.playout");
+//ExtractBinaryToBinary(BIN_PLAYOUT_FILES, TD_FILE);
+List <Data> dataSource = new List<Data>();
 long t0 = Stopwatch.GetTimestamp();
-DataUtils.LoadData(dataSource, DATA_PATH + EPD_FILE);
-//DataUtils.LoadBinaryData(dataSource, BIN_FILE_PATH, 3_000_000);
+//DataUtils.LoadData(dataSource, DATA_PATH + TD_FILE + ".epd");
+DataUtils.LoadBinaryData(dataSource, DATA_PATH + TD_FILE + ".bin");
 //DataUtils.LoadWdlData(dataSource, BOOK_FILE_PATH);
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -146,10 +153,10 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
 
@@ -203,7 +210,7 @@ void PgnToUci(string pgnFileName)
     input.Close();
 }
 
-void ExtractPositions(string[] pgnFileNames, string epdFileName)
+void ExtractPgnToEpd(string[] pgnFileNames, string epdFileName)
 {
     Console.WriteLine($"Extracting {FEN_PER_GAME} positions per game into {epdFileName}.");
     Console.WriteLine($"All positions that disagree by >{SKIP_OUTLIERS}cp with the previous eval...");
@@ -214,7 +221,7 @@ void ExtractPositions(string[] pgnFileNames, string epdFileName)
         var input = File.OpenText(DATA_PATH + pgnFile);
         Console.WriteLine($"Reading {pgnFile}");
         long t_0 = Stopwatch.GetTimestamp();
-        (int games, int positions) = DataUtils.ExtractData(input, output, FEN_PER_GAME, SKIP_OUTLIERS, MAX_Q_DEPTH);
+        (int games, int positions) = DataUtils.ExtractPgnToEpd(input, output, FEN_PER_GAME, SKIP_OUTLIERS, MAX_Q_DEPTH);
         long t_1 = Stopwatch.GetTimestamp();
         double totalDuration = Seconds(t_1 - t_0);
         double durationPerGame = Seconds(1000000 * (t_1 - t_0) / (1 + games));
@@ -222,6 +229,49 @@ void ExtractPositions(string[] pgnFileNames, string epdFileName)
         Console.WriteLine();
         input.Close();
     }
+    output.Close();
+}
+
+void ExtractBinaryToBinary(string[] inputFileNames, string fileName)
+{
+    Console.WriteLine($"Extracting quiet positions per game into {fileName}.");
+    Console.WriteLine();
+    var output = new BinaryWriter(new FileStream(DATA_PATH + fileName + ".bin", FileMode.Create));
+    foreach (string inputFile in inputFileNames)
+    {
+        var input = File.OpenRead(DATA_PATH + inputFile);
+        Console.WriteLine($"Reading {inputFile}");
+        long t_0 = Stopwatch.GetTimestamp();
+        (int games, int positions) = DataUtils.ExtractBinaryToBinary(input, output, MAX_Q_DEPTH);
+        long t_1 = Stopwatch.GetTimestamp();
+        double totalDuration = Seconds(t_1 - t_0);
+        double durationPerGame = Seconds(1000000 * (t_1 - t_0) / (1 + games));
+        Console.WriteLine($"Extracted {positions} positions from {games} games in {totalDuration:0.###}s. ({durationPerGame:0.#}µs/Game)");
+        Console.WriteLine();
+        input.Close();
+    }
+    output.Close();
+}
+
+void ExtractBinaryToEpd(string[] inputFileNames, string fileName)
+{
+    Console.WriteLine($"Extracting quiet positions per game into {fileName}.");
+    Console.WriteLine();
+    var output = File.CreateText(DATA_PATH + fileName + ".epd");
+    foreach (string inputFile in inputFileNames)
+    {
+        var input = File.OpenRead(DATA_PATH + inputFile);
+        Console.WriteLine($"Reading {inputFile}");
+        long t_0 = Stopwatch.GetTimestamp();
+        (int games, int positions) = DataUtils.ExtractBinaryToEpd(input, output, MAX_Q_DEPTH);
+        long t_1 = Stopwatch.GetTimestamp();
+        double totalDuration = Seconds(t_1 - t_0);
+        double durationPerGame = Seconds(1000000 * (t_1 - t_0) / (1 + games));
+        Console.WriteLine($"Extracted {positions} positions from {games} games in {totalDuration:0.###}s. ({durationPerGame:0.#}µs/Game)");
+        Console.WriteLine();
+        input.Close();
+    }
+
     output.Close();
 }
 

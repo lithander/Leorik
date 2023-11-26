@@ -1,12 +1,7 @@
 ﻿using Leorik.Core;
-using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO.MemoryMappedFiles;
-using System.Net.NetworkInformation;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Leorik.Tuning
 {
@@ -31,13 +26,32 @@ namespace Leorik.Tuning
             int iLabel = line.IndexOf('"');
             string fen = line.Substring(0, iLabel - 1);
             string label = line.Substring(iLabel + 1, line.Length - iLabel - 3);
-            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
-            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
             return new Data
             {
                 Position = Notation.GetBoardState(fen),
-                Result = (sbyte)result
+                Result = EpdLabelToResult(label)
             };
+        }
+
+        public static sbyte EpdLabelToResult(string label)
+        {
+            Debug.Assert(label == BLACK || label == WHITE || label == DRAW);
+            int result = (label == WHITE) ? 1 : (label == BLACK) ? -1 : 0;
+            return (sbyte)result;
+        }
+
+        public static string WdlToEpdLabel(int wdl)
+        {
+            switch(wdl)
+            {
+                case 2:
+                    return WHITE;
+                case 1: 
+                    return DRAW;
+                case 0:
+                    return BLACK;
+            }
+            throw new ArgumentOutOfRangeException(nameof(wdl));
         }
 
         public static void LoadData(List<Data> data, string epdFile, int maxCount = int.MaxValue)
@@ -110,8 +124,9 @@ namespace Leorik.Tuning
                     for (int i = 0; i < 16; i++)
                         Console.Write($"{(repacked.Pieces[i] == packed.Pieces[i] ? '-' : 'X')} ");
                     Console.WriteLine();
-                    Console.WriteLine($"Occupancy: {repacked.Data} vs {packed.Data} = {repacked.Data == packed.Data}");
+                    Console.WriteLine($"Data: {repacked.Data} vs {packed.Data} = {repacked.Data == packed.Data}");
                     Console.WriteLine();
+                    continue;
                 }
 
                 sbyte result = (sbyte)(wdl - 1);//convert from 2 = White, 1 = Draw, 0 = Black
@@ -135,7 +150,7 @@ namespace Leorik.Tuning
             return line.Length > 1 && line[0] == '/' && line[1] == '/';
         }
 
-        public static (int games, int positions) ExtractData(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxQDepth)
+        public static (int games, int positions) ExtractPgnToEpd(StreamReader input, StreamWriter output, int posPerGame, int skipOutliers, int maxQDepth)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -174,6 +189,83 @@ namespace Leorik.Tuning
                     i += skip;
                     positions++;
                     output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{parser.Result}\";");
+                }
+            }
+            return (games, positions);
+        }
+
+        public static (int games, int positions) ExtractBinaryToBinary(FileStream input, BinaryWriter output, int maxQDepth)
+        {
+            int games = 0;
+            int positions = 0;
+
+            Quiesce quiesce = new();
+            PackedBoard packed = new PackedBoard();
+            var reader = new BinaryReader(input);
+            while (input.Position < input.Length)
+            {
+                games++;
+
+                packed.Read(reader);
+                BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+                //Console.WriteLine(Notation.GetFen(board));
+                for (int iMove = 0; iMove < extra; iMove++)
+                {
+                    Move move = (Move)reader.ReadInt32();
+                    board.Play(move);
+                    short score = reader.ReadInt16();
+                    //Console.WriteLine($"{Notation.GetMoveName(move)} {score}");
+
+                    var quiet = quiesce.QuiescePosition(board, maxQDepth);
+                    if (quiet == null)
+                        continue;
+
+                    //TODO: skip positions!?
+
+                    //the closer to the last move (dtz) the more wdl reflects the true value of the position
+                    int dtz = extra - iMove;
+                    int fullMove = fullMoveNumber + iMove / 2;
+                    packed.Pack(quiet, (short)fullMove, score, wdl, (byte)dtz);
+
+                    positions++;
+                    packed.Write(output);
+                }
+            }
+            return (games, positions);
+        }
+
+        public static (int games, int positions) ExtractBinaryToEpd(FileStream input, StreamWriter output, int maxQDepth)
+        {
+            int games = 0;
+            int positions = 0;
+
+            Quiesce quiesce = new();
+            PackedBoard packed = new PackedBoard();
+            var reader = new BinaryReader(input);
+            while (input.Position < input.Length)
+            {
+                games++;
+
+                packed.Read(reader);
+                BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+                //Console.WriteLine(Notation.GetFen(board));
+                for (int iMove = 0; iMove < extra; iMove++)
+                {
+                    Move move = (Move)reader.ReadInt32();
+                    board.Play(move);
+                    short score = reader.ReadInt16();
+                    //Console.WriteLine($"{Notation.GetMoveName(move)} {score}");
+
+                    var quiet = quiesce.QuiescePosition(board, maxQDepth);
+                    if (quiet == null)
+                        continue;
+
+                    //TODO: skip positions!?
+
+                    positions++;
+                    string label = WdlToEpdLabel(wdl);
+                    //the closer to the last move (dtz) the more wdl reflects the true value of the position
+                    output.WriteLine($"{Notation.GetFen(quiet)} c9 \"{label}\";");
                 }
             }
             return (games, positions);
