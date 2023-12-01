@@ -109,19 +109,19 @@ int SKIP_OUTLIERS = 200;
 int MAX_Q_DEPTH = 10;
 
 float MSE_SCALING = 100;
-int ITERATIONS = 20;
+int ITERATIONS = 200;
 
-int MATERIAL_ALPHA = 33;
+int MATERIAL_ALPHA = 100;
 int MATERIAL_BATCHES = 1500;
-int PHASE_ALPHA = 20;
-int PHASE_BATCHES = 500;
+int PHASE_ALPHA = 200;
+int PHASE_BATCHES = 1500;
 
 int MINI_BATCH_SIZE = 10_000;
 
-DataGen.RunPrompt();
+//DataGen.RunPrompt();
 
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
-Console.WriteLine(" Leorik Tuning v28 ");
+Console.WriteLine(" Leorik Tuning v29 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine();
 Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
@@ -143,8 +143,10 @@ Console.WriteLine();
 //ExtractBinaryToBinary(BIN_PLAYOUT_FILES, TD_FILE);
 List <Data> dataSource = new List<Data>();
 long t0 = Stopwatch.GetTimestamp();
+DataUtils.LoadData(dataSource, DATA_PATH + EPD_FILE);
+
 //DataUtils.LoadData(dataSource, DATA_PATH + TD_FILE + ".epd");
-DataUtils.LoadBinaryData(dataSource, DATA_PATH + TD_FILE + ".bin");
+//DataUtils.LoadBinaryData(dataSource, DATA_PATH + TD_FILE + ".bin");
 //DataUtils.LoadWdlData(dataSource, BOOK_FILE_PATH);
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -153,10 +155,10 @@ Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds
 //MSE_SCALING = Tuner.Minimize((k) => Tuner.MeanSquareError(data, k), 1, 1000);
 TestLeorikMSE();
 
-float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
-float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
-//float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
-//float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
+//float[] cPhase = PhaseTuner.GetLeorikPhaseCoefficients();
+//float[] cFeatures = FeatureTuner.GetLeorikCoefficients();
+float[] cPhase = PhaseTuner.GetUntrainedCoefficients();
+float[] cFeatures = FeatureTuner.GetUntrainedCoefficients();
 //RebalanceCoefficients(cFeatures);
 //PrintCoefficients(cFeatures, cPhase);
 
@@ -405,7 +407,7 @@ void PrintCoefficients(float[] featureWeights, float[] phaseWeights)
     for (int i = 0; i < pawns.Length; i++)
     {
         Console.WriteLine($"//{pawns[i]}");
-        FeatureTuner.Report(material.Length + i, featureWeights);
+        FeatureTuner.ReportMinimal(material.Length + i, featureWeights);
     }
 
 

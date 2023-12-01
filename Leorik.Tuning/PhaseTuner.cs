@@ -143,15 +143,20 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
+                    if(entry.Phase == 0)
+                        return accu;
+
                     float phase = GetPhase(entry.PieceCounts, coefficients);
                     float eval = Evaluate(entry, phase);
-                    float error = Sigmoid(eval, evalScaling) - entry.Result;
-                    float grad = Sigmoid(Evaluate(entry, 0), evalScaling) - Sigmoid(Evaluate(entry, 1), evalScaling);
+                    float sig = Sigmoid(eval, evalScaling);
+                    float error = sig - entry.Result;
+                    float grad = error * (sig*sig - 1) * entry.EndgameEval / (entry.Phase * Evaluation.PhaseSum);
 
                     for (int i = 0; i < N; i++)
                     {
-                        accu[i] += error * grad * entry.PieceCounts[i];// * coefficients[i];
+                        accu[i] += grad * entry.PieceCounts[i];
                     }
+
                     return accu;
                 },
                 //executed when each partition has completed.

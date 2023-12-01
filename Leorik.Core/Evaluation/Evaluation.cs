@@ -26,20 +26,19 @@ namespace Leorik.Core
 
         public Evaluation(BoardState board) : this()
         {
-            AddPieces(board);
-            PawnStructure.Eval(board, ref Pawns, _white, _black);
+            PawnStructure.Update(board, ref Pawns);
             MobilityEval.Update(board, ref Mobility);
+            AddPieces(board);
             UpdateScore(board);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Update(BoardState board, ref Move move)
         {
-            TryUpdateMaterial(board, ref move);
-            Pawns = default;
-            PawnStructure.Update(board, ref Pawns, _white, _black);
             Mobility = default;
             MobilityEval.Update(board, ref Mobility);
+            PawnStructure.Update(board, ref Pawns);
+            TryUpdateMaterial(board, ref move);
             UpdateScore(board);
         }
 
