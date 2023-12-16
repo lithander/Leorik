@@ -181,39 +181,37 @@ TuningData[] _tuningData = new TuningData[LARGE_BATCH_SIZE];
 TuningData[] _validationData = new TuningData[VALIDATION_SIZE];
 TuningData[] miniBatch = new TuningData[MINI_BATCH_SIZE];
 //ValidateLeorikEval(10);
-Console.Write($"Preparing {_tuningData.Length} positions for tuning...");
+Console.WriteLine($"Initializing tuning data...");
 CreateTrainingData(_tuningData, 1f);
-Console.Write($"Preparing {_validationData.Length} positions for validation...");
+Console.WriteLine($"Initializing validation data...");
 CreateTrainingData(_validationData, 1f);
+Console.WriteLine();
 
 t0 = Stopwatch.GetTimestamp();
 double bestMse = double.MaxValue;
 float[] cBestFeatures = new float[cFeatures.Length];
 for (int it = 0; it < ITERATIONS; it++)
 {
-    CreateTrainingData(_tuningData,0.5f);
     Console.WriteLine($"{it}/{ITERATIONS} ");
+    CreateTrainingData(_tuningData, 0.5f);
     double mse = TuneMaterialMicroBatches(_tuningData, _validationData, MATERIAL_ALPHA);
     if (mse < bestMse)
     {
         RebalanceCoefficients(_tuningData, cFeatures);
-        Console.Write('.');
         Tuner.SyncFeaturesChanges(_tuningData, cFeatures);
-        Console.Write('.');
         TunePhaseMicroBatches(_tuningData, _validationData);
-        Console.Write('.');
+
         Tuner.SyncPhaseChanges(_tuningData, cPhase);
         Tuner.SyncPhaseChanges(_validationData, cPhase);
-        Console.Write('.');
+
         Tuner.SyncFeaturesChanges(_tuningData, cFeatures);
         Tuner.SyncFeaturesChanges(_validationData, cFeatures);
-        Console.Write('.');
+
         Tuner.ValidateConsistency(_tuningData, cPhase, cFeatures);
         Tuner.ValidateConsistency(_validationData, cPhase, cFeatures);
         Array.Copy(cFeatures, cBestFeatures, cFeatures.Length);
-        mse = FeatureTuner.MeanSquareError(_validationData, cBestFeatures, MSE_SCALING);
-        Console.WriteLine($"  After rebalancing: {mse} {mse - bestMse}");
-        bestMse = mse;
+        bestMse = FeatureTuner.MeanSquareError(_validationData, cBestFeatures, MSE_SCALING);
+        Console.WriteLine($"  New best MSE={bestMse}");
     }
 }
 t1 = Stopwatch.GetTimestamp();
@@ -323,7 +321,10 @@ void CreateTrainingData(TuningData[] data, float ratio)
             data[i] = Tuner.GetTuningData(dataSource[indices[i]], cPhase, cFeatures);
     
     long t1 = Stopwatch.GetTimestamp();
-    Console.WriteLine($"Replacing {(int)(ratio*100)}% positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+
+    double duration = Seconds(t1 - t0);
+    double durationPerPosition = Seconds(1000000 * (t1 - t0) / (1 + data.Length));
+    Console.WriteLine($"  Creating {(int)(data.Length*ratio)} ({(int)(ratio*100)}%) positions took {duration:0.###}s. ({durationPerPosition:0.#}µs/Position)");
 }
 
 double TuneMaterialMicroBatches(TuningData[] tuningData, TuningData[] validationData, int alpha)
@@ -338,7 +339,7 @@ double TuneMaterialMicroBatches(TuningData[] tuningData, TuningData[] validation
     }
     long t_1 = Stopwatch.GetTimestamp();
     double msePost = FeatureTuner.MeanSquareError(validationData, cFeatures, MSE_SCALING);
-    Console.WriteLine($"  Delta={msePre - msePost:N10} Time={Seconds(t_1 - t_0):0.###}s");
+    Console.WriteLine($" Delta={msePre - msePost:N10} Time={Seconds(t_1 - t_0):0.###}s");
     return msePost;
 }
 
