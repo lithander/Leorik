@@ -196,9 +196,66 @@ namespace Leorik.Tuning
 
         public static (int games, int positions) ExtractBinaryToBinary(FileStream input, BinaryWriter output, int maxQDepth)
         {
+            //150 Iterations with 1M 50% new randomly sampled positions per Iteration, 3M validation size
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 3214 - 2790 - 3996  [0.521] 10000
+            //...      Leorik-2.5.4c playing White: 1873 - 1157 - 1970  [0.572] 5000
+            //...      Leorik-2.5.4c playing Black: 1341 - 1633 - 2026  [0.471] 5000
+            //...      White vs Black: 3506 - 2498 - 3996  [0.550] 10000
+            //Elo difference: 14.7 +/- 5.3, LOS: 100.0 %, DrawRatio: 40.0 %
+
+            //200 Iterations with 2M 25% new randomly sampled positions per Iteration (no MSE filter active, decreasing alpha 150->75)
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 859 - 960 - 1428  [0.484] 3247
+            //...      Leorik-2.5.4c playing White: 472 - 433 - 719  [0.512] 1624
+            //...      Leorik-2.5.4c playing Black: 387 - 527 - 709  [0.457] 1623
+            //...      White vs Black: 999 - 820 - 1428  [0.528] 3247
+            //Elo difference: -10.8 +/- 8.9, LOS: 0.9 %, DrawRatio: 44.0 %
+
+            //100 Iterations with 2M 25% new randomly sampled positions per Iteration (no MSE filter active, decreasing alpha 150->75)
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 789 - 850 - 1302  [0.490] 2941
+            //...      Leorik-2.5.4c playing White: 458 - 375 - 638  [0.528] 1471
+            //...      Leorik-2.5.4c playing Black: 331 - 475 - 664  [0.451] 1470
+            //...      White vs Black: 933 - 706 - 1302  [0.539] 2941
+            //Elo difference: -7.2 +/- 9.4, LOS: 6.6 %, DrawRatio: 44.3 %
+
+            //100 Iterations with 2M 25% new randomly sampled positions per Iteration (no MSE filter active)
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 1333 - 1590 - 2217  [0.475] 5140
+            //...      Leorik-2.5.4c playing White: 762 - 628 - 1181  [0.526] 2571
+            //...      Leorik-2.5.4c playing Black: 571 - 962 - 1036  [0.424] 2569
+            //...      White vs Black: 1724 - 1199 - 2217  [0.551] 5140
+            //Elo difference: -17.4 +/- 7.2, LOS: 0.0 %, DrawRatio: 43.1 %
+
+            //100 Iterations with 2M 25% new randomly sampled positions per Iteration (best MSE filter active)
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 2584 - 3345 - 4071  [0.462] 10000
+            //...      Leorik-2.5.4c playing White: 1551 - 1567 - 1882  [0.498] 5000
+            //...      Leorik-2.5.4c playing Black: 1033 - 1778 - 2189  [0.425] 5000
+            //...      White vs Black: 3329 - 2600 - 4071  [0.536] 10000
+            //Elo difference: -26.5 +/- 5.2, LOS: 0.0 %, DrawRatio: 40.7 %
+
+            //100 Iterations with 1M 100% new randomly sampled positions per Iteration
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 2776 - 3116 - 4108  [0.483] 10000
+            //...      Leorik-2.5.4c playing White: 1435 - 1528 - 2037  [0.491] 5000
+            //...      Leorik-2.5.4c playing Black: 1341 - 1588 - 2071  [0.475] 5000
+            //...      White vs Black: 3023 - 2869 - 4108  [0.508] 10000
+            //Elo difference: -11.8 +/- 5.2, LOS: 0.0 %, DrawRatio: 41.1 %
+
+            //100 Iterations! d7-v3-50M.bin 9M Positions filtered like below
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 1447 - 1362 - 1979  [0.509] 4788
+            //...      Leorik-2.5.4c playing White: 772 - 610 - 1013  [0.534] 2395
+            //...      Leorik-2.5.4c playing Black: 675 - 752 - 966  [0.484] 2393
+            //...      White vs Black: 1524 - 1285 - 1979  [0.525] 4788
+            //Elo difference: 6.2 +/- 7.5, LOS: 94.6 %, DrawRatio: 41.3
+
+            //200 Iterations! d7-v3-50M.bin 9M Positions filtered like below
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 2810 - 2872 - 4318  [0.497] 10000
+            //...      Leorik-2.5.4c playing White: 1710 - 1198 - 2092  [0.551] 5000
+            //...      Leorik-2.5.4c playing Black: 1100 - 1674 - 2226  [0.443] 5000
+            //...      White vs Black: 3384 - 2298 - 4318  [0.554] 10000
+            //Elo difference: -2.2 +/- 5.1, LOS: 20.5 %, DrawRatio: 43.2 %
+
             int games = 0;
             int positions = 0;
 
+            Random rnd = new Random(1337);
             Quiesce quiesce = new();
             PackedBoard packed = new PackedBoard();
             var reader = new BinaryReader(input);
@@ -208,7 +265,9 @@ namespace Leorik.Tuning
 
                 packed.Read(reader);
                 BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+
                 //Console.WriteLine(Notation.GetFen(board));
+                int skipMoves = rnd.Next(0, 10);
                 for (int iMove = 0; iMove < extra; iMove++)
                 {
                     Move move = (Move)reader.ReadInt32();
@@ -216,11 +275,46 @@ namespace Leorik.Tuning
                     short score = reader.ReadInt16();
                     //Console.WriteLine($"{Notation.GetMoveName(move)} {score}");
 
+                    if (--skipMoves >= 0)
+                        continue;
+
+                    //skip positions with too few pieces on the board
+                    int pieceCount = Bitboard.PopCount(board.Black | board.White);
+                    if (pieceCount <= 8)
+                        continue;
+
+                    //skip positions with extreme scores
+                    if (Math.Abs(score) > 900)
+                    {
+                        //Console.WriteLine($"Extreme Score: {Notation.GetFen(board)} {score}");
+                        continue;
+                    }
+
+                    //Wdl: 2 = White, 1 = Draw, 0 = Black
+                    //1.An epd that is a draw with a score >= abs(5.00) is removed.
+                    if (wdl == 1 && Math.Abs(score) > 200)
+                    {
+                        //Console.WriteLine($"Questionable Draw: {Notation.GetFen(board)} {score}");
+                        continue;
+                    }
+
+                    //2.An epd that is a white win with a score <= -3.00 is removed.
+                    if (wdl == 2 && score < -200)
+                    {
+                        //Console.WriteLine($"Questionable Win for White: {Notation.GetFen(board)} {score}");
+                        continue;
+                    }
+
+                    //3.An epd that is a white loss with a score >= 3.00 is removed.
+                    if (wdl == 0 && score > 200)
+                    {
+                        //Console.WriteLine($"Questionable Win for Black: {Notation.GetFen(board)} {score}");
+                        continue;
+                    }
+
                     var quiet = quiesce.QuiescePosition(board, maxQDepth);
                     if (quiet == null)
                         continue;
-
-                    //TODO: skip positions!?
 
                     //the closer to the last move (dtz) the more wdl reflects the true value of the position
                     int dtz = extra - iMove;
@@ -229,6 +323,8 @@ namespace Leorik.Tuning
 
                     positions++;
                     packed.Write(output);
+
+                    skipMoves = rnd.Next(5, 12);
                 }
             }
             return (games, positions);
