@@ -41,7 +41,11 @@ namespace Leorik.Test
             if (!int.TryParse(Console.ReadLine(), out int threads))
                 threads = 1;
 
-            CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, ParallelSearch, DETAILS);
+            Console.WriteLine("Temperature:");
+            if (!int.TryParse(Console.ReadLine(), out int temp))
+                temp = -1;
+
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, temp, ParallelSearch, DETAILS);
             //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
@@ -64,14 +68,14 @@ namespace Leorik.Test
         {
             for (int depth = 14; depth <= 20; depth += 2)
             {
-                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, 1, ParallelSearch, DETAILS);
+                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, 1, -1, ParallelSearch, DETAILS);
             }
         }
 
 
-        private delegate Span<Move> SearchDelegate(BoardState state, int depth, int threads);
+        private delegate Span<Move> SearchDelegate(BoardState state, int depth, int threads, int temperature);
 
-        private static void CompareBestMove(StreamReader file, int depth, int maxCount, int threads, SearchDelegate search, bool logDetails)
+        private static void CompareBestMove(StreamReader file, int depth, int maxCount, int threads, int temp, SearchDelegate search, bool logDetails)
         {
             Console.WriteLine($"Searching {maxCount} positions on {threads} thread(s) to depth {depth}...");
             double freq = Stopwatch.Frequency;
@@ -85,7 +89,7 @@ namespace Leorik.Test
                 //Transpositions.Clear();
                 Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
-                Span<Move> pv = search(board, depth, threads);
+                Span<Move> pv = search(board, depth, threads, temp);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
@@ -404,10 +408,11 @@ namespace Leorik.Test
             return search.PrincipalVariation;
         }
 
-        private static Span<Move> ParallelSearch(BoardState board, int depth, int threads)
+        private static Span<Move> ParallelSearch(BoardState board, int depth, int threads, int temperature)
         {
             var settings = SearchOptions.Default;
             settings.Threads = threads;
+            settings.Temperature = temperature;
             ISearch search = threads > 1 ? new ParallelSearch(board, settings, null) : new IterativeSearch(board, settings, null);
             search.Search(depth);
             Score = search.Score;

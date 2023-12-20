@@ -196,12 +196,27 @@ namespace Leorik.Tuning
 
         public static (int games, int positions) ExtractBinaryToBinary(FileStream input, BinaryWriter output, int maxQDepth)
         {
+            //150 Iterations with 1M positions per Iteration at 50% replacement rate, 3M validation size with 10% replacement rate
+            //17.8M positions total, 5M of them with 50 Temperature! *NEW*
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 3185 - 2666 - 4149  [0.526] 10000
+            //...      Leorik-2.5.4c playing White: 1689 - 1182 - 2129  [0.551] 5000
+            //...      Leorik-2.5.4c playing Black: 1496 - 1484 - 2020  [0.501] 5000
+            //...      White vs Black: 3173 - 2678 - 4149  [0.525] 10000
+            //Elo difference: 18.0 +/- 5.2, LOS: 100.0 %, DrawRatio: 41.5 %
+
             //150 Iterations with 1M 50% new randomly sampled positions per Iteration, 3M validation size
             //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 3214 - 2790 - 3996  [0.521] 10000
             //...      Leorik-2.5.4c playing White: 1873 - 1157 - 1970  [0.572] 5000
             //...      Leorik-2.5.4c playing Black: 1341 - 1633 - 2026  [0.471] 5000
             //...      White vs Black: 3506 - 2498 - 3996  [0.550] 10000
             //Elo difference: 14.7 +/- 5.3, LOS: 100.0 %, DrawRatio: 40.0 %
+            //
+            //...same settings but worse result:
+            //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 1837 - 2001 - 2971  [0.488] 6809
+            //Elo difference: -8.4 +/- 6.2, LOS: 0.4 %, DrawRatio: 43.6 %
+            //
+            //Score of Leorik - 2.5.4c vs Leorik - 2.5.4a: 2892 - 2786 - 4322[0.505] 10000
+            //Elo difference: 3.7 +/- 5.1, LOS: 92.0 %, DrawRatio: 43.2 %
 
             //200 Iterations with 2M 25% new randomly sampled positions per Iteration (no MSE filter active, decreasing alpha 150->75)
             //Score of Leorik-2.5.4c vs Leorik-2.5.4a: 859 - 960 - 1428  [0.484] 3247

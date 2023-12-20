@@ -107,13 +107,18 @@ string[] BIN_PLAYOUT_FILES = {
     "2023-12-05T00.56.48_50K_D50_15RM_v3.playout.bin",
     "2023-12-05T19.46.50_50K_D50_14RM_v3.playout.bin",
     "2023-12-05T19.03.48_50K_D50_14RM_v3.playout.bin",
-    "2023-12-08T18.03.58_100K_D99_10RM_v3.playout.bin"
+    "2023-12-08T18.03.58_100K_D99_10RM_v3.playout.bin",
+    //"2023-12-10T02.14.13_50K_D99_13RM_v3.playout.bin",
+    //"2023-12-11T20.21.55_50K_D99_12RM_v3.playout.bin",
+    //"2023-12-13T19.00.28_50K_D99_16RM_v3.playout.bin",
+    //"2023-12-12T18.35.44_50K_D99_15RM_v3.playout.bin"
+    "2023-12-18T14.00.02_50K_12D_6R_50T_v4.playout.bin",
 };
 
 
 string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 string EPD_FILE = "DATA-L26-all.epd";
-string TD_FILE = "DATA-v3-7.wdl";
+string TD_FILE = "DATA-v4-1.wdl";
 string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
 string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
@@ -161,7 +166,7 @@ long t0 = Stopwatch.GetTimestamp();
 //DataUtils.LoadData(dataSource, DATA_PATH + EPD_FILE);
 
 //DataUtils.LoadData(dataSource, DATA_PATH + TD_FILE + ".epd");
-DataUtils.LoadBinaryData(dataSource, DATA_PATH + TD_FILE + ".bin", 9_000_000);
+DataUtils.LoadBinaryData(dataSource, DATA_PATH + TD_FILE + ".bin");
 //DataUtils.LoadWdlData(dataSource, BOOK_FILE_PATH);
 long t1 = Stopwatch.GetTimestamp();
 Console.WriteLine($"Took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
@@ -194,6 +199,7 @@ for (int it = 0; it < ITERATIONS; it++)
 {
     Console.WriteLine($"{it}/{ITERATIONS} ");
     CreateTrainingData(_tuningData, 0.5f);
+    CreateTrainingData(_validationData, 0.1f);
     double mse = TuneMaterialMicroBatches(_tuningData, _validationData, MATERIAL_ALPHA);
     if (mse < bestMse)
     {

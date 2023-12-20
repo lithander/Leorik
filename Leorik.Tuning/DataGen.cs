@@ -126,7 +126,7 @@ namespace Leorik.Tuning
 
     internal class DataGen
     {
-        const int VERSION = 3;
+        const int VERSION = 4;
         const int RANDOM_MOVES = 12;
         const int DEPTH = 12;
         const int NODE_COUNT = int.MaxValue;
@@ -143,15 +143,17 @@ namespace Leorik.Tuning
             Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
             Query("Nodes", NODE_COUNT, out int nodes);
             Query("Depth", DEPTH, out int depth);
+            Query("Temperature", 0, out int temp);
 
             Query("Path", OUTPUT_PATH, out string path);
 
-            string suffix = $"_{nodes / 1000}K_D{depth}_{randomMoves}RM_v{VERSION}";
+            string suffix = nodes == int.MaxValue ? "" : $"_{nodes / 1000}K";
+            suffix += $"_{depth}D_{randomMoves}R_{temp}T_v{VERSION}";
             string fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
             Query("File", fileName, out fileName);
 
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
-            RunDatagen(randomMoves, nodes, depth, writer, threads);
+            RunDatagen(randomMoves, nodes, depth, temp, writer, threads);
         }
 
         private static void Query(string label, int devaultValue, out int value)
@@ -178,7 +180,7 @@ namespace Leorik.Tuning
                 Console.WriteLine();
         }
 
-        private static void RunDatagen(int randomMoves, int nodes, int depth, IPlayoutWriter writer, int threads)
+        private static void RunDatagen(int randomMoves, int nodes, int depth, int temp, IPlayoutWriter writer, int threads)
         {
             long positionCount = 0;
             long startTicks = Stopwatch.GetTimestamp();
@@ -195,7 +197,7 @@ namespace Leorik.Tuning
                     {
                         moves.Clear();
                         scores.Clear();
-                        byte wdl = Playout(board.Clone(), depth, nodes, moves, scores);
+                        byte wdl = Playout(board.Clone(), depth, nodes, temp, moves, scores);
                         lock (writer)
                         {
                             positionCount += moves.Count;
@@ -228,10 +230,11 @@ namespace Leorik.Tuning
             return true;
         }
 
-        private static byte Playout(BoardState board, int maxDepth, int maxNodes, List<Move> moves, List<short> scores)
+        private static byte Playout(BoardState board, int maxDepth, int maxNodes, int temp, List<Move> moves, List<short> scores)
         {
             SearchOptions searchOptions = SearchOptions.Default;
             searchOptions.MaxNodes = maxNodes;
+            searchOptions.Temperature = temp;
             Dictionary<ulong, int> hashes = new Dictionary<ulong, int>();
             List<ulong> reps = new();
 

@@ -7,7 +7,8 @@ namespace Leorik.Search
         public long MaxNodes;
         public int NullMoveCutoff;
         public int Threads;
-
+        public int Temperature;
+        public int Seed;
         public readonly static SearchOptions Default = new();
 
         public SearchOptions()
@@ -15,6 +16,7 @@ namespace Leorik.Search
             Threads = 1;
             MaxNodes = long.MaxValue;
             NullMoveCutoff = 338;
+            Seed = -1;
         }
     }
 
