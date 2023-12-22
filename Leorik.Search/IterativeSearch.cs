@@ -165,7 +165,6 @@ namespace Leorik.Search
             //...      White vs Black: 2682 - 1737 - 5581[0.547] 10000
             //Elo difference: -0.2 +/ -4.5, LOS: 47.0 %, DrawRatio: 55.8 %
                         
-            //Finished game 9998 (Leorik-A vs Leorik-B): 1/2-1/2 {Draw by fifty moves rule}
             //Score of Leorik-B vs Leorik-A: 2164 - 2226 - 5610  [0.497] 10000
             //...      Leorik-B playing White: 1268 - 899 - 2833  [0.537] 5000
             //...      Leorik-B playing Black: 896 - 1327 - 2777  [0.457] 5000
@@ -219,7 +218,7 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool Play(int ply, ref PlayState state, ref MoveGen moveGen)
+        private bool Play(int ply, bool inCheck, ref PlayState state, ref MoveGen moveGen)
         {
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
@@ -261,7 +260,7 @@ namespace Leorik.Search
                         state.Stage = Stage.Quiets;
                 }
 
-                if (next.Play(current, ref Moves[state.Next++]))
+                if (next.Play(current, inCheck, ref Moves[state.Next++]))
                 {
                     state.PlayedMoves++;
                     return true;
@@ -423,7 +422,7 @@ namespace Leorik.Search
 
             //init staged move generation and play all moves
             PlayState playState = new(moveGen.Collect(bestMove));
-            while (Play(ply, ref playState, ref moveGen))
+            while (Play(ply, inCheck, ref playState, ref moveGen))
             {
                 //skip late quiet moves when almost in Qsearch depth
                 if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
@@ -507,7 +506,7 @@ namespace Leorik.Search
                 if (!inCheck && _see.IsBad(current, ref Moves[i]))
                     continue;
 
-                if (next.QuickPlay(current, ref Moves[i]))
+                if (next.QuickPlay(current, inCheck, ref Moves[i]))
                 {
                     movesPlayed = true;
                     int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);

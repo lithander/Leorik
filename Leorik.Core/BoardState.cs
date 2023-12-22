@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using Leorik.Core.Slider;
+using System.Runtime.CompilerServices;
 using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core
@@ -167,6 +168,29 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool QuickPlay(BoardState from, bool risky, ref Move move)
+        {
+            if (from.SideToMove == Color.White)
+            {
+                risky |= from.IsPotentiallyPinnedToWhiteKing(move.FromSquare);
+                PlayWhite(from, ref move);
+                if (risky && IsAttackedByBlack(LSB(Kings & White)))
+                    return false;
+            }
+            else
+            {
+                risky |= from.IsPotentiallyPinnedToBlackKing(move.FromSquare);
+                PlayBlack(from, ref move);
+                if (risky && IsAttackedByWhite(LSB(Kings & Black)))
+                    return false;
+            }
+            Eval = from.Eval;
+            //compared to normal play only parts of the eval are updated, no hash and no half-move clock
+            Eval.Update(this, ref move);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Play(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)
@@ -186,6 +210,46 @@ namespace Leorik.Core
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Play(BoardState from, bool risky, ref Move move)
+        {
+            if (from.SideToMove == Color.White)
+            {
+                risky |= from.IsPotentiallyPinnedToWhiteKing(move.FromSquare);
+                PlayWhite(from, ref move);
+                if (risky && IsAttackedByBlack(LSB(Kings & White)))
+                    return false;
+            }
+            else
+            {
+                risky |= from.IsPotentiallyPinnedToBlackKing(move.FromSquare);
+                PlayBlack(from, ref move);
+                if (risky && IsAttackedByWhite(LSB(Kings & Black)))
+                    return false;
+            }
+            Eval = from.Eval;
+            Eval.Update(this, ref move);
+            UpdateHash(from, ref move);
+            UpdateHalfmoveClock(from, ref move);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsPotentiallyPinnedToWhiteKing(byte fromSquare)
+        {
+            //return true;
+            //return (Blocker.QueenMask[LSB(Kings & White)] & (1UL << fromSquare)) > 0;
+            return (GetQueenTargets(Black | White, LSB(Kings & White)) & (1UL << fromSquare)) > 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsPotentiallyPinnedToBlackKing(byte fromSquare)
+        {
+            //return true;
+            //return (Blocker.QueenMask[LSB(Kings & Black)] & (1UL << fromSquare)) > 0;
+            return (GetQueenTargets(Black | White, LSB(Kings & Black)) & (1UL << fromSquare)) > 0;
         }
 
         public bool Play(Move move)

@@ -13,6 +13,7 @@
         public static readonly ulong[] VerticalMask = new ulong[64];
         public static readonly ulong[] BishopMask = new ulong[64];
         public static readonly ulong[] RookMask = new ulong[64];
+        public static readonly ulong[] QueenMask = new ulong[64];
 
         static Blocker()
         {
@@ -48,6 +49,7 @@
 
                 RookMask[square] = HorizontalMask[square] | VerticalMask[square];
 
+                QueenMask[square] = RookMask[square] | BishopMask[square] | (1UL << square);
             }
         }
     }
