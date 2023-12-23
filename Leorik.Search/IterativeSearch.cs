@@ -184,7 +184,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { New, Captures, Killers, Continuation, SortedQuiets, Quiets }
+        enum Stage { New, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -214,17 +214,10 @@ namespace Leorik.Search
                             state.Stage = Stage.Captures;
                             continue;
                         case Stage.Captures:
-                            state.Next = moveGen.CollectPlayableQuiet(current, _history.GetKiller(ply));
+                            state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.Killers;
                             continue;
-                        case Stage.Killers:
-                            state.Next = moveGen.CollectQuiets(current);
-                            state.Stage = Stage.Continuation;
-                            StripMove(state.Next, ref moveGen, _history.GetKiller(ply));
-                            continue;
-                        case Stage.Continuation:
-                        case Stage.SortedQuiets:
-                        case Stage.Quiets:
+                        default:
                             return false;
                     }
                 }
@@ -233,12 +226,17 @@ namespace Leorik.Search
                 {
                     PickBestCapture(state.Next, moveGen.Next);
                 }
-                else if (state.Stage == Stage.Continuation)
+                else if (state.Stage == Stage.Killers)
                 {
-                    if(!PickMove(state.Next, moveGen.Next, _history.GetCounter(ply)) && 
-                       !PickMove(state.Next, moveGen.Next, _history.GetFollowUp(ply)))
-                        PickBestHistory(state.Next, moveGen.Next);
-                    state.Stage = Stage.SortedQuiets;
+                    state.Stage = PickKiller(ply, state.Next, moveGen.Next);
+                }
+                else if (state.Stage == Stage.Counter)
+                {
+                    state.Stage = PickCounter(ply, state.Next, moveGen.Next);
+                }
+                else if (state.Stage == Stage.FollowUp)
+                {
+                    state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
                 }
                 else if (state.Stage == Stage.SortedQuiets)
                 {
@@ -255,7 +253,34 @@ namespace Leorik.Search
                 }
             }
         }
-         
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickKiller(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetKiller(ply)))
+                return Stage.Counter;
+            return PickCounter(ply, first, end);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickCounter(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetCounter(ply)))
+                return Stage.FollowUp;
+
+            return PickFollowUp(ply, first, end);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickFollowUp(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetFollowUp(ply)))
+                return Stage.SortedQuiets;
+
+            PickBestHistory(first, end);
+            return Stage.SortedQuiets;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsRepetition(int ply)
         {
