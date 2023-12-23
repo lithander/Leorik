@@ -53,11 +53,9 @@ namespace Leorik.Test
 
         private static void RunWacTestsTime()
         {
-            for (int i = 2; i <= 4; i++)
-            {
-                int budget = (int)Math.Pow(10, i);
-                CompareBestMove(File.OpenText("wac.epd"), budget, WAC_COUNT, DETAILS);
-            }
+            CompareBestMove(File.OpenText("wac.epd"), 100, WAC_COUNT, DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), 300, WAC_COUNT, DETAILS);
+            CompareBestMove(File.OpenText("wac.epd"), 1000, WAC_COUNT, DETAILS);
         }
 
         private static void RunWacTestsDepth()
@@ -135,7 +133,7 @@ namespace Leorik.Test
                 long t0 = Stopwatch.GetTimestamp();
                 long tStop = t0 + (timeBudgetMs * Stopwatch.Frequency) / 1000;
                 //search until running out of time
-                while (true)
+                while (search.Depth < 99)
                 {
                     search.SearchDeeper(() => Stopwatch.GetTimestamp() > tStop);
                     if (search.Aborted)
