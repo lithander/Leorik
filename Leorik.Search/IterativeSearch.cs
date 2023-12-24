@@ -305,19 +305,6 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void StripMove(int first, ref MoveGen moveGen, Move move)
-        {
-            for (int i = first; i < moveGen.Next; i++)
-            {
-                if (move == Moves[i])
-                {
-                    Moves[i--] = Moves[--moveGen.Next];
-                    break;
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool PickMove(int first, int end, Move move)
         {
             //find the move...
@@ -487,14 +474,14 @@ namespace Leorik.Search
                 bestMove = move;
                 ExtendPV(ply, remaining, bestMove);
 
-                if (playState.Stage >= Stage.Killers)
-                {
-                    _history.Good(ply, remaining, ref bestMove);
-                }
-
                 //beta cutoff?
-                if (score >= beta)
-                    return beta;
+                if (score < beta)
+                    continue;
+
+                if (playState.Stage >= Stage.Killers)
+                    _history.Good(ply, remaining, ref bestMove);
+
+                return beta;
             }
 
             //checkmate or draw?
