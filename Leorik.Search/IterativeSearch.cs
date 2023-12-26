@@ -474,14 +474,12 @@ namespace Leorik.Search
                 bestMove = move;
                 ExtendPV(ply, remaining, bestMove);
 
-                //beta cutoff?
-                if (score < beta)
-                    continue;
-
                 if (playState.Stage >= Stage.Killers)
                     _history.Good(ply, remaining, ref bestMove);
 
-                return beta;
+                //beta cutoff?
+                if (score >= beta)
+                    return beta;
             }
 
             //checkmate or draw?
