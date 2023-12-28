@@ -1,14 +1,14 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
-using System.Security.Principal;
+using static Leorik.Core.Evaluation;
 
 namespace Leorik.Search
 {
     public class IterativeSearch : ISearch
     {
         public const int MAX_PLY = 99;
-        private const int MIN_ALPHA = -Evaluation.CheckmateScore;
-        private const int MAX_BETA = Evaluation.CheckmateScore;
+        private const int MIN_ALPHA = -CheckmateScore;
+        private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
 
         private readonly BoardState[] Positions;
@@ -17,7 +17,6 @@ namespace Leorik.Search
         private readonly Move[] PrincipalVariations;
         private readonly int[] RootMoveOffsets;
         private readonly History _history;
-        private readonly KillerMoves _killers;
         private readonly StaticExchange _see = new();
         private readonly ulong[] _legacy; //hashes of positons that we need to eval as repetitions
         private readonly SearchOptions _options;
@@ -33,7 +32,6 @@ namespace Leorik.Search
         public IterativeSearch(BoardState board, SearchOptions options, ulong[] history)
         {
             _options = options;
-            _killers = new KillerMoves(2);
             _history = new History();
             _legacy = history ?? Array.Empty<ulong>();
 
@@ -111,7 +109,6 @@ namespace Leorik.Search
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Depth++;
-            _killers.Expand(Depth);
             _killSwitch = new KillSwitch(killSwitch);
             int score = EvaluateRoot(Depth);
             Score = (int)Positions[0].SideToMove * score;
@@ -150,6 +147,11 @@ namespace Leorik.Search
         {
             if (Aborted)
                 return Positions[ply].RelativeScore();
+            
+            alpha = Math.Max(alpha, MatedScore(ply));
+            beta = Math.Min(beta, MateScore(ply + 1));
+            if (alpha >= beta)
+                return beta;
 
             if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
@@ -174,7 +176,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { New, Captures, Killers, SortedQuiets, Quiets }
+        enum Stage { New, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -204,16 +206,10 @@ namespace Leorik.Search
                             state.Stage = Stage.Captures;
                             continue;
                         case Stage.Captures:
-                            state.Next = moveGen.CollectPlayableQuiets(current, _killers.GetSpan(ply));
+                            state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.Killers;
                             continue;
-                        case Stage.Killers:
-                            state.Next = moveGen.CollectQuiets(current);
-                            state.Stage = Stage.SortedQuiets;
-                            StripKillers(state.Next, ref moveGen, _killers.GetSpan(ply));
-                            continue;
-                        case Stage.SortedQuiets:
-                        case Stage.Quiets:
+                        default:
                             return false;
                     }
                 }
@@ -221,6 +217,18 @@ namespace Leorik.Search
                 if (state.Stage == Stage.Captures)
                 {
                     PickBestCapture(state.Next, moveGen.Next);
+                }
+                else if (state.Stage == Stage.Killers)
+                {
+                    state.Stage = PickKiller(ply, state.Next, moveGen.Next);
+                }
+                else if (state.Stage == Stage.Counter)
+                {
+                    state.Stage = PickCounter(ply, state.Next, moveGen.Next);
+                }
+                else if (state.Stage == Stage.FollowUp)
+                {
+                    state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
                 }
                 else if (state.Stage == Stage.SortedQuiets)
                 {
@@ -237,7 +245,34 @@ namespace Leorik.Search
                 }
             }
         }
-         
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickKiller(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetKiller(ply)))
+                return Stage.Counter;
+            return PickCounter(ply, first, end);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickCounter(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetCounter(ply)))
+                return Stage.FollowUp;
+
+            return PickFollowUp(ply, first, end);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Stage PickFollowUp(int ply, int first, int end)
+        {
+            if (PickMove(first, end, _history.GetFollowUp(ply)))
+                return Stage.SortedQuiets;
+
+            PickBestHistory(first, end);
+            return Stage.SortedQuiets;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsRepetition(int ply)
         {
@@ -262,14 +297,19 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void StripKillers(int first, ref MoveGen moveGen, Span<Move> span)
+        private bool PickMove(int first, int end, Move move)
         {
-            for (int i = first; i < moveGen.Next; i++)
+            //find the move...
+            for (int i = first + 1; i < end; i++)
             {
-                ref Move move = ref Moves[i];
-                if (span[0] == move || span[1] == move)
-                    Moves[i--] = Moves[--moveGen.Next];
+                if(Moves[i] == move)
+                {
+                    //...swap best with first
+                    (Moves[first], Moves[i]) = (Moves[i], Moves[first]);
+                    return true;
+                }
             }
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -366,7 +406,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (alpha <= MIN_ALPHA)
-                return root.InCheck() ? Evaluation.Checkmate(0) : 0;
+                return root.InCheck() ? MatedScore(0) : 0;
 
             return alpha;
         }
@@ -402,7 +442,7 @@ namespace Leorik.Search
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
-                _history.Played(remaining, ref move);
+                _history.Played(ply, remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
                 if (remaining > 1 && playState.PlayedMoves > 1)
@@ -430,10 +470,7 @@ namespace Leorik.Search
                 ExtendPV(ply, remaining, bestMove);
 
                 if (playState.Stage >= Stage.Killers)
-                {
-                    _history.Good(remaining, ref bestMove);
-                    _killers.Add(ply, bestMove);
-                }
+                    _history.Good(ply, remaining, ref bestMove);
 
                 //beta cutoff?
                 if (score >= beta)
@@ -442,7 +479,7 @@ namespace Leorik.Search
 
             //checkmate or draw?
             if (playState.PlayedMoves == 0)
-                return inCheck ? Evaluation.Checkmate(ply) : 0;
+                return inCheck ? MatedScore(ply) : 0;
 
             return alpha;
         }
@@ -511,7 +548,7 @@ namespace Leorik.Search
                 }
             }
 
-            return movesPlayed ? alpha : Evaluation.Checkmate(ply);
+            return movesPlayed ? alpha : MatedScore(ply);
         }
     }
 }
