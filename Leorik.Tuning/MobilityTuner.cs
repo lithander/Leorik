@@ -17,7 +17,8 @@ namespace Leorik.Tuning
         //TOTAL     = 82        = 88
 
         public const int Dimensions = 2;
-        public const int MobilityWeights = Dimensions * 88;
+        public const int MobilityEntries = 88;
+        public const int MobilityWeights = Dimensions * MobilityEntries;
 
         static Move[] _moveBuffer = new Move[225];
         static MoveGen _moveGen = new MoveGen(_moveBuffer, 0);
@@ -238,6 +239,18 @@ namespace Leorik.Tuning
                 Console.WriteLine();
 
                 Console.WriteLine();
+            }
+        }
+
+        internal static void CopyMobility(float[] featureWeights, (short, short)[] target)
+        {
+            int offset = FeatureTuner.FeatureWeights;
+            for (int i = 0; i < MobilityEntries; i++)
+            {
+                int k = offset + 2 * i;
+                short mg = (short)Math.Round(featureWeights[k]);
+                short eg = (short)Math.Round(featureWeights[k + 1]);
+                target[i] = (mg, eg);
             }
         }
     }

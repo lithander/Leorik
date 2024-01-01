@@ -172,5 +172,12 @@ namespace Leorik.Tuning
 
             //Resize(coefficients, Evaluation.PhaseSum);
         }
+
+        internal static void CopyPhase(float[] phaseWeights, short[] phaseValues)
+        {
+            //{ 0, N, B, R, Q, 0 };
+            for (int i = 0; i < 4; i++)
+                phaseValues[i + 1] = (short)Math.Round(phaseWeights[i]);
+        }
     }
 }
