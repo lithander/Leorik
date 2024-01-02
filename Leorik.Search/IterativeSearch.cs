@@ -13,8 +13,9 @@ namespace Leorik.Search
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
-        private readonly Move[] RootMoves;
+        public readonly Move[] RootMoves;
         private readonly Move[] PrincipalVariations;
+        private readonly int[] RootMoveOffsets;
         private readonly History _history;
         private readonly StaticExchange _see = new();
         private readonly ulong[] _legacy; //hashes of positons that we need to eval as repetitions
@@ -28,11 +29,11 @@ namespace Leorik.Search
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        public IterativeSearch(BoardState board, SearchOptions options, IEnumerable<BoardState> history)
+        public IterativeSearch(BoardState board, SearchOptions options, ulong[] history)
         {
             _options = options;
             _history = new History();
-            _legacy = SelectMoveHistory(history);
+            _legacy = history ?? Array.Empty<ulong>();
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
             MoveGen moveGen = new(Moves, 0);
@@ -49,21 +50,12 @@ namespace Leorik.Search
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
             Positions[0].Copy(board);
-        }
 
-        private static ulong[] SelectMoveHistory(IEnumerable<BoardState> history)
-        {
-            if(history == null)
-                return Array.Empty<ulong>();
-
-            List<ulong> reps = new();
-            foreach (BoardState state in history) 
-            {
-                if (state.HalfmoveClock == 0)
-                    reps.Clear();
-                reps.Add(state.ZobristHash);
-            }
-            return reps.ToArray();
+            //Initialize a random bonus added to each root move
+            Random random = _options.Seed >= 0 ? new(_options.Seed) : Random.Shared;
+            RootMoveOffsets = new int[RootMoves.Length];
+            for (int i = 0; i < RootMoveOffsets.Length; i++)
+                RootMoveOffsets[i] = random.Next(_options.Temperature);
         }
 
         public void Search(int maxDepth)
@@ -378,11 +370,14 @@ namespace Leorik.Search
             bool inCheck = root.InCheck();
 
             //init staged move generation and play all moves
-            for(int i = 0; i < RootMoves.Length; i++)
+            for (int i = 0; i < RootMoves.Length; i++)
             {
                 Move move = RootMoves[i];
                 if (!next.Play(root, ref move))
                     continue;
+
+                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
+                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (depth >= 2 && i > 0)
@@ -391,12 +386,12 @@ namespace Leorik.Search
                     int R = (move.CapturedPiece() != Piece.None || inCheck || next.InCheck()) ? 0 : 2;
 
                     //Fail low but with BONUS!
-                    if (EvaluateNext(0, depth - R, alpha, alpha + 1, moveGen) <= alpha)
+                    if (bonus + EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha)
                         continue;
                 }
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int score = EvaluateNext(0, depth, alpha, beta, moveGen);
+                int score = bonus + EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen);
 
                 if (score > alpha)
                 {

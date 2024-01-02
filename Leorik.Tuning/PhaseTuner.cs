@@ -12,10 +12,10 @@ namespace Leorik.Tuning
         {
             var c = new float[]
             {
-                300, //4xKnight
-                300, //4xBishop
-                500, //4xRook  
-                900, //2xQueen 
+                175, //4xKnight
+                225, //4xBishop
+                400, //4xRook  
+                950, //2xQueen 
             };
             //This needs to sum up to Evaluation.PhaseSum .e.g. 5000
             Resize(c, Evaluation.PhaseSum);
@@ -24,13 +24,13 @@ namespace Leorik.Tuning
 
         public static float[] GetLeorikPhaseCoefficients()
         {
-            return new float[]
-            {
+            return
+            [
                 Weights.PhaseValues[1], //Knight
                 Weights.PhaseValues[2], //Bishop
                 Weights.PhaseValues[3], //Rook
                 Weights.PhaseValues[4], //Queen
-            };
+            ];
         }
 
         public static byte[] CountPieces(BoardState pos)
@@ -143,15 +143,20 @@ namespace Leorik.Tuning
                 //invoked by the loop on each iteration in parallel
                 (entry, loop, accu) =>
                 {
+                    if(entry.Phase == 0)
+                        return accu;
+
                     float phase = GetPhase(entry.PieceCounts, coefficients);
                     float eval = Evaluate(entry, phase);
-                    float error = Sigmoid(eval, evalScaling) - entry.Result;
-                    float grad = Sigmoid(Evaluate(entry, 0), evalScaling) - Sigmoid(Evaluate(entry, 1), evalScaling);
+                    float sig = Sigmoid(eval, evalScaling);
+                    float error = sig - entry.Result;
+                    float grad = error * (sig*sig - 1) * entry.EndgameEval / (entry.Phase * Evaluation.PhaseSum);
 
                     for (int i = 0; i < N; i++)
                     {
-                        accu[i] += error * grad * entry.PieceCounts[i];// * coefficients[i];
+                        accu[i] += grad * entry.PieceCounts[i];
                     }
+
                     return accu;
                 },
                 //executed when each partition has completed.
@@ -166,6 +171,13 @@ namespace Leorik.Tuning
             );
 
             //Resize(coefficients, Evaluation.PhaseSum);
+        }
+
+        internal static void CopyPhase(float[] phaseWeights, short[] phaseValues)
+        {
+            //{ 0, N, B, R, Q, 0 };
+            for (int i = 0; i < 4; i++)
+                phaseValues[i + 1] = (short)Math.Round(phaseWeights[i]);
         }
     }
 }

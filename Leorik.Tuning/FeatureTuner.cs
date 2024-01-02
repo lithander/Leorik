@@ -42,7 +42,7 @@ namespace Leorik.Tuning
         public static float[] GetLeorikCoefficients()
         {
             float[] result = AllocArray();
-            int index = 0;
+            int index;
             for (int piece = 0; piece < 6; piece++)
             {
                 for (int sq = 0; sq < 64; sq++)
@@ -65,7 +65,7 @@ namespace Leorik.Tuning
             }
 
             index = FeatureWeights;
-            for (int i = 0; i < 88; i++)
+            for (int i = 0; i < MobilityTuner.MobilityEntries; i++)
             {
                 (short mg, short eg) = Weights.Mobility[i];
                 result[index++] = mg;
@@ -194,12 +194,31 @@ namespace Leorik.Tuning
                 for (int j = 0; j < 8; j++)
                 {
                     int k = offset + Dimensions * (8 * i + j);
-                    float mg = (int)Math.Round(coefficients[k]);
+                    short mg = (short)Math.Round(coefficients[k]);
                     Console.Write($"({mg,4}");
-                    float eg = (int)Math.Round(coefficients[k + 1]);
+                    short eg = (short)Math.Round(coefficients[k + 1]);
                     Console.Write($",{eg,4}), ");
                 }
                 Console.WriteLine();
+            }
+        }
+
+        internal static void CopyPawns(float[] coefficients, (short, short)[] target)
+        {
+            for (int table = 0; table < PawnStructureTables; table++)
+            {
+                int offsetSrc = Dimensions * (MaterialTables + table) * 64;
+                int offsetTgt = table * 64;
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        int k = offsetSrc + Dimensions * (8 * i + j);
+                        short mg = (short)Math.Round(coefficients[k]);
+                        short eg = (short)Math.Round(coefficients[k + 1]);
+                        target[offsetTgt + i * 8 + j] = (mg, eg);
+                    }
+                }
             }
         }
 
@@ -218,6 +237,22 @@ namespace Leorik.Tuning
                         Console.Write($"{cStr,6}f");
                 }
                 Console.WriteLine($", ");
+            }
+        }
+
+        internal static void CopyMaterial(float[] coefficients, float[] target)
+        {
+            for (int table = 0; table < MaterialTables; table++)
+            {
+                for (int i = 0; i < 64; i++)
+                {
+                    int k = Dimensions * (table * 64 + i);
+                    for (int d = 0; d < Dimensions; d++)
+                    {
+                        float c = coefficients[k + d];
+                        target[k + d] = c;
+                    }
+                }
             }
         }
 
@@ -272,10 +307,12 @@ namespace Leorik.Tuning
                 (entry, loop, accu) =>
                 {
                     float eval = Evaluate(entry, coefficients);
-                    float error = Sigmoid(eval, evalScaling) - entry.Result;
+                    float sig = Sigmoid(eval, evalScaling);
+                    float error = sig - entry.Result;
+                    float grad = error * (1 - sig * sig);
 
                     foreach (Feature f in entry.Features)
-                        accu[f.Index] += error * f.Value;
+                        accu[f.Index] += grad * f.Value;
 
                     return accu;
                 },

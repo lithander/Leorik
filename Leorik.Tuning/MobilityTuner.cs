@@ -17,7 +17,8 @@ namespace Leorik.Tuning
         //TOTAL     = 82        = 88
 
         public const int Dimensions = 2;
-        public const int MobilityWeights = Dimensions * 88;
+        public const int MobilityEntries = 88;
+        public const int MobilityWeights = Dimensions * MobilityEntries;
 
         static Move[] _moveBuffer = new Move[225];
         static MoveGen _moveGen = new MoveGen(_moveBuffer, 0);
@@ -130,11 +131,11 @@ namespace Leorik.Tuning
 
         internal static void DescribeFeaturePairs(int[] featurePairs, int offset)
         {
-            for (int order = Move.Order(Piece.Pawn); order < Move.Order(Piece.Queen); order++)
+            for (int order = Move.Order(Piece.Pawn); order <= Move.Order(Piece.King); order++)
             {
-                int zeroMoves = PieceMobilityIndices[order];
-                int maxMoves = PieceMobilityIndices[order - 1];
-                for (int tuple = zeroMoves; tuple < maxMoves; tuple++)
+                int i0 = PieceMobilityIndices[order];
+                int iNext = PieceMobilityIndices[order + 1];
+                for (int tuple = i0; tuple < iNext; tuple++)
                 {
                     int index = offset + 2 * tuple;
                     //mobility features are tuples of two elements
@@ -158,15 +159,56 @@ namespace Leorik.Tuning
             Console.WriteLine();
         }
 
-        internal static (int mg, int eg) Rebalance(Piece piece, int offset, float[] coefficients)
+        public static int[] GetFeatureDistribution(TuningData[] tuningData, int offset)
+        {
+            //first count the presence of all types of mobility features
+            int[] buckets = new int[MobilityWeights];
+            foreach (var td in tuningData)
+            {
+                foreach (var feature in td.Features)
+                {
+                    if (feature.Index >= offset)
+                    {
+                        bool eg = (feature.Index & 1) == 1;
+                        if ((eg && td.Phase > 0.5) || (!eg && td.Phase < 0.5)) //Only count EG features of EG positions
+                        {
+                            buckets[feature.Index - offset]++;
+                        }
+                    }
+                }
+            }
+
+            return buckets;
+        }
+
+        internal static (int mg, int eg) Rebalance(Piece piece, int offset, int[] buckets, float[] coefficients)
         {
             const int step = 2;
+            int Center(int from, int to)
+            {
+                int i, half, sum = 0;
+                //count entries of all buckets
+                for (i = from; i < to; i += step)
+                    sum += buckets[i];
+
+                half = sum / 2;
+                sum = 0;
+                //return index beyond which the 2nd half of entries starts
+                for (i = from; i < to && sum < half; i += step)
+                    sum += buckets[i];
+
+                return i;
+            }
+
             int order = Move.Order(piece);
             int i0 = PieceMobilityIndices[order];
             int iNext = PieceMobilityIndices[order + 1];
-            int iBase = i0 + (iNext - i0) / 2;
-            int mg = (int)coefficients[offset + iBase * step];
-            int eg = (int)coefficients[offset + iBase * step + 1];
+            
+            int iMaxMg = Center(2*i0, 2*iNext);
+            int mg = (int)coefficients[offset + iMaxMg];
+ 
+            int iMaxEg = Center(2*i0 + 1, 2 * iNext + 1);
+            int eg = (int)coefficients[offset + iMaxEg];
 
             for (int i = i0; i < iNext; i++)
             {
@@ -175,6 +217,41 @@ namespace Leorik.Tuning
                 coefficients[k + 1] -= eg;
             }
             return (mg, eg);
+        }
+
+        internal static void AnalyzeTuningData(TuningData[] tuningData, int offset)
+        {
+            int[] buckets = GetFeatureDistribution(tuningData, offset);
+            //now go over all the buckets and figure out per-piece information
+            for (int order = Move.Order(Piece.Pawn); order <= Move.Order(Piece.King); order++)
+            {
+                int i0 = PieceMobilityIndices[order];
+                int iNext = PieceMobilityIndices[order + 1];
+
+                //MG
+                for (int tuple = i0; tuple < iNext; tuple++)
+                    Console.Write($"{buckets[2 * tuple],9}");
+                Console.WriteLine();
+
+                //EG
+                for (int tuple = i0; tuple < iNext; tuple++)
+                    Console.Write($"{buckets[2 * tuple + 1],9}");
+                Console.WriteLine();
+
+                Console.WriteLine();
+            }
+        }
+
+        internal static void CopyMobility(float[] featureWeights, (short, short)[] target)
+        {
+            int offset = FeatureTuner.FeatureWeights;
+            for (int i = 0; i < MobilityEntries; i++)
+            {
+                int k = offset + 2 * i;
+                short mg = (short)Math.Round(featureWeights[k]);
+                short eg = (short)Math.Round(featureWeights[k + 1]);
+                target[i] = (mg, eg);
+            }
         }
     }
 }

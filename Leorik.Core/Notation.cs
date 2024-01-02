@@ -115,7 +115,7 @@ namespace Leorik.Core
             return result;
         }
 
-        public static string GetFen(BoardState board)
+        public static string GetFen(BoardState board, int fullMoveNumber = 1)
         {
             //Startpos in FEN looks like this: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             //https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
@@ -179,7 +179,7 @@ namespace Leorik.Core
                 fen.Append(GetSquareName(square));
             }
             //Halfmove Clock & Fullmove Counter
-            fen.Append($" {board.HalfmoveClock} 1");
+            fen.Append($" {board.HalfmoveClock} {fullMoveNumber}");
 
             return fen.ToString();
         }

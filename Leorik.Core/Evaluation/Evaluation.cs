@@ -28,7 +28,6 @@ namespace Leorik.Core
         {
             PawnStructure.Update(board, ref Pawns);
             MobilityEval.Update(board, ref Mobility);
-
             AddPieces(board);
             UpdateScore(board);
         }
