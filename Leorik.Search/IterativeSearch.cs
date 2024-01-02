@@ -176,7 +176,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { New, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
+        enum Stage { Best, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -201,7 +201,7 @@ namespace Leorik.Search
                 {
                     switch (state.Stage)
                     {
-                        case Stage.New:
+                        case Stage.Best:
                             state.Next = moveGen.CollectCaptures(current);
                             state.Stage = Stage.Captures;
                             continue;
@@ -445,7 +445,7 @@ namespace Leorik.Search
                 _history.Played(ply, remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (remaining > 1 && playState.PlayedMoves > 1)
+                if (remaining > 1 && playState.Stage > Stage.Best)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = 0;
