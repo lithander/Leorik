@@ -63,22 +63,11 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateFeatures(ref Move move)
         {
-            if ((move.MovingPiece() & Piece.ColorMask) == Piece.White)
-            {
-                Deactivate(move.MovingPiece(), move.FromSquare);
-                Activate(move.NewPiece(), move.ToSquare);
+            Deactivate(move.MovingPiece(), move.FromSquare);
+            Activate(move.NewPiece(), move.ToSquare);
 
-                if (move.CapturedPiece() != Piece.None)
-                    Deactivate(move.CapturedPiece(), move.ToSquare);
-            }
-            else
-            {
-                Deactivate(move.MovingPiece(), move.FromSquare);
-                Activate(move.NewPiece(), move.ToSquare);
-
-                if (move.CapturedPiece() != Piece.None)
-                    Deactivate(move.CapturedPiece(), move.ToSquare);
-            }
+            if (move.CapturedPiece() != Piece.None)
+                Deactivate(move.CapturedPiece(), move.ToSquare);
 
             switch (move.Flags)
             {
