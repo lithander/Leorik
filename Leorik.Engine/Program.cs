@@ -5,13 +5,14 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.5.6";
+        const string NAME_VERSION = "Leorik 2.7.0";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
 
         private static async Task Main()
         {
+            Network.InitDefaultNetwork("net010.nnue");
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
             _engine.Init();
@@ -87,6 +88,11 @@ namespace Leorik.Engine
             Console.WriteLine($"--------+------------------------");
             Console.WriteLine($"   White: {eval.Score, 5}");
             Console.WriteLine();
+        }
+
+        private static void PrintEval(NeuralNetEval eval)
+        {
+            Console.WriteLine($"{eval.Score}");
         }
 
         private static void UciSetOption(string[] token)

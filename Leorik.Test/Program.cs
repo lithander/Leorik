@@ -13,6 +13,8 @@ namespace Leorik.Test
 
         static void Main()
         {
+            Network.InitDefaultNetwork("D:/Projekte/Chess/Leorik/TD2/net010.nnue");
+
             Console.WriteLine("Leorik Tests v15");
             Console.WriteLine();
             unsafe
@@ -43,7 +45,7 @@ namespace Leorik.Test
 
             Console.WriteLine("Temperature:");
             if (!int.TryParse(Console.ReadLine(), out int temp))
-                temp = -1;
+                temp = 0;
 
             CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, temp, ParallelSearch, DETAILS);
             //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);

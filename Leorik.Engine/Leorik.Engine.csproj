@@ -12,4 +12,10 @@
     <ProjectReference Include="..\Leorik.Search\Leorik.Search.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="net010.nnue">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

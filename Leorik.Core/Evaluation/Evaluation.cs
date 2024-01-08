@@ -24,12 +24,24 @@ namespace Leorik.Core
         private Vector128<float> _white;
         private Vector128<float> _black;
 
-        public Evaluation(BoardState board) : this()
+        public Evaluation(BoardState board)
         {
             PawnStructure.Update(board, ref Pawns);
             MobilityEval.Update(board, ref Mobility);
             AddPieces(board);
             UpdateScore(board);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Evaluation(Evaluation eval)
+        {
+            this = eval;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Copy(Evaluation eval)
+        {
+            this = eval;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,7 +75,6 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvalEndgame() => Pawns.Endgame + (int)Material.Endgame + Mobility.Endgame;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateScore(BoardState board)
         {
             float score = EvalBase() + NormalizePhase(PhaseValue) * EvalEndgame();
