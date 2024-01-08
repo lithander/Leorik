@@ -98,14 +98,7 @@ namespace Leorik.Core
 
         private void ActivateAll(BoardState board)
         {
-            for (ulong bits = board.White; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits);
-                Piece piece = board.GetPiece(square);
-                Activate(piece, square);
-            }
-
-            for (ulong bits = board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
                 Piece piece = board.GetPiece(square);
