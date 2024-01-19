@@ -145,7 +145,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
-            if (Aborted)
+            if (Aborted |= ForcedCut(ply))
                 return Positions[ply].RelativeScore();
             
             alpha = Math.Max(alpha, MatedScore(ply));
@@ -347,7 +347,7 @@ namespace Leorik.Search
         {
             int eval = (int)Positions[0].SideToMove * Score;
             int window = 40;
-            while (true)
+            while (!Aborted)
             {
                 int alpha = eval - window;
                 int beta = eval + window;
