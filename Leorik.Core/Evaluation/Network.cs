@@ -18,6 +18,11 @@ namespace Leorik.Core
             public byte NameLen;
             public string Name;
 
+            public Header(ushort hiddenSize)
+            {
+                HiddenSize = hiddenSize;
+            }
+
             internal void Read(BinaryReader reader)
             {
                 //Read header
@@ -72,8 +77,9 @@ namespace Leorik.Core
             {
                 using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
                 {
-                    _header = default;
-                    _header.Read(reader);
+                    //_header = default;
+                    //_header.Read(reader);
+                    _header = new Header(128);
 
                     FeatureWeights = new short[InputSize * Layer1Size];
                     for (int i = 0; i < FeatureWeights.Length; i++)

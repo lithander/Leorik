@@ -7,14 +7,17 @@ namespace Leorik.Engine
     {
         const string NAME_VERSION = "Leorik 2.7.0";
         const string AUTHOR = "Thomas Jahn";
+        const string NNUE_FILE = "D:/Projekte/Chess/Leorik/TD2/NN/net001-128HL-DATA-L31-lowtemp.bin";
 
         static readonly Engine _engine = new();
 
         private static async Task Main()
         {
-            Network.InitDefaultNetwork("net010.nnue");
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
+            Network.InitDefaultNetwork(NNUE_FILE);
+            Console.WriteLine(NNUE_FILE);
+
             _engine.Init();
 
             while (_engine.Running)

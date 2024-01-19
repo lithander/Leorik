@@ -13,7 +13,7 @@ namespace Leorik.Test
 
         static void Main()
         {
-            Network.InitDefaultNetwork("D:/Projekte/Chess/Leorik/TD2/net010.nnue");
+            Network.InitDefaultNetwork("D:/Projekte/Chess/Leorik/TD2/NN/net001-256HL-DATA-L31-lowtemp.bin");
 
             Console.WriteLine("Leorik Tests v15");
             Console.WriteLine();

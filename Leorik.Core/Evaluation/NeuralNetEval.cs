@@ -7,8 +7,7 @@ namespace Leorik.Core
 {
     public struct NeuralNetEval
     {
-        const int Layer1Size = 768;
-        const int InputSize = 768;
+        const int Layer1Size = 128;
 
         public short[] Black;
         public short[] White;
@@ -141,7 +140,7 @@ namespace Leorik.Core
             //    accu[i] += featureWeights[offset + i];
 
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
-            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, InputSize));
+            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Layer1Size));
             for (int i = 0; i < accuVectors.Length; i++)
                 accuVectors[i] += weightsVectors[i];
         }
@@ -153,7 +152,7 @@ namespace Leorik.Core
             //    accu[i] -= featureWeights[offset + i];
 
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
-            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, InputSize));
+            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Layer1Size));
             for (int i = 0; i < accuVectors.Length; i++)
                 accuVectors[i] -= weightsVectors[i];
         }
@@ -174,8 +173,9 @@ namespace Leorik.Core
             int sum = ForwardCReLU(us, weights.AsSpan())
                     + ForwardCReLU(them, weights.AsSpan(Layer1Size));
 
-            const int NormalizationK = 1;
-            return sum / NormalizationK;
+            return sum;
+            //const int NormalizationK = 1;
+            //return sum / NormalizationK;
         }
 
         private int ForwardCReLU(short[] accu, Span<short> weights)
