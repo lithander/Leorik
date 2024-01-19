@@ -126,11 +126,12 @@ namespace Leorik.Tuning
 
     internal class DataGen
     {
-        const int VERSION = 4;
-        const int RANDOM_MOVES = 12;
-        const int DEPTH = 12;
-        const int NODE_COUNT = int.MaxValue;
+        const int VERSION = 5;
+        const int RANDOM_MOVES = 8;
+        const int HOT_MOVES = 6;
+        const int NODE_COUNT = 10_000;
         const string OUTPUT_PATH = "D:/Projekte/Chess/Leorik/TD2/";
+        const string DEFAULT_NET = "net001-128HL-DATA-L31-lowtemp.bin";
 
         public static void RunPrompt()
         {
@@ -140,20 +141,23 @@ namespace Leorik.Tuning
             Console.WriteLine();
 
             Query("Threads", 1, out int threads);
-            Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
             Query("Nodes", NODE_COUNT, out int nodes);
-            Query("Depth", DEPTH, out int depth);
+            Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
+            Query("Number of hot moves", HOT_MOVES, out int hotMoves);
             Query("Temperature", 0, out int temp);
-
+            Query("Net", DEFAULT_NET, out string net);
             Query("Path", OUTPUT_PATH, out string path);
 
             string suffix = nodes == int.MaxValue ? "" : $"_{nodes / 1000}K";
-            suffix += $"_{depth}D_{randomMoves}R_{temp}T_v{VERSION}";
+            suffix += $"_{randomMoves}R_{hotMoves}T{temp}_v{VERSION}";
             string fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
             Query("File", fileName, out fileName);
 
+            Network.InitDefaultNetwork(net);
+
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
-            RunDatagen(randomMoves, nodes, depth, temp, writer, threads);
+            //int nodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
+            RunDatagen(nodes, nodes * 3, randomMoves, hotMoves, temp, threads, writer);
         }
 
         private static void Query(string label, int devaultValue, out int value)
@@ -180,36 +184,43 @@ namespace Leorik.Tuning
                 Console.WriteLine();
         }
 
-        private static void RunDatagen(int randomMoves, int nodes, int depth, int temp, IPlayoutWriter writer, int threads)
+        private static void RunDatagen(int minNodes, int maxNodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
         {
-            long positionCount = 0;
-            long startTicks = Stopwatch.GetTimestamp();
+            long totalPositionCount = 0;
+            long totalStartTicks = Stopwatch.GetTimestamp();
+            long[] startTicks = new long[threads];
+
             Parallel.For(0, threads, i =>
             {
                 BoardState startPos = Notation.GetStartingPosition();
                 BoardState board = new BoardState();
-                List<Move> moves = new List<Move>();
-                List<short> scores = new List<short>();
+                List<Move> moveList = new List<Move>();
+                List<short> scoreList = new List<short>();
                 while (true)
                 {
+                    startTicks[i] = Stopwatch.GetTimestamp();
                     board.Copy(startPos);
                     if (PlayRandom(board, randomMoves))
                     {
-                        moves.Clear();
-                        scores.Clear();
-                        byte wdl = Playout(board.Clone(), depth, nodes, temp, moves, scores);
+                        moveList.Clear();
+                        scoreList.Clear();
+                        byte wdl = Playout(board.Clone(), minNodes, maxNodes, hotMoves, temp, moveList, scoreList);
+
+                        long now = Stopwatch.GetTimestamp();
+                        float duration = (float)(now - startTicks[i]) / Stopwatch.Frequency;
+                        float speed = moveList.Count / duration;
+
+                        totalPositionCount += moveList.Count;
+                        float totalSpeed = totalPositionCount * Stopwatch.Frequency / (float)(now - totalStartTicks);
+                        Console.WriteLine($"  T#{i} +{moveList.Count} in {duration:F2}s ({(int)speed}p/s) Total: {totalPositionCount} Speed: {(int)totalSpeed}p/s");
+
                         lock (writer)
                         {
-                            positionCount += moves.Count;
-                            long delta = Stopwatch.GetTimestamp() - startTicks;
-                            float positionsPerSecond = positionCount * Stopwatch.Frequency / (float)delta;
-                            Console.WriteLine($"T#{i} {positionCount} {(int)positionsPerSecond}pos/s");
-
-                            writer.Write(board, randomMoves, wdl, moves, scores);
+                            writer.Write(board, randomMoves, wdl, moveList, scoreList);
                         }
                     }
                 }
-            });            
+            });
         }
 
         private static bool PlayRandom(BoardState board, int randomMoves)
@@ -230,16 +241,22 @@ namespace Leorik.Tuning
             return true;
         }
 
-        private static byte Playout(BoardState board, int maxDepth, int maxNodes, int temp, List<Move> moves, List<short> scores)
+        private static byte Playout(BoardState board, int minNodes, int maxNodes, int hotMoves, int temp, List<Move> moves, List<short> scores)
         {
+            Transpositions.IncreaseAge();
+
             SearchOptions searchOptions = SearchOptions.Default;
-            searchOptions.MaxNodes = maxNodes;
             searchOptions.Temperature = temp;
+            searchOptions.MaxNodes = maxNodes;
             Dictionary<ulong, int> hashes = new Dictionary<ulong, int>();
             List<ulong> reps = new();
 
             while (true)
             {
+                //done playing hot moves?
+                if(moves.Count >= hotMoves)
+                    searchOptions.Temperature = 0;
+
                 if (board.HalfmoveClock == 0)
                     reps.Clear();
                 reps.Add(board.ZobristHash);
@@ -247,7 +264,7 @@ namespace Leorik.Tuning
                 Move bestMove = default;
                 var search = new IterativeSearch(board, searchOptions, reps.ToArray());
                 int score = 0;
-                while (search.Depth < maxDepth)
+                while (search.NodesVisited < minNodes && search.Depth < IterativeSearch.MAX_PLY)
                 {
                     search.SearchDeeper();
                     if (search.Aborted || search.PrincipalVariation.Length == 0)

@@ -109,10 +109,10 @@ string[] BIN_PLAYOUT_FILES = {
     "2023-12-05T19.46.50_50K_D50_14RM_v3.playout.bin",
     "2023-12-05T19.03.48_50K_D50_14RM_v3.playout.bin",
     "2023-12-08T18.03.58_100K_D99_10RM_v3.playout.bin",
-    //"2023-12-10T02.14.13_50K_D99_13RM_v3.playout.bin",
-    //"2023-12-11T20.21.55_50K_D99_12RM_v3.playout.bin",
-    //"2023-12-13T19.00.28_50K_D99_16RM_v3.playout.bin",
-    //"2023-12-12T18.35.44_50K_D99_15RM_v3.playout.bin",
+    "2023-12-10T02.14.13_50K_D99_13RM_v3.playout.bin",
+    "2023-12-11T20.21.55_50K_D99_12RM_v3.playout.bin",
+    "2023-12-13T19.00.28_50K_D99_16RM_v3.playout.bin",
+    "2023-12-12T18.35.44_50K_D99_15RM_v3.playout.bin",
     "2023-12-18T14.00.02_50K_12D_6R_50T_v4.playout.bin",
     //"2023-12-19T19.00.48_50K_12D_6R_100T_v4.playout.bin",
     //"2023-12-20T11.38.23_50K_12D_6R_75T_v4.playout.bin",
@@ -120,15 +120,19 @@ string[] BIN_PLAYOUT_FILES = {
     "2023-12-22T18.52.22_50K_12D_8R_50T_v4.playout.bin",
     //"2023-12-23T14.38.40_50K_12D_8R_75T_v4.playout.bin",
     "2023-12-24T00.44.25_50K_12D_8R_33T_v4.playout.bin",
-    "2023-12-24T13.23.52_50K_12D_8R_20T_v4.playout.bin"
+    "2023-12-24T13.23.52_50K_12D_8R_20T_v4.playout.bin",
+    "2024-01-08T15.35.58_100K_9D_10R_0T_v4.playout.bin",
+    "2024-01-09T01.23.27_100K_9D_9R_0T_v4.playout.bin"
 };
 
 
-string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
-string EPD_FILE = "DATA-L26-all.epd";
-string TD_FILE = "DATA-L31-select.wdl";
-string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
-string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
+const string NNET = "net001-128HL-DATA-L31-lowtemp.bin";
+
+const string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
+const string EPD_FILE = "DATA-L26-all.epd";
+const string TD_FILE = "DATA-L31-090124-dense.wdl";
+const string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
+const string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
 int FEN_PER_GAME = 10;
 int SKIP_OUTLIERS = 200;
@@ -145,11 +149,14 @@ int PHASE_BATCHES = 1000;
 int LARGE_BATCH_SIZE = 5_000_000;
 int MINI_BATCH_SIZE = 10_000;
 
-//DataGen.RunPrompt();
+DataGen.RunPrompt();
+return;
 
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
 Console.WriteLine(" Leorik Tuning v31 ");
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
+Console.WriteLine();
+Console.WriteLine($"NNET = {NNET}");
 Console.WriteLine();
 Console.WriteLine($"FEN_PER_GAME = {FEN_PER_GAME}");
 Console.WriteLine($"SKIP_OUTLIERS = {SKIP_OUTLIERS}");
@@ -164,7 +171,9 @@ Console.WriteLine();
 Console.WriteLine($"PHASE_ALPHA = {PHASE_ALPHA}");
 Console.WriteLine($"PHASE_BATCHES = {PHASE_BATCHES}");
 Console.WriteLine();
+Network.InitDefaultNetwork(NNET);
 //BitboardUtils.Repl();
+//return;
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //DoublePlayoutWriter.ValidatePlayout(DATA_PATH + "2023-11-23T10.39.08_100K_12RM_v1.playout");
 //ExtractBinaryToBinary(BIN_PLAYOUT_FILES, TD_FILE);
@@ -375,7 +384,8 @@ void ValidateLeorikEval(TuningData[] data, float errorThreshold)
     {
         TuningData entry = data[i];
         float eval = FeatureTuner.Evaluate(entry, cFeatures);
-        float eval2 = entry.Position.Eval.RawScore;
+        var hce = new Evaluation(entry.Position);
+        float eval2 = hce.RawScore;
         float error = Math.Abs(eval - eval2);
         accError += error;
         maxError = Math.Max(error, maxError);
@@ -383,7 +393,7 @@ void ValidateLeorikEval(TuningData[] data, float errorThreshold)
         if (Math.Abs(error) > errorThreshold)
         {
             Console.WriteLine(Notation.GetFen(entry.Position));
-            Console.WriteLine($"Phase: {entry.Phase} vs {entry.Position.Eval.Phase}");
+            Console.WriteLine($"Phase: {entry.Phase} vs {hce.Phase}");
             Console.WriteLine($"{i}: {eval} vs {eval2} Delta: {error}");
         }
     }

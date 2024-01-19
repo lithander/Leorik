@@ -25,10 +25,9 @@ namespace Leorik.Tuning
                     Console.WriteLine();
                 }
                 BoardState board = Notation.GetBoardState(fen);
-                //Console.WriteLine(Notation.GetFen(board));
-                Print(board.Pawns, "All Pawns");
-                Print(Features.GetBackwardWhitePawns(board), "BackwardWhitePawns");
-                Print(Features.GetBackwardBlackPawns(board), "BackwardBlackPawns");
+                NeuralNetEval nneval = new NeuralNetEval(board);
+                Evaluation eval = new Evaluation(board);
+                Console.WriteLine($"NNUE: {nneval.Score} vs HCE: {eval.Score}");
             }
         }
 
