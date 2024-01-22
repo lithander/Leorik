@@ -169,7 +169,7 @@ namespace Leorik.Core
             }
             Eval.Copy(from.Eval);
             //compared to normal play only parts of the eval are updated, no hash and no half-move clock
-            Eval.Update(this, ref move);
+            Eval.Update(SideToMove, ref move);
             return true;
         }
 
@@ -189,7 +189,7 @@ namespace Leorik.Core
                     return false;
             }
             Eval.Copy(from.Eval);
-            Eval.Update(this, ref move);
+            Eval.Update(SideToMove, ref move);
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;

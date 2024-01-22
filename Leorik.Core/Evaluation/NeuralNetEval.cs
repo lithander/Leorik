@@ -38,6 +38,7 @@ namespace Leorik.Core
         {
             Array.Copy(other.Black, Black, Layer1Size);
             Array.Copy(other.White, White, Layer1Size);
+            Score = other.Score;
         }
 
         public void Update(BoardState board)
@@ -51,11 +52,11 @@ namespace Leorik.Core
             Score = (short)(stm * eval);
         }
 
-        public void Update(BoardState board, ref Move move)
+        public void Update(Color sideToMove, ref Move move)
         {
             UpdateFeatures(ref move);
-            int stm = (int)board.SideToMove;
-            int eval = Evaluate(board.SideToMove);
+            int stm = (int)sideToMove;
+            int eval = Evaluate(sideToMove);
             Score = (short)(stm * eval);
         }
 

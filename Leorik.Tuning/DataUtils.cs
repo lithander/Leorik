@@ -211,7 +211,7 @@ namespace Leorik.Tuning
                 BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
 
                 //Console.WriteLine(Notation.GetFen(board));
-                //int skipMoves = rnd.Next(0, 10);
+                int skipMoves = rnd.Next(0, 10);
                 for (int iMove = 0; iMove < extra; iMove++)
                 {
                     Move move = (Move)reader.ReadInt32();
@@ -219,8 +219,8 @@ namespace Leorik.Tuning
                     short score = reader.ReadInt16();
                     //Console.WriteLine($"{Notation.GetMoveName(move)} {score}");
 
-                    //if (--skipMoves >= 0)
-                    //    continue;
+                    if (--skipMoves >= 0)
+                        continue;
 
                     //skip positions with too few pieces on the board
                     int pieceCount = Bitboard.PopCount(board.Black | board.White);
@@ -268,7 +268,7 @@ namespace Leorik.Tuning
                     positions++;
                     packed.Write(output);
 
-                    //skipMoves = rnd.Next(5, 12);
+                    skipMoves = rnd.Next(5, 12);
                 }
             }
             return (games, positions);

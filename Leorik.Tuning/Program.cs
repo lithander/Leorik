@@ -122,7 +122,18 @@ string[] BIN_PLAYOUT_FILES = {
     "2023-12-24T00.44.25_50K_12D_8R_33T_v4.playout.bin",
     "2023-12-24T13.23.52_50K_12D_8R_20T_v4.playout.bin",
     "2024-01-08T15.35.58_100K_9D_10R_0T_v4.playout.bin",
-    "2024-01-09T01.23.27_100K_9D_9R_0T_v4.playout.bin"
+    "2024-01-09T01.23.27_100K_9D_9R_0T_v4.playout.bin",
+    "2024-01-09T21.23.53_100K_9D_11R_0T_v4.playout.bin",
+    "2024-01-10T03.36.23_100K_9D_9R_30T_v4.playout.bin",
+    "2024-01-10T18.50.45_100K_9D_8R_30T_v4.playout.bin",
+
+    "2024-01-18T12.08.38_10K_8R_8T50_v5.playout.bin",
+    "2024-01-19T19.02.34_10K_7R_8T50_v5.playout.bin",
+    "2024-01-20T04.53.18_10K_9R_8T50_v5.playout.bin",
+    "2024-01-20T04.50.48_10K_9R_6T0_v5.playout.bin",
+    "2024-01-19T20.19.18_10K_8R_6T0_v5.playout.bin",
+    "2024-01-18T08.47.14_10K_8R_6T0_v5.playout.bin",
+    "2024-01-20T12.07.57_10K_7R_6T0_v5.playout.bin"
 };
 
 
@@ -130,7 +141,7 @@ const string NNET = "net001-128HL-DATA-L31-lowtemp.bin";
 
 const string DATA_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 const string EPD_FILE = "DATA-L26-all.epd";
-const string TD_FILE = "DATA-L31-090124-dense.wdl";
+const string TD_FILE = "DATA-210124-v345-sparse.wdl";
 const string BIN_FILE_PATH = "C:/Lager/d7-v3-50M.bin";
 const string BOOK_FILE_PATH = "D:/Projekte/Chess/Leorik/TD2/lichess-big3-resolved.book";
 
@@ -149,7 +160,12 @@ int PHASE_BATCHES = 1000;
 int LARGE_BATCH_SIZE = 5_000_000;
 int MINI_BATCH_SIZE = 10_000;
 
-DataGen.RunPrompt();
+//DataGen.RunPrompt();
+//return;
+
+Network.InitDefaultNetwork(NNET);
+//BitboardUtils.Repl();
+ExtractBinaryToBinary(BIN_PLAYOUT_FILES, TD_FILE);
 return;
 
 Console.WriteLine("~~~~~~~~~~~~~~~~~~~");
@@ -171,12 +187,9 @@ Console.WriteLine();
 Console.WriteLine($"PHASE_ALPHA = {PHASE_ALPHA}");
 Console.WriteLine($"PHASE_BATCHES = {PHASE_BATCHES}");
 Console.WriteLine();
-Network.InitDefaultNetwork(NNET);
-//BitboardUtils.Repl();
-//return;
+
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 //DoublePlayoutWriter.ValidatePlayout(DATA_PATH + "2023-11-23T10.39.08_100K_12RM_v1.playout");
-//ExtractBinaryToBinary(BIN_PLAYOUT_FILES, TD_FILE);
 List<Data> dataSource = new List<Data>();
 long t0 = Stopwatch.GetTimestamp();
 DataUtils.LoadData(dataSource, DATA_PATH + EPD_FILE);

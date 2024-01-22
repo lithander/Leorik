@@ -5,9 +5,8 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.7.0";
+        const string NAME_VERSION = "Leorik 2.7.1";
         const string AUTHOR = "Thomas Jahn";
-        const string NNUE_FILE = "D:/Projekte/Chess/Leorik/TD2/NN/net001-128HL-DATA-L31-lowtemp.bin";
 
         static readonly Engine _engine = new();
 
@@ -15,8 +14,8 @@ namespace Leorik.Engine
         {
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
-            Network.InitDefaultNetwork(NNUE_FILE);
-            Console.WriteLine(NNUE_FILE);
+            if (!LoadDefaultNetwork())
+                return;
 
             _engine.Init();
 
@@ -25,6 +24,23 @@ namespace Leorik.Engine
                 string input = await Task.Run(Console.ReadLine);
                 ParseUciCommand(input);
             }
+        }
+
+        private static bool LoadDefaultNetwork()
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string[] files = Directory.GetFiles(currentDirectory, "*.nnue");
+            if (files.Length > 1)
+                Console.WriteLine("Warning: Multiple network files found!");
+            if (files.Length == 0)
+            {
+                Console.WriteLine("Error: No network file found!");
+                return false;
+            }
+            string fileName = Path.GetFileName(files[0]);
+            Console.WriteLine($"Loading NNUE weights from {fileName}!");
+            Network.InitDefaultNetwork(files[0]);
+            return true;
         }
 
         private static void ParseUciCommand(string input)
