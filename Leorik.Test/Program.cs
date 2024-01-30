@@ -1,7 +1,6 @@
 ﻿using Leorik.Core;
 using Leorik.Search;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace Leorik.Test
 {
@@ -13,7 +12,7 @@ namespace Leorik.Test
 
         static void Main()
         {
-            Network.InitDefaultNetwork("D:/Projekte/Chess/Leorik/TD2/NN/net001-256HL-DATA-L31-lowtemp.bin");
+            Network.LoadDefaultNetwork();
 
             Console.WriteLine("Leorik Tests v15");
             Console.WriteLine();
@@ -25,6 +24,7 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
+            CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
             //RunSeeTests();
 
             Console.WriteLine("Depth:");
@@ -71,7 +71,6 @@ namespace Leorik.Test
                 CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, 1, -1, ParallelSearch, DETAILS);
             }
         }
-
 
         private delegate Span<Move> SearchDelegate(BoardState state, int depth, int threads, int temperature);
 
@@ -207,6 +206,9 @@ namespace Leorik.Test
                 foreach(var token in scoreString.Split()) 
                 {
                     int split = token.IndexOf('=');
+                    if (split == -1)
+                        break;
+
                     string moveStr = token.Substring(0, split);
                     string scoreStr = token.Substring(split+1);
                     Move bestMove = Notation.GetMove(board, moveStr);
@@ -418,374 +420,6 @@ namespace Leorik.Test
             Score = search.Score;
             NodesVisited = search.NodesVisited;
             return search.PrincipalVariation;
-        }
-
-
-        /*********************/
-        /***    NegaMax     ***/
-        /*********************/
-
-        private static Span<Move> NegaMaxSearch(BoardState board, int depth)
-        {
-            NodesVisited = 0;
-            Positions[0].Copy(board);
-            BoardState current = Positions[0];
-            BoardState next = Positions[0 + 1];
-
-            int best = -1;
-            int bestScore = -Evaluation.CheckmateScore;
-            int stm = (int)board.SideToMove;
-            MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    int score = -NegaMax(1, depth - 1, moveGen);
-                    //int score = stm * next.Eval.Score;
-                    if (score <= bestScore)
-                        continue;
-
-                    best = i;
-                    bestScore = score;
-                }
-            }
-            Score = stm * bestScore;
-            return new Span<Move>(Moves, best, 1);
-        }
-
-        private static int NegaMax(int depth, int remaining, MoveGen moveGen)
-        {
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-            int score;
-            int max = -Evaluation.CheckmateScore;
-            int stm = (int)current.SideToMove;
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    if (remaining > 1)
-                        score = -NegaMax(depth + 1, remaining - 1, moveGen);
-                    else
-                        score = stm * next.Eval.Score;
-
-                    if (score > max)
-                        max = score;
-                }
-            }
-            return max;
-        }
-
-        /************************/
-        /***    AlphaBeta     ***/
-        /************************/
-
-        private static Span<Move> AlphaBetaSearch(BoardState board, int depth)
-        {
-            NodesVisited = 0;
-            Positions[0].Copy(board);
-            BoardState current = Positions[0];
-            BoardState next = Positions[0 + 1];
-
-            int best = -1;
-            int alpha = -Evaluation.CheckmateScore;
-            int beta = Evaluation.CheckmateScore;
-            int stm = (int)board.SideToMove;
-            MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    int score = -NegaAlphaBeta(1, depth - 1, -beta, -alpha, moveGen);
-                    //int score = stm * next.Eval.Score;
-                    if (score <= alpha)
-                        continue;
-
-                    best = i;
-                    alpha = score;
-                }
-            }
-            Score = stm * alpha;
-            return new Span<Move>(Moves, best, 1);
-        }
-
-        private static int NegaAlphaBeta(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
-        {
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-            int score;
-            int stm = (int)current.SideToMove;
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    if (remaining > 1)
-                        score = -NegaAlphaBeta(depth + 1, remaining - 1, -beta, -alpha, moveGen);
-                    else
-                        score = stm * next.Eval.Score;
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-            return alpha;
-        }
-
-        /*********************/
-        /***    MvvLva     ***/
-        /*********************/
-
-        private static Span<Move> MvvLvaSearch(BoardState board, int depth)
-        {
-            NodesVisited = 0;
-            Positions[0].Copy(board);
-            BoardState current = Positions[0];
-            BoardState next = Positions[0 + 1];
-
-            int best = -1;
-            int alpha = -Evaluation.CheckmateScore;
-            int beta = Evaluation.CheckmateScore;
-            int stm = (int)board.SideToMove;
-            MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    int score = -NegaMvvLva(1, depth - 1, -beta, -alpha, moveGen);
-                    //int score = stm * next.Eval.Score;
-                    if (score <= alpha)
-                        continue;
-
-                    best = i;
-                    alpha = score;
-                }
-            }
-            Score = stm * alpha;
-            return new Span<Move>(Moves, best, 1);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void PickBestMove(int first, int end)
-        {
-            //we want to swap the first move with the best move
-            int best = first;
-            int bestScore = Moves[first].MvvLvaScore();
-            for (int i = first + 1; i < end; i++)
-            {
-                int score = Moves[i].MvvLvaScore();
-                if (score >= bestScore)
-                {
-                    best = i;
-                    bestScore = score;
-                }
-            }
-            //swap best with first
-            if (best != first)
-            {
-                Move temp = Moves[best];
-                Moves[best] = Moves[first];
-                Moves[first] = temp;
-            }
-        }
-
-        private static int NegaMvvLva(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
-        {
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-            int score;
-            int stm = (int)current.SideToMove;
-            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
-            {
-                PickBestMove(i, moveGen.Next);
-
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    if (remaining > 1)
-                        score = -NegaMvvLva(depth + 1, remaining - 1, -beta, -alpha, moveGen);
-                    else
-                        score = stm * next.Eval.Score;
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    NodesVisited++;
-                    if (remaining > 1)
-                        score = -NegaMvvLva(depth + 1, remaining - 1, -beta, -alpha, moveGen);
-                    else
-                        score = stm * next.Eval.Score;
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-            return alpha;
-        }
-
-        /*********************/
-        /***    QSearch    ***/
-        /*********************/
-
-        private static Span<Move> QuiescenceSearch(BoardState board, int depth)
-        {
-            NodesVisited = 0;
-            Positions[0].Copy(board);
-            BoardState current = Positions[0];
-            BoardState next = Positions[0 + 1];
-
-            int best = -1;
-            int alpha = -Evaluation.CheckmateScore;
-            int beta = Evaluation.CheckmateScore;
-            int stm = (int)board.SideToMove;
-            MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    int score = -QSearch(1, depth - 1, -beta, -alpha, moveGen);
-                    if (score > alpha)
-                    {
-                        best = i;
-                        alpha = score;
-                    }
-                }
-            }
-            Score = stm * alpha;
-            return new Span<Move>(Moves, best, 1);
-        }
-
-
-        private static int QSearch(int depth, int remaining, int alpha, int beta, MoveGen moveGen)
-        {
-            if (remaining == 0)
-                return EvaluateQuiet(depth, alpha, beta, moveGen);
-
-            NodesVisited++;
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-            int score;
-            bool movesPlayed = true;
-
-            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
-            {
-                PickBestMove(i, moveGen.Next);
-
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    movesPlayed = true;
-                    score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    movesPlayed = true;
-                    score = -QSearch(depth + 1, remaining - 1, -beta, -alpha, moveGen);
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-
-            //checkmate or draw?
-            if (!movesPlayed)
-                return current.InCheck() ? Evaluation.Checkmate(current.SideToMove, depth) : 0;
-
-            return alpha;
-        }
-
-        private static int EvaluateQuiet(int depth, int alpha, int beta, MoveGen moveGen)
-        {
-            NodesVisited++;
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-
-            bool inCheck = current.InCheck();
-
-            //if inCheck we can't use standPat, need to escape check!
-            if (!inCheck)
-            {
-                int standPatScore = (int)current.SideToMove * current.Eval.Score;
-
-                if (standPatScore >= beta)
-                    return beta;
-
-                if (standPatScore > alpha)
-                    alpha = standPatScore;
-            }
-
-            bool movesPlayed = false;
-            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
-            {
-                PickBestMove(i, moveGen.Next);
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    movesPlayed = true;
-                    int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-
-            if (inCheck)
-            {
-                for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
-                {
-                    if (next.QuickPlay(current, ref Moves[i]))
-                    {
-                        movesPlayed = true;
-                        int score = -EvaluateQuiet(depth + 1, -beta, -alpha, moveGen);
-
-                        if (score >= beta)
-                            return beta;
-
-                        if (score > alpha)
-                            alpha = score;
-                    }
-                }
-
-                if (!movesPlayed)
-                    return Evaluation.Checkmate(current.SideToMove, depth);
-            }
-
-            //stalemate?
-            //if (expandedNodes == 0 && !LegalMoves.HasMoves(position))
-            //    return 0;
-
-            return alpha;
         }
     }
 }

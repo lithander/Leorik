@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.7.1";
+        const string NAME_VERSION = "Leorik 2.7.2";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -14,7 +14,7 @@ namespace Leorik.Engine
         {
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
-            if (!LoadDefaultNetwork())
+            if (!Network.LoadDefaultNetwork())
                 return;
 
             _engine.Init();
@@ -24,23 +24,6 @@ namespace Leorik.Engine
                 string input = await Task.Run(Console.ReadLine);
                 ParseUciCommand(input);
             }
-        }
-
-        private static bool LoadDefaultNetwork()
-        {
-            string currentDirectory = Directory.GetCurrentDirectory();
-            string[] files = Directory.GetFiles(currentDirectory, "*.nnue");
-            if (files.Length > 1)
-                Console.WriteLine("Warning: Multiple network files found!");
-            if (files.Length == 0)
-            {
-                Console.WriteLine("Error: No network file found!");
-                return false;
-            }
-            string fileName = Path.GetFileName(files[0]);
-            Console.WriteLine($"Loading NNUE weights from {fileName}!");
-            Network.InitDefaultNetwork(files[0]);
-            return true;
         }
 
         private static void ParseUciCommand(string input)
@@ -87,7 +70,7 @@ namespace Leorik.Engine
                     Console.WriteLine(_engine.GetFen());
                     break;
                 case "eval":
-                    PrintEval(_engine.GetEval());
+                    Console.WriteLine($"{_engine.GetEval().Score}");
                     break;
                 case "flip":
                     _engine.Flip();
@@ -96,22 +79,6 @@ namespace Leorik.Engine
                     Console.WriteLine($"Unknown command: {input}");
                     return;
             }
-        }
-
-        private static void PrintEval(Evaluation eval)
-        {
-            Console.WriteLine($"             MG  +  EG");
-            Console.WriteLine($"Material: {(int)eval.Material.Base,5} {(int)eval.Material.Endgame,6} * {eval.Phase:0.##}");
-            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {eval.Phase:0.##}");
-            Console.WriteLine($"Mobility: {eval.Mobility.Base,5}");
-            Console.WriteLine($"--------+------------------------");
-            Console.WriteLine($"   White: {eval.Score, 5}");
-            Console.WriteLine();
-        }
-
-        private static void PrintEval(NeuralNetEval eval)
-        {
-            Console.WriteLine($"{eval.Score}");
         }
 
         private static void UciSetOption(string[] token)

@@ -4,48 +4,6 @@ namespace Leorik.Core
 {
     public class Network
     {
-        struct Header
-        {
-            public string Magic;
-            public ushort Version;
-            public ushort Flags;
-            public byte Padding;
-            public byte Arch;
-            public byte Activation;
-            public ushort HiddenSize;
-            public byte InputBuckets;
-            public byte OutputBuckets;
-            public byte NameLen;
-            public string Name;
-
-            public Header(ushort hiddenSize)
-            {
-                HiddenSize = hiddenSize;
-            }
-
-            internal void Read(BinaryReader reader)
-            {
-                //Read header
-                Magic = new string(reader.ReadChars(4));
-                if (Magic != "CBNF")
-                    throw new Exception("Invalid magic bytes in network header");
-
-                Version = reader.ReadUInt16();
-                if(Version != 1)
-                    throw new Exception($"Unsupported Header Version. Expected 1 but got {Version}");
-
-                Flags = reader.ReadUInt16();
-                Padding = reader.ReadByte();
-                Arch = reader.ReadByte();
-                Activation = reader.ReadByte();
-                HiddenSize = reader.ReadUInt16();
-                InputBuckets = reader.ReadByte();
-                OutputBuckets = reader.ReadByte();
-                NameLen = reader.ReadByte();
-                Name = new string(reader.ReadChars(NameLen));
-                reader.BaseStream.Position += 48 - NameLen;
-            }
-        }
         // current arch: (768->768)x2->1, ClippedReLU
         // perspective
         //const int ArchId = 1;
@@ -55,19 +13,38 @@ namespace Leorik.Core
         //const int Q = 255 * 64;
 
         public static Network Default { get; private set; }
-        public static void InitDefaultNetwork(string filePath)
+
+        public static void LoadDefaultNetwork(string filePath)
         {
             Default = new Network(filePath);
         }
 
+        public static bool LoadDefaultNetwork()
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string[] files = Directory.GetFiles(currentDirectory, "*.nnue");
+            if (files.Length > 1)
+                Console.WriteLine("Warning: Multiple network files found!");
+            if (files.Length == 0)
+            {
+                Console.WriteLine("Error: No network file found!");
+                return false;
+            }
+            string fileName = Path.GetFileName(files[0]);
+            Console.WriteLine($"Loading NNUE weights from {fileName}!");
+            LoadDefaultNetwork(files[0]);
+            return true;
+        }
+
+
         const uint InputSize = 768;
+        const uint Layer1Size = 128;
+
         public short[] FeatureWeights; //new short[InputSize * Layer1Size];
         public short[] FeatureBiases; //new short[Layer1Size];
         public short[] OutputWeights; //new short[Layer1Size * 2];
         public short OutputBias;
 
-        private Header _header;
-        public uint Layer1Size => _header.HiddenSize;
         public uint FeatureWeightsCount => Layer1Size * InputSize;
         public uint FeatureBiasesCount => Layer1Size;
 
@@ -77,10 +54,6 @@ namespace Leorik.Core
             {
                 using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
                 {
-                    //_header = default;
-                    //_header.Read(reader);
-                    _header = new Header(128);
-
                     FeatureWeights = new short[InputSize * Layer1Size];
                     for (int i = 0; i < FeatureWeights.Length; i++)
                         FeatureWeights[i] = reader.ReadInt16();

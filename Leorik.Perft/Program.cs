@@ -21,7 +21,7 @@ namespace Leorik.Perft
         static void Main()
         {
             Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
-            Bitboard.GetQueenTargets(0, 0);
+            Network.LoadDefaultNetwork();
             Console.WriteLine();
             int line = 1;
             long totalNodes = 0;

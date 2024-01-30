@@ -5,6 +5,32 @@ using System.Runtime.Intrinsics;
 
 namespace Leorik.Core
 {
+    public struct Evaluation
+    {
+        public const int CheckmateBase = 9000;
+        public const int CheckmateScore = 9999;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetMateDistance(int score)
+        {
+            int plies = CheckmateScore - Math.Abs(score);
+            int moves = (plies + 1) / 2;
+            return moves;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsCheckmate(int score) => Math.Abs(score) > CheckmateBase;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Checkmate(Color color, int ply) => (int)color * (ply - CheckmateScore);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MatedScore(int ply) => ply - CheckmateScore;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MateScore(int ply) => CheckmateScore - ply;
+    }
+
     public struct NeuralNetEval
     {
         const int Layer1Size = 128;
@@ -47,17 +73,13 @@ namespace Leorik.Core
             Array.Copy(Network.Default.FeatureBiases, White, Layer1Size);
 
             ActivateAll(board);
-            int stm = (int)board.SideToMove;
-            int eval = Evaluate(board.SideToMove);
-            Score = (short)(stm * eval);
+            Score = (short)Evaluate(board.SideToMove);
         }
 
         public void Update(Color sideToMove, ref Move move)
         {
             UpdateFeatures(ref move);
-            int stm = (int)sideToMove;
-            int eval = Evaluate(sideToMove);
-            Score = (short)(stm * eval);
+            Score = (short)Evaluate(sideToMove);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -146,7 +146,7 @@ namespace Leorik.Search
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
             if (Aborted |= ForcedCut(ply))
-                return Positions[ply].RelativeScore();
+                return Positions[ply].SideToMoveScore();
             
             alpha = Math.Max(alpha, MatedScore(ply));
             beta = Math.Min(beta, MateScore(ply + 1));
@@ -418,7 +418,7 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            int eval = current.RelativeScore();
+            int eval = current.SideToMoveScore();
 
             //consider null move pruning first
             if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
@@ -493,7 +493,7 @@ namespace Leorik.Search
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.RelativeScore();
+                int standPatScore = current.SideToMoveScore();
 
                 if (standPatScore >= beta)
                     return beta;
@@ -503,7 +503,7 @@ namespace Leorik.Search
             }
 
             if (Aborted |= ForcedCut(ply))
-                return current.RelativeScore();
+                return current.SideToMoveScore();
 
             //To quiesce a position play all the Captures!
             BoardState next = Positions[ply + 1];

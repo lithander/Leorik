@@ -26,8 +26,7 @@ namespace Leorik.Tuning
                 }
                 BoardState board = Notation.GetBoardState(fen);
                 NeuralNetEval nneval = new NeuralNetEval(board);
-                Evaluation eval = new Evaluation(board);
-                Console.WriteLine($"NNUE: {nneval.Score} vs HCE: {eval.Score}");
+                Console.WriteLine($"NNUE: {nneval.Score} for {board.SideToMove} ({board.Score}");
             }
         }
 

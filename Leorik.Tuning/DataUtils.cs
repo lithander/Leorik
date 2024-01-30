@@ -11,6 +11,18 @@ namespace Leorik.Tuning
         public sbyte Result; //{1 (White Wins), 0, -1 (Black wins)}
     }
 
+    struct Filter
+    {
+        public short StartSkip;
+        public short MinSkip;
+        public short MaxSkip;
+        public short ScoreCap;
+        public short DrawScoreCap;
+        public short WrongScoreCap;
+        public short MinPieces;
+        public short QSearchDepth;
+    }
+
     static class DataUtils
     {
         const string WHITE = "1-0";
@@ -109,8 +121,8 @@ namespace Leorik.Tuning
             MemoryMappedFile mmf = MemoryMappedFile.CreateFromFile(binFile);
             var stream = mmf.CreateViewStream();
             BinaryReader reader = new BinaryReader(stream);
-            PackedBoard packed = new();
-            PackedBoard repacked = new();
+            MarlinFormat packed = new();
+            MarlinFormat repacked = new();
             while (stream.Position < stream.Length && data.Count < maxCount)
             {
                 packed.Read(reader);
@@ -180,9 +192,9 @@ namespace Leorik.Tuning
                     //Confirmation bias: Let's not weaken the eval by something the eval can't understand
                     if (skipOutliers > 0)
                     {
-                        if (quiet.Eval.Score < -skipOutliers && parser.Result != BLACK)
+                        if (quiet.Score() < -skipOutliers && parser.Result != BLACK)
                             continue;
-                        if (quiet.Eval.Score > skipOutliers && parser.Result != WHITE)
+                        if (quiet.Score() > skipOutliers && parser.Result != WHITE)
                             continue;
                     }
 
@@ -194,24 +206,25 @@ namespace Leorik.Tuning
             return (games, positions);
         }
 
-        public static (int games, int positions) ExtractBinaryToBinary(FileStream input, BinaryWriter output, int maxQDepth)
+        public static (int games, int positions) FilterPlayouts(FileStream input, BinaryWriter output, Filter filter, int randomSeed = 1337)
         {
             int games = 0;
             int positions = 0;
 
-            Random rnd = new Random(1337);
+            Random rnd = new Random(randomSeed);
             Quiesce quiesce = new();
-            PackedBoard packed = new PackedBoard();
+            MarlinFormat marlin = new MarlinFormat();
+            BulletFormat bullet = new BulletFormat();
             var reader = new BinaryReader(input);
             while (input.Position < input.Length)
             {
                 games++;
 
-                packed.Read(reader);
-                BoardState board = packed.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+                marlin.Read(reader);
+                BoardState board = marlin.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
 
                 //Console.WriteLine(Notation.GetFen(board));
-                int skipMoves = rnd.Next(0, 10);
+                int skipMoves = filter.StartSkip;
                 for (int iMove = 0; iMove < extra; iMove++)
                 {
                     Move move = (Move)reader.ReadInt32();
@@ -224,51 +237,39 @@ namespace Leorik.Tuning
 
                     //skip positions with too few pieces on the board
                     int pieceCount = Bitboard.PopCount(board.Black | board.White);
-                    if (pieceCount <= 8)
+                    if (pieceCount < filter.MinPieces)
                         continue;
 
                     //skip positions with extreme scores
-                    if (Math.Abs(score) > 900)
-                    {
-                        //Console.WriteLine($"Extreme Score: {Notation.GetFen(board)} {score}");
+                    if (Math.Abs(score) > filter.ScoreCap)
                         continue;
-                    }
 
-                    //Wdl: 2 = White, 1 = Draw, 0 = Black
-                    //1.An epd that is a draw with a score >= abs(5.00) is removed.
-                    if (wdl == 1 && Math.Abs(score) > 200)
-                    {
-                        //Console.WriteLine($"Questionable Draw: {Notation.GetFen(board)} {score}");
+                    //Wdl: 1 = Draw
+                    if (wdl == 1 && Math.Abs(score) > filter.DrawScoreCap)
                         continue;
-                    }
 
-                    //2.An epd that is a white win with a score <= -3.00 is removed.
-                    if (wdl == 2 && score < -200)
-                    {
-                        //Console.WriteLine($"Questionable Win for White: {Notation.GetFen(board)} {score}");
+                    //2.An epd that is a white win with a score < -X is removed.
+                    if (wdl == 2 && score < -filter.WrongScoreCap)
                         continue;
-                    }
 
-                    //3.An epd that is a white loss with a score >= 3.00 is removed.
-                    if (wdl == 0 && score > 200)
-                    {
-                        //Console.WriteLine($"Questionable Win for Black: {Notation.GetFen(board)} {score}");
+                    //3.An epd that is a white loss with a score > X is removed.
+                    if (wdl == 0 && score > filter.WrongScoreCap)
                         continue;
-                    }
 
-                    var quiet = quiesce.QuiescePosition(board, maxQDepth);
+                    var quiet = quiesce.QuiescePosition(board, filter.QSearchDepth);
                     if (quiet == null)
                         continue;
 
-                    //the closer to the last move (dtz) the more wdl reflects the true value of the position
-                    int dtz = extra - iMove;
-                    int fullMove = fullMoveNumber + iMove / 2;
-                    packed.Pack(quiet, (short)fullMove, score, wdl, (byte)dtz);
+                    bullet.PackDestructive(quiet, score, wdl);
+                    bullet.Write(output);
+
+                    //int dtz = extra - iMove;
+                    //int fullMove = fullMoveNumber + iMove / 2;
+                    //marlin.Pack(quiet, (short)fullMove, score, wdl, (byte)dtz);
+                    //marlin.Write(output);
 
                     positions++;
-                    packed.Write(output);
-
-                    skipMoves = rnd.Next(5, 12);
+                    skipMoves = rnd.Next(filter.MinSkip, filter.MaxSkip+1);
                 }
             }
             return (games, positions);
@@ -280,7 +281,7 @@ namespace Leorik.Tuning
             int positions = 0;
 
             Quiesce quiesce = new();
-            PackedBoard packed = new PackedBoard();
+            MarlinFormat packed = new MarlinFormat();
             var reader = new BinaryReader(input);
             while (input.Position < input.Length)
             {
@@ -341,35 +342,6 @@ namespace Leorik.Tuning
                 }
                 output.WriteLine("}");
             }
-        }
-
-        internal static void CollectMetrics(List<Data> data)
-        {
-            int[] black = new int[64];
-            int[] white = new int[64];
-            foreach (var entry in data)
-            {
-                var pos = entry.Position;
-                black[Bitboard.LSB(pos.Black & pos.Kings)]++;
-                white[Bitboard.LSB(pos.White & pos.Kings)]++;
-            }
-
-            Console.WriteLine();
-            Console.WriteLine("[Squares]");
-            Console.WriteLine();
-            BitboardUtils.PrintData(sq => sq);
-
-            Console.WriteLine();
-            Console.WriteLine("[Black King]");
-            Console.WriteLine();
-            int max = black.Max();
-            BitboardUtils.PrintData(square => (int)(999 * black[square] / (float)max));
-
-            Console.WriteLine();
-            Console.WriteLine("[White King]");
-            Console.WriteLine();
-            max = white.Max();
-            BitboardUtils.PrintData(square => (int)(999 * white[square] / (float)max));
         }
     }
 }

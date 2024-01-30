@@ -141,15 +141,15 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int RelativeScore()
+        public int SideToMoveScore()
         {
-            return (int)SideToMove * Eval.Score;
+            return Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int RelativeScore(Color sideToMove)
+        public int Score()
         {
-            return (int)sideToMove * Eval.Score;
+            return (int)SideToMove * Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

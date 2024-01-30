@@ -12,10 +12,4 @@
     <ProjectReference Include="..\Leorik.Search\Leorik.Search.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="128HL-DATA-210124-v345-sparse-shuffled.nnue">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

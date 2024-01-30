@@ -12,7 +12,7 @@ namespace Leorik.Tuning
     class BinaryPlayoutWriter : IPlayoutWriter, IDisposable
     {
         BinaryWriter _stream;
-        PackedBoard _packedBoard = new();
+        MarlinFormat _packedBoard = new();
 
         public BinaryPlayoutWriter(string filePath)
         {
@@ -27,7 +27,7 @@ namespace Leorik.Tuning
         public void Write(BoardState position, int randomMoves, byte wdl, List<Move> moves, List<short> scores)
         {
             byte moveCount = (byte)moves.Count;
-            _packedBoard.Pack(position, (short)randomMoves, position.Eval.Score, wdl, moveCount);
+            _packedBoard.Pack(position, (short)randomMoves, (short)position.Score(), wdl, moveCount);
             _packedBoard.Write(_stream);
             for (int i = 0; i < moveCount; i++)
             {
@@ -51,7 +51,7 @@ namespace Leorik.Tuning
         {
             byte moveCount = (byte)moves.Count;
             _stream.WriteLine(Notation.GetFen(position, randomMoves));
-            _stream.WriteLine(position.Eval.Score);
+            _stream.WriteLine(position.Score());
             _stream.WriteLine(wdl);
             _stream.WriteLine(moveCount);
             for (int i = 0; i < moveCount; i++)
@@ -93,7 +93,7 @@ namespace Leorik.Tuning
             var binReader = new BinaryReader(binFile);
             var txtReader = new StreamReader(txtFile);
 
-            PackedBoard packed = new PackedBoard();
+            MarlinFormat packed = new MarlinFormat();
             while (binFile.Position < binFile.Length)
             {
                 packed.Read(binReader);
@@ -131,7 +131,6 @@ namespace Leorik.Tuning
         const int HOT_MOVES = 6;
         const int NODE_COUNT = 10_000;
         const string OUTPUT_PATH = "D:/Projekte/Chess/Leorik/TD2/";
-        const string DEFAULT_NET = "net001-128HL-DATA-L31-lowtemp.bin";
 
         public static void RunPrompt()
         {
@@ -145,15 +144,12 @@ namespace Leorik.Tuning
             Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
             Query("Number of hot moves", HOT_MOVES, out int hotMoves);
             Query("Temperature", 0, out int temp);
-            Query("Net", DEFAULT_NET, out string net);
             Query("Path", OUTPUT_PATH, out string path);
 
             string suffix = nodes == int.MaxValue ? "" : $"_{nodes / 1000}K";
             suffix += $"_{randomMoves}R_{hotMoves}T{temp}_v{VERSION}";
             string fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
             Query("File", fileName, out fileName);
-
-            Network.InitDefaultNetwork(net);
 
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
             //int nodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
