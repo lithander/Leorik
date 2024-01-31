@@ -211,6 +211,7 @@ namespace Leorik.Core
             SideToMove = (Color)(-(int)from.SideToMove);
             EnPassant = 0;
             Eval.Copy(from.Eval);
+            Eval.Update(SideToMove);
             ZobristHash = from.ZobristHash;
 
             //Update Zobrist-Hash
