@@ -33,8 +33,6 @@ namespace Leorik.Core
 
     public struct NeuralNetEval
     {
-        const int Layer1Size = 128;
-
         public short[] Black;
         public short[] White;
 
@@ -42,35 +40,35 @@ namespace Leorik.Core
 
         public NeuralNetEval()
         {
-            Black = new short[Layer1Size];
-            White = new short[Layer1Size];
+            Black = new short[Network.Layer1Size];
+            White = new short[Network.Layer1Size];
         }
 
         public NeuralNetEval(NeuralNetEval eval)
         {
-            Black = new short[Layer1Size];
-            White = new short[Layer1Size];
+            Black = new short[Network.Layer1Size];
+            White = new short[Network.Layer1Size];
             Copy(eval);
         }
 
         public NeuralNetEval(BoardState board)
         {
-            Black = new short[Layer1Size];
-            White = new short[Layer1Size];
+            Black = new short[Network.Layer1Size];
+            White = new short[Network.Layer1Size];
             Update(board);
         }
 
         public void Copy(NeuralNetEval other)
         {
-            Array.Copy(other.Black, Black, Layer1Size);
-            Array.Copy(other.White, White, Layer1Size);
+            Array.Copy(other.Black, Black, Network.Layer1Size);
+            Array.Copy(other.White, White, Network.Layer1Size);
             Score = other.Score;
         }
 
         public void Update(BoardState board)
         {
-            Array.Copy(Network.Default.FeatureBiases, Black, Layer1Size);
-            Array.Copy(Network.Default.FeatureBiases, White, Layer1Size);
+            Array.Copy(Network.Default.FeatureBiases, Black, Network.Layer1Size);
+            Array.Copy(Network.Default.FeatureBiases, White, Network.Layer1Size);
 
             ActivateAll(board);
             Score = (short)Evaluate(board.SideToMove);
@@ -79,6 +77,11 @@ namespace Leorik.Core
         public void Update(Color sideToMove, ref Move move)
         {
             UpdateFeatures(ref move);
+            Score = (short)Evaluate(sideToMove);
+        }
+
+        public void Update(Color sideToMove)
+        {
             Score = (short)Evaluate(sideToMove);
         }
 
@@ -131,15 +134,15 @@ namespace Leorik.Core
         private void Deactivate(Piece piece, int square)
         {
             (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-            SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx * Layer1Size);
-            SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx * Layer1Size);
+            SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Layer1Size);
+            SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Layer1Size);
         }
 
         private void Activate(Piece piece, int square)
         {
             (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-            AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Layer1Size);
-            AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Layer1Size);
+            AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Layer1Size);
+            AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Layer1Size);
         }
 
         private (int blackIdx, int whiteIdx) FeatureIndices(Piece piece, int square)
@@ -163,7 +166,7 @@ namespace Leorik.Core
             //    accu[i] += featureWeights[offset + i];
 
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
-            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Layer1Size));
+            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Network.Layer1Size));
             for (int i = 0; i < accuVectors.Length; i++)
                 accuVectors[i] += weightsVectors[i];
         }
@@ -175,7 +178,7 @@ namespace Leorik.Core
             //    accu[i] -= featureWeights[offset + i];
 
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
-            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Layer1Size));
+            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Network.Layer1Size));
             for (int i = 0; i < accuVectors.Length; i++)
                 accuVectors[i] -= weightsVectors[i];
         }
@@ -194,7 +197,7 @@ namespace Leorik.Core
         private int Forward(short[] us, short[] them, short[] weights)
         {
             int sum = ForwardCReLU(us, weights.AsSpan())
-                    + ForwardCReLU(them, weights.AsSpan(Layer1Size));
+                    + ForwardCReLU(them, weights.AsSpan(Network.Layer1Size));
 
             return sum;
             //const int NormalizationK = 1;

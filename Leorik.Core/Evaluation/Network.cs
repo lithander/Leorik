@@ -22,12 +22,13 @@ namespace Leorik.Core
         public static bool LoadDefaultNetwork()
         {
             string currentDirectory = Directory.GetCurrentDirectory();
-            string[] files = Directory.GetFiles(currentDirectory, "*.nnue");
+            string[] files = Directory.GetFiles(currentDirectory, $"{Layer1Size}HL*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");
             if (files.Length == 0)
             {
                 Console.WriteLine("Error: No network file found!");
+                Console.WriteLine($"Current Directory: {currentDirectory}");
                 return false;
             }
             string fileName = Path.GetFileName(files[0]);
@@ -37,16 +38,13 @@ namespace Leorik.Core
         }
 
 
-        const uint InputSize = 768;
-        const uint Layer1Size = 128;
+        public const int InputSize = 768;
+        public const int Layer1Size = 256;
 
         public short[] FeatureWeights; //new short[InputSize * Layer1Size];
         public short[] FeatureBiases; //new short[Layer1Size];
         public short[] OutputWeights; //new short[Layer1Size * 2];
         public short OutputBias;
-
-        public uint FeatureWeightsCount => Layer1Size * InputSize;
-        public uint FeatureBiasesCount => Layer1Size;
 
         public Network(string filePath)
         {
