@@ -24,7 +24,7 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
+            //CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
             //RunSeeTests();
 
             Console.WriteLine("Depth:");
@@ -107,6 +107,8 @@ namespace Leorik.Test
                 {
                     Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count*100})");
+                    //float ratio = Search.IterativeSearch.FALSE_SKIP / (float)Search.IterativeSearch.CORRECT;
+                    //Console.WriteLine($"Correct: {Search.IterativeSearch.CORRECT/1000}K Missed:{Search.IterativeSearch.MISSED_SKIP/1000}K False:{Search.IterativeSearch.FALSE_SKIP/1000}K Ratio:{ratio})");
                 }
                 else
                     Console.Write('.');
