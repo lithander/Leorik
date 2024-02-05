@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.7.2";
+        const string NAME_VERSION = "Leorik 3.0";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -40,6 +40,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
+                    Console.WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
                     //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
                     Console.WriteLine("uciok");
                     break;
@@ -87,6 +88,8 @@ namespace Leorik.Engine
                 Transpositions.Resize(hashSizeMBytes);
             else if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
                 _engine.Options.Threads = threads;
+            else if (token[1] == "name" && token[2] == "Temperature" && token[3] == "value" && int.TryParse(token[4], out int temperature))
+                _engine.Options.Temperature = temperature;
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else
