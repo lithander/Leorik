@@ -38,7 +38,7 @@ namespace Leorik.Tuning
             if (DeepestPly > MaxDepth)
                 return null; //We couldn't quiesce the position within the allowed depth
 
-            int score2 = (int)position.SideToMove * Results[0].Eval.Score;
+            int score2 = position.SideToMoveScore();
             if (score != score2)
                 return null; //This typically means a checkmate or stalemate - we ignore those!
 
@@ -51,13 +51,13 @@ namespace Leorik.Tuning
 
             DeepestPly = Math.Max(DeepestPly, ply);
             if(DeepestPly > MaxDepth)
-                return current.RelativeScore();
+                return current.SideToMoveScore();
 
             bool inCheck = current.InCheck();
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.RelativeScore();
+                int standPatScore = current.SideToMoveScore();
 
                 if (standPatScore >= beta)
                     return beta;

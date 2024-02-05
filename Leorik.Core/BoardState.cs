@@ -18,7 +18,7 @@ namespace Leorik.Core
 
         public ulong ZobristHash;
         public Color SideToMove;
-        public Evaluation Eval;
+        public NeuralNetEval Eval;
         public byte HalfmoveClock;
 
         public const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
@@ -29,10 +29,17 @@ namespace Leorik.Core
         public const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
         public const ulong WhiteCastlingBits = WhiteQueensideRookBit | WhiteKingsideRookBit;
 
+        public BoardState() 
+        {
+            Eval = new NeuralNetEval();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BoardState Clone()
         {
-            return (BoardState)this.MemberwiseClone();
+            var clone = (BoardState)this.MemberwiseClone();
+            clone.Eval = new NeuralNetEval(Eval);
+            return clone;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,7 +110,7 @@ namespace Leorik.Core
             EnPassant = other.EnPassant;
             ZobristHash = other.ZobristHash;
             SideToMove = other.SideToMove;
-            Eval = other.Eval;
+            Eval.Copy(other.Eval);
             HalfmoveClock = other.HalfmoveClock;
         }
 
@@ -130,19 +137,19 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEval()
         {
-            Eval = new Evaluation(this);
+            Eval.Update(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int RelativeScore()
+        public int SideToMoveScore()
+        {
+            return Eval.Score;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Score()
         {
             return (int)SideToMove * Eval.Score;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int RelativeScore(Color sideToMove)
-        {
-            return (int)sideToMove * Eval.Score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -160,9 +167,9 @@ namespace Leorik.Core
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
             }
-            Eval = from.Eval;
+            Eval.Copy(from.Eval);
             //compared to normal play only parts of the eval are updated, no hash and no half-move clock
-            Eval.Update(this, ref move);
+            Eval.Update(SideToMove, ref move);
             return true;
         }
 
@@ -181,8 +188,8 @@ namespace Leorik.Core
                 if (IsAttackedByWhite(LSB(Kings & Black)))
                     return false;
             }
-            Eval = from.Eval;
-            Eval.Update(this, ref move);
+            Eval.Copy(from.Eval);
+            Eval.Update(SideToMove, ref move);
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;
@@ -203,7 +210,8 @@ namespace Leorik.Core
             HalfmoveClock = (byte)(from.HalfmoveClock + 1);
             SideToMove = (Color)(-(int)from.SideToMove);
             EnPassant = 0;
-            Eval = from.Eval;
+            Eval.Copy(from.Eval);
+            Eval.Update(SideToMove);
             ZobristHash = from.ZobristHash;
 
             //Update Zobrist-Hash

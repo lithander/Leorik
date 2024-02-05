@@ -17,7 +17,7 @@ namespace Leorik.Engine
         public Color SideToMove => _board.SideToMove;
         public int HistoryPlys => _history.Count;
         public string GetFen() => Notation.GetFen(_board);
-        public Evaluation GetEval() => _board.Eval;
+        public NeuralNetEval GetEval() => _board.Eval;
         public void Flip() => _board.Flip();
 
         public void Init()

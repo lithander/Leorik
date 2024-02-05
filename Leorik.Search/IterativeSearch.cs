@@ -145,8 +145,8 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
-            if (Aborted)
-                return Positions[ply].RelativeScore();
+            if (Aborted |= ForcedCut(ply))
+                return Positions[ply].SideToMoveScore();
             
             alpha = Math.Max(alpha, MatedScore(ply));
             beta = Math.Min(beta, MateScore(ply + 1));
@@ -347,7 +347,7 @@ namespace Leorik.Search
         {
             int eval = (int)Positions[0].SideToMove * Score;
             int window = 40;
-            while (true)
+            while (!Aborted)
             {
                 int alpha = eval - window;
                 int beta = eval + window;
@@ -411,6 +411,10 @@ namespace Leorik.Search
             return alpha;
         }
 
+        //public static long FALSE_SKIP = 0;
+        //public static long MISSED_SKIP = 0;
+        //public static long CORRECT = 0;
+
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
             NodesVisited++;
@@ -418,7 +422,7 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            int eval = current.RelativeScore();
+            int eval = current.SideToMoveScore();
 
             //consider null move pruning first
             if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
@@ -493,7 +497,7 @@ namespace Leorik.Search
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.RelativeScore();
+                int standPatScore = current.SideToMoveScore();
 
                 if (standPatScore >= beta)
                     return beta;
@@ -503,7 +507,7 @@ namespace Leorik.Search
             }
 
             if (Aborted |= ForcedCut(ply))
-                return current.RelativeScore();
+                return current.SideToMoveScore();
 
             //To quiesce a position play all the Captures!
             BoardState next = Positions[ply + 1];

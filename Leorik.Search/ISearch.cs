@@ -15,7 +15,7 @@ namespace Leorik.Search
         {
             Threads = 1;
             MaxNodes = long.MaxValue;
-            NullMoveCutoff = 338;
+            NullMoveCutoff = 600;
             Seed = -1;
         }
     }

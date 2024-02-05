@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 2.5.6";
+        const string NAME_VERSION = "Leorik 3.0";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -14,6 +14,9 @@ namespace Leorik.Engine
         {
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
+            if (!Network.LoadDefaultNetwork())
+                return;
+
             _engine.Init();
 
             while (_engine.Running)
@@ -37,6 +40,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"id author {AUTHOR}");
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
+                    Console.WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
                     //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
                     Console.WriteLine("uciok");
                     break;
@@ -67,7 +71,7 @@ namespace Leorik.Engine
                     Console.WriteLine(_engine.GetFen());
                     break;
                 case "eval":
-                    PrintEval(_engine.GetEval());
+                    Console.WriteLine($"{_engine.GetEval().Score}");
                     break;
                 case "flip":
                     _engine.Flip();
@@ -78,23 +82,14 @@ namespace Leorik.Engine
             }
         }
 
-        private static void PrintEval(Evaluation eval)
-        {
-            Console.WriteLine($"             MG  +  EG");
-            Console.WriteLine($"Material: {(int)eval.Material.Base,5} {(int)eval.Material.Endgame,6} * {eval.Phase:0.##}");
-            Console.WriteLine($"   Pawns: {eval.Pawns.Base,5} {eval.Pawns.Endgame,6} * {eval.Phase:0.##}");
-            Console.WriteLine($"Mobility: {eval.Mobility.Base,5}");
-            Console.WriteLine($"--------+------------------------");
-            Console.WriteLine($"   White: {eval.Score, 5}");
-            Console.WriteLine();
-        }
-
         private static void UciSetOption(string[] token)
         {
             if (token[1] == "name" && token[2] == "Hash" && token[3] == "value" && int.TryParse(token[4], out int hashSizeMBytes))
                 Transpositions.Resize(hashSizeMBytes);
             else if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
                 _engine.Options.Threads = threads;
+            else if (token[1] == "name" && token[2] == "Temperature" && token[3] == "value" && int.TryParse(token[4], out int temperature))
+                _engine.Options.Temperature = temperature;
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else
