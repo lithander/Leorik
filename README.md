@@ -15,7 +15,7 @@ Unshackled from the constraints of minimalism and simplicity **Leorik** is the s
 * Lockfree Transposition Table with two buckets and aging
 * Static Exchange Evalution (SEE)
 * Null-Move Pruning
-* Staged move generation
+* Staged Move Generation
 	- MVV-LVA sorted captures
 	- Killer, Counter, Followup
 	- History sorted quiets with LMR
@@ -38,7 +38,7 @@ Now you should be ready to select **Leorik** as a player!
 
 ## Version History
 ### Leorik 3.0
-[__Version 3.0__](https://github.com/lithander/Leorik/releases/tag/3.0) combines the feature set of Version 2.5.6 with a NNUE based evaluation that completely replaces the handcrafted one. The neural network is based on a relatively simple architecture with 768 inputs and one hidden layer of 256 neurons. It was trained using [Bullet](https://github.com/jw1912/bullet) on 622M labeled positions extracted from selfplay games. Despite the modest complexity of the NNUE architecture it has contributed most of the Elo gains of this version. The rest is from the adoption of Aspiration Windows and a revamped staged move generation that replaces the 2nd Killer move with a Counter and FollowUp move if available.
+[__Version 3.0__](https://github.com/lithander/Leorik/releases/tag/3.0) combines the featureset of Version 2.5.6 with a NNUE based evaluation that completely replaces the handcrafted one. The network architecture uses 768 inputs and one hidden layer of 256 neurons. It was trained using [Bullet](https://github.com/jw1912/bullet) on 622M labeled positions extracted from selfplay games. Despite the modest complexity of the NNUE architecture it has contributed most of the Elo gains of this version. The rest (~50 Elo) is from the adoption of Aspiration Windows and a revamped Staged Move Generation that replaces the 2nd Killer with a Counter and FollowUp move if available.
 
 Version 3.0 is expected to play at a strength of ~3300 CCRL Elo.
 
