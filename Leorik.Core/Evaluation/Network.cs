@@ -21,7 +21,7 @@ namespace Leorik.Core
 
         public static bool LoadDefaultNetwork()
         {
-            string currentDirectory = Directory.GetCurrentDirectory();
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string[] files = Directory.GetFiles(currentDirectory, $"{Layer1Size}HL*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");

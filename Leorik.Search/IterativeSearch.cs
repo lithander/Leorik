@@ -428,34 +428,13 @@ namespace Leorik.Search
             if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                if (remaining < 6 && eval > beta + 0.5 * Math.Abs(beta) + 300)
+                if (remaining < 6 && eval > beta + _options.NullMoveCutoff)
                     return beta;
-
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
                 if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
                     return beta;
-
-                //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                //bool skip = eval > beta + 0.5 * Math.Abs(beta) + 300;
-                //
-                ////if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
-                //next.PlayNullMove(current);
-                //if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
-                //{
-                //    if(remaining < 6)
-                //    {
-                //        if (skip)
-                //            CORRECT++;
-                //        else
-                //            MISSED_SKIP++;
-                //    }
-                //    return beta;
-                //}
-                //
-                //if (remaining < 6 && skip)
-                //    FALSE_SKIP++;
             }
 
             //init staged move generation and play all moves
