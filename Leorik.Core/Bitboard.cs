@@ -8,6 +8,7 @@
 using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using Leorik.Core.Slider;
 
 namespace Leorik.Core
@@ -16,7 +17,7 @@ namespace Leorik.Core
     {
         public enum SliderGeneration { Classic, ClassicZero, KiSS, PEXT, SparseSubsets, DenseSubsets }
 #if PEXT
-        public const SliderGeneration SliderMode = SliderGeneration.PEXT;
+        public static readonly SliderGeneration SliderMode = Bmi2.X64.IsSupported ? SliderGeneration.PEXT : SliderGeneration.Classic;
 #elif KISS
         public const SliderGeneration SliderMode = SliderGeneration.KiSS;
 #elif SPARSE_SUBSETS
@@ -34,7 +35,10 @@ namespace Leorik.Core
         public static ulong GetBishopTargets(ulong occupation, int square)
         {
 #if PEXT
-            return Pext.BishopAttacks(occupation, square);
+            if (Bmi2.X64.IsSupported)
+                return Pext.BishopAttacks(occupation, square);
+            else
+                return Classic.BishopAttacks(occupation, square);
 #elif KISS
             return KiSS.BishopAttacks(occupation, square);
 #elif SISSY
@@ -54,7 +58,10 @@ namespace Leorik.Core
         public static ulong GetRookTargets(ulong occupation, int square)
         {
 #if PEXT
-            return Pext.RookAttacks(occupation, square);
+            if (Bmi2.X64.IsSupported)
+                return Pext.RookAttacks(occupation, square);
+            else
+                return Classic.RookAttacks(occupation, square);
 #elif KISS
             return KiSS.RookAttacks(occupation, square);
 #elif SPARSE_SUBSETS

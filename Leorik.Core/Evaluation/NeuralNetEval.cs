@@ -1,6 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.X86;
 using System.Runtime.Intrinsics;
 
 namespace Leorik.Core
@@ -218,7 +217,8 @@ namespace Leorik.Core
             Vector256<int> sum = Vector256<int>.Zero;
             for (int i = 0; i < accuVectors.Length; i++)
             {
-                var a = Avx2.Max(Avx2.Min(accuVectors[i], ceil), floor);
+                var a = Vector256.Max(Vector256.Min(accuVectors[i], ceil), floor);
+                //var a = Avx2.Max(Avx2.Min(accuVectors[i], ceil), floor);
                 var w = weightsVectors[i];
                 //result += Vector256.Dot(a, w);
                 (Vector256<int> a0, var a1) = Vector256.Widen(a);
