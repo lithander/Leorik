@@ -26,12 +26,12 @@ namespace Leorik.Search
         private ulong TotalPositive = 0;
         private ulong TotalPlayed = 0;
 
-        private readonly ulong[,] Positive = new ulong[Squares, Pieces];
-        private readonly ulong[,] All = new ulong[Squares, Pieces];
+        private readonly ulong[,,] Positive = new ulong[Pieces + 2, Squares, Pieces];
+        private readonly ulong[,,] All = new ulong[Pieces + 2, Squares, Pieces];
         private readonly Move[] Moves = new Move[MaxPly];
         private readonly Move[] Killers = new Move[MaxPly];
-        private readonly Move[,] Counter = new Move[Squares, Pieces+2];
-        private readonly Move[,] FollowUp = new Move[Squares, Pieces+2];
+        private readonly Move[,] Counter = new Move[Squares, Pieces + 2];
+        private readonly Move[,] FollowUp = new Move[Squares, Pieces + 2];
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -43,10 +43,17 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
         {
-            int iPiece = PieceIndex(move.MovingPiece());
             ulong inc = Inc(depth);
             TotalPositive += inc;
-            Positive[move.ToSquare, iPiece] += inc;
+
+            int iMoving = PieceIndex(move.MovingPiece());
+            int iTarget = PieceIndex(move.CapturedPiece());
+            Positive[iTarget + 2, move.ToSquare, iMoving] += inc;
+
+            //no killer, followup, counter tracking for captures
+            if (iTarget >= 0)
+                return;
+
             Killers[ply] = move;
 
             if (ply < 2)
@@ -60,25 +67,28 @@ namespace Leorik.Search
 
             prev = Moves[ply - 1];
             Counter[prev.ToSquare, PieceIndex(prev.MovingPiece()) + 2] = move;
-            
+
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Played(int ply, int depth, ref Move move)
         {
-            int iPiece = PieceIndex(move.MovingPiece());
             ulong inc = Inc(depth);
             TotalPlayed += inc;
-            All[move.ToSquare, iPiece] += inc;
+
+            int iMoving = PieceIndex(move.MovingPiece());
+            int iTarget = PieceIndex(move.CapturedPiece());
+            All[iTarget + 2, move.ToSquare, iMoving] += inc;
             Moves[ply] = move;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float Value(ref Move move)
         {
-            int iPiece = PieceIndex(move.MovingPiece());
-            float a = Positive[move.ToSquare, iPiece];
-            float b = All[move.ToSquare, iPiece];
+            int iMoving = PieceIndex(move.MovingPiece());
+            int iTarget = PieceIndex(move.CapturedPiece());
+            float a = Positive[iTarget + 2, move.ToSquare, iMoving];
+            float b = All[iTarget + 2, move.ToSquare, iMoving];
             //local-ratio / average-ratio
             return TotalPlayed * a / (b * TotalPositive + 1);
         }
@@ -102,7 +112,7 @@ namespace Leorik.Search
             Move prev = Moves[ply - 1];
             return Counter[prev.ToSquare, PieceIndex(prev.MovingPiece()) + 2];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Move GetFollowUp(int ply)
         {
