@@ -68,9 +68,9 @@ Filter FILTER_CONFIG = new()
 };
 
 Network.LoadDefaultNetwork();
-//DataGen.RunPrompt();
+DataGen.RunPrompt();
 //BitboardUtils.Repl();
-FilterPlayouts(BIN_PLAYOUT_FILES, TD_FILE, FILTER_CONFIG);
+//FilterPlayouts(BIN_PLAYOUT_FILES, TD_FILE, FILTER_CONFIG);
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 return;
 

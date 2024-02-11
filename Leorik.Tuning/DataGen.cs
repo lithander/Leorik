@@ -42,7 +42,7 @@ namespace Leorik.Tuning
     {
         TextWriter _stream;
 
-        public TextPlayoutWriter(string filePath) 
+        public TextPlayoutWriter(string filePath)
         {
             _stream = File.CreateText(filePath);
         }
@@ -126,11 +126,10 @@ namespace Leorik.Tuning
 
     internal class DataGen
     {
-        const int VERSION = 5;
+        const int VERSION = 6;
         const int RANDOM_MOVES = 8;
         const int HOT_MOVES = 6;
         const int NODE_COUNT = 10_000;
-        const string OUTPUT_PATH = "D:/Projekte/Chess/Leorik/TD2/";
 
         public static void RunPrompt()
         {
@@ -144,16 +143,20 @@ namespace Leorik.Tuning
             Query("Number of random moves", RANDOM_MOVES, out int randomMoves);
             Query("Number of hot moves", HOT_MOVES, out int hotMoves);
             Query("Temperature", 0, out int temp);
-            Query("Path", OUTPUT_PATH, out string path);
+            Query("Path", AppDomain.CurrentDomain.BaseDirectory, out string path);
 
             string suffix = nodes == int.MaxValue ? "" : $"_{nodes / 1000}K";
-            suffix += $"_{randomMoves}R_{hotMoves}T{temp}_v{VERSION}";
+            if (hotMoves > 0 && temp > 0)
+                suffix += $"_{randomMoves}R_{hotMoves}T{temp}_v{VERSION}";
+            else
+                suffix += $"_{randomMoves}R_v{VERSION}";
+
             string fileName = DateTime.Now.ToString("s").Replace(':', '.') + suffix;
             Query("File", fileName, out fileName);
 
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
             //int nodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
-            RunDatagen(nodes, nodes * 3, randomMoves, hotMoves, temp, threads, writer);
+            RunDatagen(nodes, 5 * nodes, randomMoves, hotMoves, temp, threads, writer);
         }
 
         private static void Query(string label, int devaultValue, out int value)
@@ -224,11 +227,11 @@ namespace Leorik.Tuning
             Random random = new Random();
             Move[] move = new Move[225];
             MoveGen moveGen = new MoveGen(move, 0);
-            for(int i = 0; i < randomMoves; i++) 
+            for (int i = 0; i < randomMoves; i++)
             {
                 moveGen.Collect(board);
                 int iMove = random.Next(moveGen.Next);
-                if(!board.Play(move[iMove]))
+                if (!board.Play(move[iMove]))
                     return false;
 
                 moveGen.Next = 0;
@@ -250,7 +253,7 @@ namespace Leorik.Tuning
             while (true)
             {
                 //done playing hot moves?
-                if(moves.Count >= hotMoves)
+                if (moves.Count >= hotMoves)
                     searchOptions.Temperature = 0;
 
                 if (board.HalfmoveClock == 0)
