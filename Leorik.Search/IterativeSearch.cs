@@ -137,6 +137,35 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PickBestCaptureHistory(int first, int end)
+        {
+            //find the best move...
+            int best = first;
+            float bestScore = ScoreCapture(first);
+            for (int i = first + 1; i < end; i++)
+            {
+                float score = ScoreCapture(i);
+                if (score >= bestScore)
+                {
+                    best = i;
+                    bestScore = score;
+                }
+            }
+            //...swap best with first
+            if (best != first)
+            {
+                (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private float ScoreCapture(int index)
+        {
+            ref Move move = ref Moves[index];
+            return Move.Order(move.Target) + _history.Value(ref move);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateNext(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
         {
             return -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, ref moveGen);
@@ -216,7 +245,7 @@ namespace Leorik.Search
 
                 if (state.Stage == Stage.Captures)
                 {
-                    PickBestCapture(state.Next, moveGen.Next);
+                    PickBestCaptureHistory(state.Next, moveGen.Next);
                 }
                 else if (state.Stage == Stage.Killers)
                 {
