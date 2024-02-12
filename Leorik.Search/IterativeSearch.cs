@@ -472,9 +472,7 @@ namespace Leorik.Search
                 alpha = score;
                 bestMove = move;
                 ExtendPV(ply, remaining, bestMove);
-
-                if (playState.Stage >= Stage.Killers)
-                    _history.Good(ply, remaining, ref bestMove);
+                _history.Good(ply, remaining, ref bestMove);
 
                 //beta cutoff?
                 if (score >= beta)
