@@ -148,21 +148,32 @@ namespace Leorik.Search
             if (Aborted |= ForcedCut(ply))
                 return Positions[ply].SideToMoveScore();
             
+            //Mate distance pruning
+
             alpha = Math.Max(alpha, MatedScore(ply));
             beta = Math.Min(beta, MateScore(ply + 1));
             if (alpha >= beta)
                 return beta;
+
+            //Drop into QSearch
 
             if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
 
             TruncatePV(ply);
 
+            //Handle draws!
+
+            if (IsInsufficientMatingMaterial(Positions[ply]))
+                return 0;
+
             if (Positions[ply].HalfmoveClock > 99)
                 return 0; //TODO: checkmate > draw?
 
             if (IsRepetition(ply))
                 return 0; //TODO: is scoring *any* repetion as zero premature?
+
+            //TT lookup and main search
 
             ulong hash = Positions[ply].ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
@@ -491,6 +502,10 @@ namespace Leorik.Search
             NodesVisited++;
 
             BoardState current = Positions[ply];
+
+            if (IsInsufficientMatingMaterial(current))
+                return 0;
+
             bool inCheck = current.InCheck();
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
