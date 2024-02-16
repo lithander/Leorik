@@ -225,28 +225,25 @@ namespace Leorik.Search
                     }
                 }
 
-                if (state.Stage == Stage.Captures)
+                switch (state.Stage)
                 {
-                    PickBestCapture(state.Next, moveGen.Next);
-                }
-                else if (state.Stage == Stage.Killers)
-                {
-                    state.Stage = PickKiller(ply, state.Next, moveGen.Next);
-                }
-                else if (state.Stage == Stage.Counter)
-                {
-                    state.Stage = PickCounter(ply, state.Next, moveGen.Next);
-                }
-                else if (state.Stage == Stage.FollowUp)
-                {
-                    state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
-                }
-                else if (state.Stage == Stage.SortedQuiets)
-                {
-                    float historyValue = PickBestHistory(state.Next, moveGen.Next);
-                    double historyThreshold = Math.Sqrt(state.PlayedMoves);
-                    if (historyValue < historyThreshold)
-                        state.Stage = Stage.Quiets;
+                    case Stage.Captures:
+                        PickBestCapture(state.Next, moveGen.Next);
+                        break;
+                    case Stage.Killers:
+                        state.Stage = PickKiller(ply, state.Next, moveGen.Next);
+                        break;
+                    case Stage.Counter:
+                        state.Stage = PickCounter(ply, state.Next, moveGen.Next);
+                        break;
+                    case Stage.FollowUp:
+                        state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
+                        break;
+                    case Stage.SortedQuiets:
+                        int historyThreshold = state.PlayedMoves >> 2;
+                        if (PickBestHistory(state.Next, moveGen.Next) < historyThreshold)
+                            state.Stage = Stage.Quiets;
+                        break;
                 }
 
                 if (next.Play(current, ref Moves[state.Next++]))
