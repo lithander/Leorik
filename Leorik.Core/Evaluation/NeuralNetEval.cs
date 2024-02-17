@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace Leorik.Core
 {
@@ -134,7 +135,6 @@ namespace Leorik.Core
 
         private void AddWeights(short[] accu, short[] featureWeights, int offset)
         {
-            //assert(offset + Size <= delta.size());
             //for (int i = 0; i < accu.Length; i++)
             //    accu[i] += featureWeights[offset + i];
 
@@ -146,7 +146,6 @@ namespace Leorik.Core
 
         private void SubtractWeights(short[] accu, short[] featureWeights, int offset)
         {
-            //assert(offset + Size <= delta.size());
             //for (int i = 0; i < accu.Length; i++)
             //    accu[i] -= featureWeights[offset + i];
 
@@ -173,8 +172,6 @@ namespace Leorik.Core
                     + ForwardCReLU(them, weights.AsSpan(Network.Layer1Size));
 
             return sum;
-            //const int NormalizationK = 1;
-            //return sum / NormalizationK;
         }
 
         private int ForwardCReLU(short[] accu, Span<short> weights)
@@ -191,14 +188,23 @@ namespace Leorik.Core
             Vector256<int> sum = Vector256<int>.Zero;
             for (int i = 0; i < accuVectors.Length; i++)
             {
-                var a = Vector256.Max(Vector256.Min(accuVectors[i], ceil), floor);
-                //var a = Avx2.Max(Avx2.Min(accuVectors[i], ceil), floor);
-                var w = weightsVectors[i];
+                Vector256<short> a = Vector256.Max(Vector256.Min(accuVectors[i], ceil), floor); //ClippedReLU
+                Vector256<short> w = weightsVectors[i];
+
                 //result += Vector256.Dot(a, w);
-                (Vector256<int> a0, var a1) = Vector256.Widen(a);
-                (Vector256<int> w0, var w1) = Vector256.Widen(w);
-                sum += a0 * w0;
-                sum += a1 * w1;
+                if (Avx2.IsSupported)
+                {
+                    //Multiplies packed signed 16-bit integers in a and w, producing intermediate signed 32-bit integers. 
+                    //Horizontally add adjacent pairs of intermediate 32-bit integers.
+                    sum += Avx2.MultiplyAddAdjacent(a, w); //_mm256_madd_epi16
+                }
+                else
+                {
+                    (Vector256<int> a0, Vector256<int> a1) = Vector256.Widen(a);
+                    (Vector256<int> w0, Vector256<int> w1) = Vector256.Widen(w);
+                    sum += a0 * w0;
+                    sum += a1 * w1;
+                }
             }
             return Vector256.Sum(sum);
         }
