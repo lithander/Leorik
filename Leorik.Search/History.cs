@@ -14,6 +14,9 @@ namespace Leorik.Search
         private ulong TotalPositive = 0;
         private ulong TotalPlayed = 0;
 
+        long NullMovePassesSum = 0;
+        long NullMovePassesCount = 1;
+
         private readonly ulong[,] Positive = new ulong[Squares, Pieces];
         private readonly ulong[,] All = new ulong[Squares, Pieces];
         private readonly Move[] Moves = new Move[MaxPly];
@@ -23,10 +26,7 @@ namespace Leorik.Search
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int PieceIndex(Piece piece)
-        {
-            return ((byte)piece >> 1); //BlackPawn = 0...
-        }
+        private int PieceIndex(Piece piece) => (byte)piece >> 1; //BlackPawn = 0...
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
@@ -99,11 +99,25 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Move GetFollowUp(int ply)
         {
-            if (ply < 2) 
+            if (ply < 2)
                 return default;
-            
+
             Move prev = Moves[ply - 2];
             return FollowUp[prev.ToSquare, PieceIndex(prev.MovingPiece())];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void NullMovePass(int eval, int beta)
+        {
+            NullMovePassesCount++;
+            NullMovePassesSum += eval - beta;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsExpectedFailHigh(int eval, int beta)
+        {
+            int avgNullMovePass = (int)(NullMovePassesSum / NullMovePassesCount);
+            return eval > beta + avgNullMovePass;
         }
     }
 }

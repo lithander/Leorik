@@ -385,7 +385,7 @@ namespace Leorik.Search
                     continue;
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = Evaluation.IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
+                int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 if (depth >= 2 && i > 0)
@@ -436,13 +436,17 @@ namespace Leorik.Search
             if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                if (remaining < 6 && eval > beta + _options.NullMoveCutoff)
+                if (remaining < 6 && _history.IsExpectedFailHigh(eval, beta))
                     return beta;
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
+
                 if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
                     return beta;
+
+                if(remaining >= 6)
+                    _history.NullMovePass(eval, beta);
             }
 
             //init staged move generation and play all moves
