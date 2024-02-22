@@ -125,9 +125,9 @@ namespace Leorik.Search
         int _alpha = 0;
         int _beta = 0;
 
-        public void InitBounds(int depth, out int alpha, out int beta)
+        public void InitBounds(out int alpha, out int beta)
         {
-            _window = 40;
+            _window = Math.Max(_window / 2, 10);
             alpha = _alpha = _rootScore - _window;
             beta = _beta = _rootScore + _window;
         }
@@ -137,7 +137,6 @@ namespace Leorik.Search
             _rootScore = score;
             if (score > _alpha && score < _beta)
             {
-                _window /= 2;
                 alpha = _alpha;
                 beta = _beta;
                 return true;
