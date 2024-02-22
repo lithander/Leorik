@@ -110,8 +110,17 @@ namespace Leorik.Search
         {
             Depth++;
             _killSwitch = new KillSwitch(killSwitch);
-            int score = EvaluateRoot(Depth);
-            Score = (int)Positions[0].SideToMove * score;
+
+            _history.InitBounds(Depth, out int alpha, out int beta);
+            while (!Aborted)
+            {
+                int score = EvaluateRoot(Depth, alpha, beta);
+                if (_history.UpdateBounds(score, out alpha, out beta))
+                {
+                    Score = (int)Positions[0].SideToMove * score;
+                    return;
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -348,24 +357,7 @@ namespace Leorik.Search
         private bool AllowNullMove(int ply)
         {
             //if the previous iteration found a mate we do the first few plys without null move to try and find the shortest mate or escape
-            return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
-        }
-
-        private int EvaluateRoot(int depth)
-        {
-            int eval = (int)Positions[0].SideToMove * Score;
-            int window = 40;
-            while (!Aborted)
-            {
-                int alpha = eval - window;
-                int beta = eval + window;
-                eval = EvaluateRoot(depth, alpha, beta);
-                if (eval > alpha && eval < beta)
-                    break;
-
-                window *= 2;
-            }
-            return eval;
+            return !IsCheckmate(Score) || (ply > Depth / 4);
         }
 
         private int EvaluateRoot(int depth, int alpha, int beta)
@@ -446,7 +438,7 @@ namespace Leorik.Search
                     return beta;
 
                 if(remaining >= 6)
-                    _history.NullMovePass(eval, beta);
+                    _history.NullMovePassed(eval, beta);
             }
 
             //init staged move generation and play all moves

@@ -107,7 +107,7 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void NullMovePass(int eval, int beta)
+        public void NullMovePassed(int eval, int beta)
         {
             NullMovePassesCount++;
             NullMovePassesSum += eval - beta;
@@ -118,6 +118,37 @@ namespace Leorik.Search
         {
             int avgNullMovePass = (int)(NullMovePassesSum / NullMovePassesCount);
             return eval > beta + avgNullMovePass;
+        }
+
+        int _rootScore = 0;
+        int _window = 0;
+        int _alpha = 0;
+        int _beta = 0;
+
+        public void InitBounds(int depth, out int alpha, out int beta)
+        {
+            _window = 40;
+            alpha = _alpha = _rootScore - _window;
+            beta = _beta = _rootScore + _window;
+        }
+
+        public bool UpdateBounds(int score, out int alpha, out int beta)
+        {
+            _rootScore = score;
+            if (score > _alpha && score < _beta)
+            {
+                _window /= 2;
+                alpha = _alpha;
+                beta = _beta;
+                return true;
+            }
+            else
+            {
+                _window *= 2;
+                alpha = _alpha = score - _window;
+                beta = _beta = score + _window;
+            }
+            return false;
         }
     }
 }
