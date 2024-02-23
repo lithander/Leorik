@@ -120,16 +120,23 @@ namespace Leorik.Search
             return eval > beta + avgNullMovePass;
         }
 
+        int _baseScore = 10;
         int _rootScore = 0;
-        int _window = 0;
+        int _window = 1;
         int _alpha = 0;
         int _beta = 0;
+        bool _momentum = false;
 
         public void InitBounds(out int alpha, out int beta)
         {
-            _window = Math.Max(_window / 2, 10);
-            alpha = _alpha = _rootScore - _window;
-            beta = _beta = _rootScore + _window;
+            if (!_momentum)
+                _window /= 2;
+
+            _momentum = false;
+            int margin = _baseScore << _window;
+            //Console.Write($"I:{margin} ");
+            alpha = _alpha = _rootScore - margin;
+            beta = _beta = _rootScore + margin;
         }
 
         public bool UpdateBounds(int score, out int alpha, out int beta)
@@ -137,15 +144,19 @@ namespace Leorik.Search
             _rootScore = score;
             if (score > _alpha && score < _beta)
             {
+                //Console.WriteLine();
                 alpha = _alpha;
                 beta = _beta;
                 return true;
             }
             else
             {
-                _window *= 2;
-                alpha = _alpha = score - _window;
-                beta = _beta = score + _window;
+                _momentum = true;
+                _window++;
+                int margin = _baseScore << _window;
+                //Console.Write($"{margin} ");
+                alpha = _alpha = score - margin;
+                beta = _beta = score + margin;
             }
             return false;
         }
