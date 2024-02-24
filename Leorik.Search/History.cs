@@ -120,23 +120,16 @@ namespace Leorik.Search
             return eval > beta + avgNullMovePass;
         }
 
-        int _baseScore = 10;
         int _rootScore = 0;
-        int _window = 1;
+        int _window = 20;
         int _alpha = 0;
         int _beta = 0;
-        bool _momentum = false;
 
         public void InitBounds(out int alpha, out int beta)
         {
-            if (!_momentum)
-                _window /= 2;
-
-            _momentum = false;
-            int margin = _baseScore << _window;
-            //Console.Write($"I:{margin} ");
-            alpha = _alpha = _rootScore - margin;
-            beta = _beta = _rootScore + margin;
+            //Console.WriteLine($"New _window: {_window}");
+            alpha = _alpha = _rootScore - _window;
+            beta = _beta = _rootScore + _window;
         }
 
         public bool UpdateBounds(int score, out int alpha, out int beta)
@@ -144,19 +137,21 @@ namespace Leorik.Search
             _rootScore = score;
             if (score > _alpha && score < _beta)
             {
-                //Console.WriteLine();
+                float a = score - _alpha;
+                float b = _beta - score;
+                float ratio = ((a * a) + (b * b)) / ((a + b) * (a + b));
+                //Console.WriteLine($"_window: {_window} ratio: {ratio}");
+                _window = (int)Math.Max(20, ratio * ratio * _window);
                 alpha = _alpha;
                 beta = _beta;
                 return true;
             }
             else
             {
-                _momentum = true;
-                _window++;
-                int margin = _baseScore << _window;
-                //Console.Write($"{margin} ");
-                alpha = _alpha = score - margin;
-                beta = _beta = score + margin;
+                //Console.Write('.');
+                _window *= 2;
+                alpha = _alpha = score - _window;
+                beta = _beta = score + _window;
             }
             return false;
         }
