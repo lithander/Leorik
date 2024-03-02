@@ -433,7 +433,7 @@ namespace Leorik.Search
             int eval = current.SideToMoveScore();
 
             //consider null move pruning first
-            if (!inCheck && eval > beta && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && eval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
                 if (remaining < 6 && _history.IsExpectedFailHigh(eval, beta))
