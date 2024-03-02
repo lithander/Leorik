@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO.MemoryMappedFiles;
@@ -342,6 +343,135 @@ namespace Leorik.Tuning
                 }
                 output.WriteLine("}");
             }
+        }
+
+        public static void ShuffleFile(string fileName)
+        {
+            long t0 = Stopwatch.GetTimestamp();
+            SafeFileHandle outputFileHandle = File.OpenHandle(fileName, FileMode.Open, FileAccess.ReadWrite);
+            long outputFileSize = RandomAccess.GetLength(outputFileHandle);
+            long count = outputFileSize / 32;
+            Console.WriteLine($"Shuffling {fileName}... {outputFileSize} Bytes => {count} Positions");
+            //https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+            Random rng = new Random();
+            long n = count;
+            Span<byte> bufferA = stackalloc byte[32];
+            Span<byte> bufferB = stackalloc byte[32];
+            while (n > 1)
+            {
+                n--;
+                long k = rng.NextInt64(n + 1);
+                //(data[k], data[n]) = (data[n], data[k]);
+                //n -> A
+                RandomAccess.Read(outputFileHandle, bufferA, n);
+                //k -> B
+                RandomAccess.Read(outputFileHandle, bufferB, k);
+                //A --> k
+                RandomAccess.Write(outputFileHandle, bufferA, k);
+                //B --> n
+                RandomAccess.Write(outputFileHandle, bufferB, n);
+                if(n % 1_000_000 == 0)
+                    Console.WriteLine($"{100 * (n / (double)count):F2}%");
+            }
+            outputFileHandle.Close();
+            long t1 = Stopwatch.GetTimestamp();
+            Console.WriteLine($"Shuffling {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+        }
+
+        public static void Shuffle(string dataPath, string[] inputs, string outputFileName)
+        {
+            //load all input files into memory
+            long totalMemory = 0;
+            Console.WriteLine("Calculating required memory...");
+            foreach (var inputFile in inputs)
+            {
+                SafeFileHandle fileHandle = File.OpenHandle(dataPath + inputFile);
+                long fileSize = RandomAccess.GetLength(fileHandle);
+                totalMemory += fileSize;
+                Console.WriteLine($"Loading {inputFile} -> {fileSize:n0} Bytes");
+                fileHandle.Close();
+            }
+
+            //allocate memory!
+            Console.WriteLine($"Allocating buffers for {totalMemory:n0} Bytes...");
+            int bufferSize = (Array.MaxLength / 32) * 32; //buffers should hold multiples of 32bytes
+            List<byte[]> buffers = new List<byte[]>();
+            long remaining = totalMemory;
+            while (remaining > 0) 
+            {
+                int size = (int)Math.Min(bufferSize, remaining);
+                Console.WriteLine(size);
+                buffers.Add(new byte[size]);
+                remaining -= size;
+            }
+
+            //load input files into buffers
+            Console.WriteLine($"Loading input files into RAM...");
+            int iBuffer = 0;
+            int used = 0;
+            foreach (var inputFile in inputs)
+            {
+                SafeFileHandle fileHandle = File.OpenHandle(dataPath + inputFile);
+                long fileSize = RandomAccess.GetLength(fileHandle);
+                long fileOffset = 0;
+                Console.WriteLine($"Loading {inputFile}");
+                while (fileSize > 0)
+                {
+                    byte[] buffer = buffers[iBuffer];
+                    int length = buffer.Length - used;
+                    Span<byte> bytes = new Span<byte>(buffer, used, length);
+                    Console.WriteLine($"Reading {iBuffer} {used}..{length}");
+                    int read = RandomAccess.Read(fileHandle, bytes, fileOffset);
+                    used += read;
+                    fileOffset += read;
+                    if (used == buffer.Length)
+                    {
+                        iBuffer++;
+                        used = 0;
+                    }
+                    fileSize -= read;
+                }
+                fileHandle.Close();
+            }
+
+            Span<byte> GetSpan(long index)
+            {
+                long start = index * 32;
+                int iBuffer = (int)(start / bufferSize);
+                int offset = (int)(start - iBuffer * bufferSize);
+                return new Span<byte>(buffers[iBuffer], offset, 32);
+            }
+
+            long t0 = Stopwatch.GetTimestamp();
+            Random rng = new Random(1337);
+            long count = totalMemory / 32;
+            long n = count;
+            Span<byte> temp = stackalloc byte[32];
+            while (n > 1)
+            {
+                n--;
+                long k = rng.NextInt64(n + 1);
+                Span<byte> nn = GetSpan(n);
+                Span<byte> kk = GetSpan(k);
+                nn.CopyTo(temp);
+                kk.CopyTo(nn);
+                temp.CopyTo(kk);
+
+                if (n % 1_000_000 == 0)
+                    Console.WriteLine($"{100 * (n / (double)count):F2}%");
+            }
+            long t1 = Stopwatch.GetTimestamp();
+            Console.WriteLine($"Shuffling {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
+
+            Console.WriteLine($"Writing results into {outputFileName}");
+            t0 = Stopwatch.GetTimestamp();
+            using (FileStream outputFile = File.Create(outputFileName))
+            {
+                foreach (var buffer in buffers)
+                    outputFile.Write(buffer);
+            }
+            t1 = Stopwatch.GetTimestamp();
+            Console.WriteLine($"Writing {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
         }
     }
 }
