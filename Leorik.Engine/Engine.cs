@@ -16,6 +16,8 @@ namespace Leorik.Engine
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
         public int HistoryPlys => _history.Count;
+        public BoardState Position => _board;
+
         public string GetFen() => Notation.GetFen(_board);
         public NeuralNetEval GetEval() => _board.Eval;
         public void Flip() => _board.Flip();
@@ -26,7 +28,7 @@ namespace Leorik.Engine
 
             //perform warmup sequence (especially useful if JIT-compiled)
             Uci.Silent = true;
-            IterativeSearch search = new(Notation.GetStartingPosition(), SearchOptions.Default, null);
+            IterativeSearch search = new(Notation.GetStartingPosition(), SearchOptions.Default, null, null);
             search.Search(3);
             Reset();
             Uci.Silent = false;
@@ -69,18 +71,18 @@ namespace Leorik.Engine
         //*** Search ***
         //**************
 
-        internal void Go(int maxDepth, int maxTime, long maxNodes)
+        internal void Go(int maxDepth, int maxTime, long maxNodes, Move[] searchMoves)
         {
             Stop();
             _time.Go(maxDepth, maxTime);
-            StartSearch(maxNodes);
+            StartSearch(maxNodes, searchMoves);
         }
 
-        internal void Go(int maxTime, int increment, int movesToGo, int maxDepth, long maxNodes)
+        internal void Go(int maxTime, int increment, int movesToGo, int maxDepth, long maxNodes, Move[] searchMoves)
         {
             Stop();
             _time.Go(maxDepth, maxTime, increment, movesToGo);
-            StartSearch(maxNodes);
+            StartSearch(maxNodes, searchMoves);
         }
 
         public void Stop()
@@ -113,16 +115,16 @@ namespace Leorik.Engine
             return reps.ToArray();
         }
 
-        private void StartSearch(long maxNodes)
+        private void StartSearch(long maxNodes, Move[] searchMoves)
         {
             Transpositions.IncreaseAge();
 
             SearchOptions options = Options;
             options.MaxNodes = maxNodes;
             if(options.Threads > 1)
-                _search = new ParallelSearch(_board, options, SelectMoveHistory(_history));
+                _search = new ParallelSearch(_board, options, SelectMoveHistory(_history), searchMoves);
             else
-                _search = new IterativeSearch(_board, options, SelectMoveHistory(_history));
+                _search = new IterativeSearch(_board, options, SelectMoveHistory(_history), searchMoves);
 
             _time.StartInterval();
             _search.SearchDeeper(() => false);

@@ -29,7 +29,7 @@ namespace Leorik.Search
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        public IterativeSearch(BoardState board, SearchOptions options, ulong[] history)
+        public IterativeSearch(BoardState board, SearchOptions options, ulong[] history, Move[] moves)
         {
             _options = options;
             _history = new History();
@@ -37,9 +37,16 @@ namespace Leorik.Search
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
             MoveGen moveGen = new(Moves, 0);
-            moveGen.Collect(board);
-            RootMoves = new Move[moveGen.Next];
-            Array.Copy(Moves, RootMoves, RootMoves.Length);
+            if(moves?.Length > 0)
+            {
+                RootMoves = moves;
+            }
+            else
+            {
+                moveGen.Collect(board);
+                RootMoves = new Move[moveGen.Next];
+                Array.Copy(Moves, RootMoves, RootMoves.Length);
+            }
 
             //PV-length = depth + (depth - 1) + (depth - 2) + ... + 1
             const int d = MAX_PLY + 1;

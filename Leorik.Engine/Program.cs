@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.0.6";
+        const string NAME_VERSION = "Leorik 3.0.7";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -133,21 +133,22 @@ namespace Leorik.Engine
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
             TryParse(tokens, "movestogo", out int movesToGo, GuessMovesToGo());
+            Move[] searchMoves = ParseSearchMoves(tokens);
 
             if (_engine.SideToMove == Color.White && TryParse(tokens, "wtime", out int whiteTime))
             {
                 TryParse(tokens, "winc", out int whiteIncrement);
-                _engine.Go(whiteTime, whiteIncrement, movesToGo, maxDepth, maxNodes);
+                _engine.Go(whiteTime, whiteIncrement, movesToGo, maxDepth, maxNodes, searchMoves);
             }
             else if (_engine.SideToMove == Color.Black && TryParse(tokens, "btime", out int blackTime))
             {
                 TryParse(tokens, "binc", out int blackIncrement);
-                _engine.Go(blackTime, blackIncrement, movesToGo, maxDepth, maxNodes);
+                _engine.Go(blackTime, blackIncrement, movesToGo, maxDepth, maxNodes, searchMoves);
             }
             else
             {
                 //Searching infinite within optional constraints
-                _engine.Go(maxDepth, maxTime, maxNodes);
+                _engine.Go(maxDepth, maxTime, maxNodes, searchMoves);
             }
         }
 
@@ -173,6 +174,30 @@ namespace Leorik.Engine
             //token couldn't be parsed. use default value
             value = defaultValue;
             return false;
+        }
+
+        private static Move[] ParseSearchMoves(string[] tokens)
+        {
+            int iParam = Array.IndexOf(tokens, "searchmoves");
+            if (iParam < 0) 
+                return Array.Empty<Move>();
+
+            List<Move> moves = new List<Move>();
+            int iValue = iParam + 1;
+            while(iValue < tokens.Length)
+            {
+                try
+                {
+                    string notation = tokens[iValue++];
+                    Move move = Notation.GetMoveUci(_engine.Position, notation);
+                    moves.Add(move);
+                }
+                catch
+                {
+                    return moves.ToArray();
+                }
+            }
+            return moves.ToArray();
         }
 
         private static string Token(string[] tokens, string name)

@@ -24,11 +24,11 @@ namespace Leorik.Search
         }
 
 
-        public ParallelSearch(BoardState board, SearchOptions options, ulong[] history)
+        public ParallelSearch(BoardState board, SearchOptions options, ulong[] history, Move[] moves)
         {
             for (int i = 0; i < options.Threads; i++)
             {
-                var worker = new IterativeSearch(board, options, history);
+                var worker = new IterativeSearch(board, options, history, moves);
                 _worker.Add(worker);
             }
         }
