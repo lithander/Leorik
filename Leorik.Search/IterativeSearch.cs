@@ -10,6 +10,7 @@ namespace Leorik.Search
         private const int MIN_ALPHA = -CheckmateScore;
         private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
+        private const int ASPIRATION_WINDOW = 40;
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
@@ -29,7 +30,7 @@ namespace Leorik.Search
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        public IterativeSearch(BoardState board, SearchOptions options, ulong[] history, Move[] moves)
+        public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves = null)
         {
             _options = options;
             _history = new History();
@@ -37,7 +38,7 @@ namespace Leorik.Search
 
             Moves = new Move[MAX_PLY * MAX_MOVES];
             MoveGen moveGen = new(Moves, 0);
-            if(moves?.Length > 0)
+            if (moves?.Length > 0)
             {
                 RootMoves = moves;
             }
@@ -154,7 +155,7 @@ namespace Leorik.Search
         {
             if (Aborted |= ForcedCut(ply))
                 return Positions[ply].SideToMoveScore();
-            
+
             //Mate distance pruning
 
             alpha = Math.Max(alpha, MatedScore(ply));
@@ -317,7 +318,7 @@ namespace Leorik.Search
             //find the move...
             for (int i = first + 1; i < end; i++)
             {
-                if(Moves[i] == move)
+                if (Moves[i] == move)
                 {
                     //...swap best with first
                     (Moves[first], Moves[i]) = (Moves[i], Moves[first]);
@@ -355,13 +356,13 @@ namespace Leorik.Search
         private bool AllowNullMove(int ply)
         {
             //if the previous iteration found a mate we do the first few plys without null move to try and find the shortest mate or escape
-            return !Evaluation.IsCheckmate(Score) || (ply > Depth / 4);
+            return !IsCheckmate(Score) || (ply > Depth / 4);
         }
 
         private int EvaluateRoot(int depth)
         {
             int eval = (int)Positions[0].SideToMove * Score;
-            int window = 40;
+            int window = ASPIRATION_WINDOW;
             while (!Aborted)
             {
                 int alpha = eval - window;
@@ -395,19 +396,10 @@ namespace Leorik.Search
                 int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (depth >= 2 && i > 0)
-                {
-                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    int R = (move.CapturedPiece() != Piece.None || inCheck || next.InCheck()) ? 0 : 2;
+                if (i > 0 && EvaluateNext(0, depth - 2, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
+                    continue;
 
-                    //Fail low but with BONUS!
-                    if (bonus + EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) <= alpha)
-                        continue;
-                }
-
-                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int score = bonus + EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen);
-
+                int score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
                 if (score > alpha)
                 {
                     alpha = score;
@@ -425,10 +417,6 @@ namespace Leorik.Search
 
             return alpha;
         }
-
-        //public static long FALSE_SKIP = 0;
-        //public static long MISSED_SKIP = 0;
-        //public static long CORRECT = 0;
 
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
         {
@@ -452,7 +440,7 @@ namespace Leorik.Search
                 if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
                     return beta;
 
-                if(remaining >= 6)
+                if (remaining >= 6)
                     _history.NullMovePass(eval, beta);
             }
 
