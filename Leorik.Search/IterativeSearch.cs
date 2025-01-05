@@ -404,7 +404,6 @@ namespace Leorik.Search
             BoardState root = Positions[0];
             BoardState next = Positions[1];
             MoveGen moveGen = new(Moves, 0);
-            bool inCheck = root.InCheck();
 
             //init staged move generation and play all moves
             for (int i = 0; i < RootMoves.Length; i++)
@@ -417,7 +416,9 @@ namespace Leorik.Search
                 int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                if (i > 0 && EvaluateNext(0, depth - 2, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
+                //...non-tactical late moves are searched at a reduced depth to make this test even faster!
+                int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
+                if (i > 0 && EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
                     continue;
 
                 int score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
