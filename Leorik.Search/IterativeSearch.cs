@@ -30,7 +30,7 @@ namespace Leorik.Search
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
-        public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves = null)
+        public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves)
         {
             _options = options;
             _history = new History();
@@ -153,8 +153,10 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
+            BoardState current = Positions[ply];
+
             if (Aborted |= ForcedCut(ply))
-                return Positions[ply].SideToMoveScore();
+                return current.SideToMoveScore();
 
             //Mate distance pruning
 
@@ -172,25 +174,44 @@ namespace Leorik.Search
 
             //Handle draws!
 
-            if (IsInsufficientMatingMaterial(Positions[ply]))
+            if (IsInsufficientMatingMaterial(current))
                 return 0;
 
-            if (Positions[ply].HalfmoveClock > 99)
+            if (current.HalfmoveClock > 99)
                 return 0; //TODO: checkmate > draw?
 
             if (IsRepetition(ply))
                 return 0; //TODO: is scoring *any* repetion as zero premature?
 
-            //TT lookup and main search
+            //Transposition table lookup lookup
 
-            ulong hash = Positions[ply].ZobristHash;
+            ulong hash = current.ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
+            //Main Search!
+
             int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
 
-            if (!Aborted)
-                Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
+            if (Aborted)
+                return score;
+
+            //Update correction history!
+
+            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
+            int delta = score - staticEval;
+            if ((bm.CapturedPiece() == Piece.None) && //Best move either does not exist or is not a capture
+                !IsCheckmate(score) &&                //checkmate scores are excluded!
+                !(score <= alpha && delta > 0) &&     //fail-lows should not cause positive adjustment
+                !(score >= beta && delta < 0) &&      //fail-highs should not cause negative adjustment
+                !current.InCheck())                   //exclude positons that are in check!
+            {
+                _history.UpdateCorrection(current.SideToMove, remaining, current.Pawns, delta);
+            }
+
+            //Update transposition table
+
+            Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
 
             return score;
         }
@@ -425,13 +446,13 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            int eval = current.SideToMoveScore();
+            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
 
             //consider null move pruning first
-            if (!inCheck && eval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                if (remaining < 6 && _history.IsExpectedFailHigh(eval, beta))
+                if (remaining < 6 && _history.IsExpectedFailHigh(staticEval, beta))
                     return beta;
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
@@ -441,7 +462,7 @@ namespace Leorik.Search
                     return beta;
 
                 if (remaining >= 6)
-                    _history.NullMovePass(eval, beta);
+                    _history.NullMovePass(staticEval, beta);
             }
 
             //init staged move generation and play all moves
@@ -506,7 +527,7 @@ namespace Leorik.Search
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.SideToMoveScore();
+                int standPatScore = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
 
                 if (standPatScore >= beta)
                     return beta;

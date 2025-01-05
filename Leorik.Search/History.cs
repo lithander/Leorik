@@ -24,6 +24,10 @@ namespace Leorik.Search
         private readonly Move[,] Counter = new Move[Squares, Pieces];
         private readonly Move[,] FollowUp = new Move[Squares, Pieces];
 
+        const int CORR_HASH_TABLE_SIZE = 4999; //prime!
+        private readonly long[] Correction = new long[2 * CORR_HASH_TABLE_SIZE];
+        private readonly long[] UpdateCount = new long[2 * CORR_HASH_TABLE_SIZE];
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int PieceIndex(Piece piece) => (byte)piece >> 1; //BlackPawn = 0...
@@ -31,7 +35,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
         {
-            ulong inc = Inc(depth);
+            ulong inc = (ulong)(depth * depth);
             TotalPositive += inc;
 
             //no killer, followup, counter tracking for captures
@@ -57,7 +61,7 @@ namespace Leorik.Search
         {
             Moves[ply] = move;
 
-            ulong inc = Inc(depth);
+            ulong inc = (ulong)(depth * depth);
             TotalPlayed += inc;
 
             if (move.CapturedPiece() != Piece.None)
@@ -75,12 +79,6 @@ namespace Leorik.Search
             float b = All[move.ToSquare, iMoving];
             //local-ratio / average-ratio
             return TotalPlayed * a / (b * TotalPositive + 1);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ulong Inc(int depth)
-        {
-            return (ulong)(depth * depth);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -118,6 +116,24 @@ namespace Leorik.Search
         {
             int avgNullMovePass = (int)(NullMovePassesSum / NullMovePassesCount);
             return eval > beta + avgNullMovePass;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetCorrection(Color stm, ulong pawns)
+        {
+            int index = (int)(pawns % CORR_HASH_TABLE_SIZE) + ((stm == Color.Black) ? CORR_HASH_TABLE_SIZE : 0);
+            long a = Correction[index];
+            long b = UpdateCount[index];
+            return (int)(a / (b + 100));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UpdateCorrection(Color stm, int depth, ulong pawns, int delta)
+        {
+            int index = (int)(pawns % CORR_HASH_TABLE_SIZE) + ((stm == Color.Black) ? CORR_HASH_TABLE_SIZE : 0);
+            long inc = depth * depth;
+            Correction[index] += inc * Math.Clamp(delta, -100, +100);
+            UpdateCount[index] += inc;
         }
     }
 }
