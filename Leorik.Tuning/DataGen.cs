@@ -156,7 +156,7 @@ namespace Leorik.Tuning
 
             DoublePlayoutWriter writer = new DoublePlayoutWriter(path, fileName);
             //int nodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
-            RunDatagen(nodes, 5 * nodes, randomMoves, hotMoves, temp, threads, writer);
+            RunDatagen(nodes, 99 * nodes, randomMoves, hotMoves, temp, threads, writer);
         }
 
         private static void Query(string label, int devaultValue, out int value)
@@ -183,7 +183,7 @@ namespace Leorik.Tuning
                 Console.WriteLine();
         }
 
-        private static void RunDatagen(int minNodes, int maxNodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
+        private static void RunDatagen(int softMaxNodes, int abortNodes, int randomMoves, int hotMoves, int temp, int threads, IPlayoutWriter writer)
         {
             long totalPositionCount = 0;
             long totalStartTicks = Stopwatch.GetTimestamp();
@@ -203,7 +203,7 @@ namespace Leorik.Tuning
                     {
                         moveList.Clear();
                         scoreList.Clear();
-                        byte wdl = Playout(board.Clone(), minNodes, maxNodes, hotMoves, temp, moveList, scoreList);
+                        byte wdl = Playout(board.Clone(), softMaxNodes, abortNodes, hotMoves, temp, moveList, scoreList);
 
                         long now = Stopwatch.GetTimestamp();
                         float duration = (float)(now - startTicks[i]) / Stopwatch.Frequency;
@@ -240,13 +240,13 @@ namespace Leorik.Tuning
             return true;
         }
 
-        private static byte Playout(BoardState board, int minNodes, int maxNodes, int hotMoves, int temp, List<Move> moves, List<short> scores)
+        private static byte Playout(BoardState board, int softMaxNodes, int abortNodes, int hotMoves, int temp, List<Move> moves, List<short> scores)
         {
             Transpositions.IncreaseAge();
 
             SearchOptions searchOptions = SearchOptions.Default;
             searchOptions.Temperature = temp;
-            searchOptions.MaxNodes = maxNodes;
+            searchOptions.MaxNodes = abortNodes;
             Dictionary<ulong, int> hashes = new Dictionary<ulong, int>();
             List<ulong> reps = new();
 
@@ -261,9 +261,9 @@ namespace Leorik.Tuning
                 reps.Add(board.ZobristHash);
 
                 Move bestMove = default;
-                var search = new IterativeSearch(board, searchOptions, reps.ToArray());
+                var search = new IterativeSearch(board, searchOptions, reps.ToArray(), null);
                 int score = 0;
-                while (search.NodesVisited < minNodes && search.Depth < IterativeSearch.MAX_PLY)
+                while (search.NodesVisited < softMaxNodes && search.Depth < IterativeSearch.MAX_PLY)
                 {
                     search.SearchDeeper();
                     if (search.Aborted || search.PrincipalVariation.Length == 0)

@@ -12,8 +12,6 @@ namespace Leorik.Test
 
         static void Main()
         {
-            Network.LoadDefaultNetwork();
-
             Console.WriteLine("Leorik Tests v15");
             Console.WriteLine();
             unsafe
@@ -390,6 +388,9 @@ namespace Leorik.Test
 
         static Program()
         {
+            Network.LoadDefaultNetwork();
+            //Network.InitEmptyNetwork(256);
+
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();

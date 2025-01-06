@@ -67,7 +67,8 @@ Filter FILTER_CONFIG = new()
     QSearchDepth = 10
 };
 
-Network.LoadDefaultNetwork();
+//Network.LoadDefaultNetwork();
+Network.InitEmptyNetwork(1);
 DataGen.RunPrompt();
 //BitboardUtils.Repl();
 //FilterPlayouts(BIN_PLAYOUT_FILES, TD_FILE, FILTER_CONFIG);
