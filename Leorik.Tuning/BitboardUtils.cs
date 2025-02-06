@@ -26,7 +26,7 @@ namespace Leorik.Tuning
                 }
                 BoardState board = Notation.GetBoardState(fen);
                 NeuralNetEval nneval = new NeuralNetEval(board);
-                Console.WriteLine($"NNUE: {nneval.Score} for {board.SideToMove} ({board.Score}");
+                Console.WriteLine($"NNUE: {nneval.Score} for {board.SideToMove} ({board.Score()}");
             }
         }
 

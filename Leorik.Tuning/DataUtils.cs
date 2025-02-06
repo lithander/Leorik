@@ -17,7 +17,6 @@ namespace Leorik.Tuning
         public short StartSkip;
         public short MinSkip;
         public short MaxSkip;
-        public short ScoreCap;
         public short DrawScoreCap;
         public short WrongScoreCap;
         public short MinPieces;
@@ -223,6 +222,7 @@ namespace Leorik.Tuning
 
                 marlin.Read(reader);
                 BoardState board = marlin.Unpack(out short fullMoveNumber, out short eval, out byte wdl, out byte extra);
+                board.UpdateEval();
 
                 //Console.WriteLine(Notation.GetFen(board));
                 int skipMoves = filter.StartSkip;
@@ -241,8 +241,8 @@ namespace Leorik.Tuning
                     if (pieceCount < filter.MinPieces)
                         continue;
 
-                    //skip positions with extreme scores
-                    if (Math.Abs(score) > filter.ScoreCap)
+                    //skip positions with mate score
+                    if (Evaluation.IsCheckmate(score))
                         continue;
 
                     //Wdl: 1 = Draw
@@ -252,11 +252,11 @@ namespace Leorik.Tuning
                     //2.An epd that is a white win with a score < -X is removed.
                     if (wdl == 2 && score < -filter.WrongScoreCap)
                         continue;
-
+ 
                     //3.An epd that is a white loss with a score > X is removed.
                     if (wdl == 0 && score > filter.WrongScoreCap)
                         continue;
-
+                 
                     var quiet = quiesce.QuiescePosition(board, filter.QSearchDepth);
                     if (quiet == null)
                         continue;
@@ -378,14 +378,14 @@ namespace Leorik.Tuning
             Console.WriteLine($"Shuffling {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
         }
 
-        public static void Shuffle(string dataPath, string[] inputs, string outputFileName)
+        public static void Shuffle(string[] inputsFiles, string outputFiles)
         {
             //load all input files into memory
             long totalMemory = 0;
             Console.WriteLine("Calculating required memory...");
-            foreach (var inputFile in inputs)
+            foreach (var inputFile in inputsFiles)
             {
-                SafeFileHandle fileHandle = File.OpenHandle(dataPath + inputFile);
+                SafeFileHandle fileHandle = File.OpenHandle(inputFile);
                 long fileSize = RandomAccess.GetLength(fileHandle);
                 totalMemory += fileSize;
                 Console.WriteLine($"Loading {inputFile} -> {fileSize:n0} Bytes");
@@ -409,9 +409,9 @@ namespace Leorik.Tuning
             Console.WriteLine($"Loading input files into RAM...");
             int iBuffer = 0;
             int used = 0;
-            foreach (var inputFile in inputs)
+            foreach (var inputFile in inputsFiles)
             {
-                SafeFileHandle fileHandle = File.OpenHandle(dataPath + inputFile);
+                SafeFileHandle fileHandle = File.OpenHandle(inputFile);
                 long fileSize = RandomAccess.GetLength(fileHandle);
                 long fileOffset = 0;
                 Console.WriteLine($"Loading {inputFile}");
@@ -457,15 +457,15 @@ namespace Leorik.Tuning
                 kk.CopyTo(nn);
                 temp.CopyTo(kk);
 
-                if (n % 1_000_000 == 0)
+                if (n % 5_000_000 == 0)
                     Console.WriteLine($"{100 * (n / (double)count):F2}%");
             }
             long t1 = Stopwatch.GetTimestamp();
             Console.WriteLine($"Shuffling {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
 
-            Console.WriteLine($"Writing results into {outputFileName}");
+            Console.WriteLine($"Writing results into {outputFiles}");
             t0 = Stopwatch.GetTimestamp();
-            using (FileStream outputFile = File.Create(outputFileName))
+            using (FileStream outputFile = File.Create(outputFiles))
             {
                 foreach (var buffer in buffers)
                     outputFile.Write(buffer);

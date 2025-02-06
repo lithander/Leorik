@@ -153,6 +153,12 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Score(Color stm)
+        {
+            return (int)stm * (int)SideToMove * Eval.Score;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool QuickPlay(BoardState from, ref Move move)
         {
             if (from.SideToMove == Color.White)

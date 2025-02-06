@@ -31,14 +31,18 @@ namespace Leorik.Tuning
             const int MAX_BETA = Evaluation.CheckmateScore;
             Positions[0].Copy(position);
             Results[0].Copy(position);
+
+            if (maxQDepth <= 0)
+                return Results[0];
+
             DeepestPly = 0;
             MaxDepth = maxQDepth;
             MoveGen moveGen = new MoveGen(Moves, 0);
             int score = EvaluateQuiet(0, MIN_ALPHA, MAX_BETA, moveGen);
             if (DeepestPly > MaxDepth)
                 return null; //We couldn't quiesce the position within the allowed depth
-
-            int score2 = position.SideToMoveScore();
+           
+            int score2 = Results[0].Score(position.SideToMove);
             if (score != score2)
                 return null; //This typically means a checkmate or stalemate - we ignore those!
 

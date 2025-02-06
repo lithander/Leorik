@@ -27,7 +27,7 @@ namespace Leorik.Core
         public static bool LoadDefaultNetwork()
         {
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string[] files = Directory.GetFiles(currentDirectory, $"{DefaultLayer1Size}HL*.nnue");
+            string[] files = Directory.GetFiles(currentDirectory, $"*HL*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");
             if (files.Length == 0)
@@ -37,12 +37,11 @@ namespace Leorik.Core
                 return false;
             }
             string fileName = Path.GetFileName(files[0]);
+            int layer1Size = int.Parse(fileName.Substring(0, fileName.IndexOf("HL")));
             Console.WriteLine($"Loading NNUE weights from {fileName}!");
-            LoadDefaultNetwork(files[0], DefaultLayer1Size);
+            LoadDefaultNetwork(files[0], layer1Size);
             return true;
         }
-
-        public const int DefaultLayer1Size = 256;
 
         public const int InputSize = 768;
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,10 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="128HL-57716AF0.nnue">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="256HL-3B5083B8.nnue">
+    <None Update="256HL-1402M-Tmix-Q5-v14.nnue">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
