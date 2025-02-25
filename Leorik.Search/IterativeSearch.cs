@@ -198,7 +198,7 @@ namespace Leorik.Search
 
             //Update correction history!
 
-            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
+            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current);
             int delta = score - staticEval;
             if ((bm.CapturedPiece() == Piece.None) && //Best move either does not exist or is not a capture
                 !IsCheckmate(score) &&                //checkmate scores are excluded!
@@ -206,7 +206,7 @@ namespace Leorik.Search
                 !(score >= beta && delta < 0) &&      //fail-highs should not cause negative adjustment
                 !current.InCheck())                   //exclude positons that are in check!
             {
-                _history.UpdateCorrection(current.SideToMove, remaining, current.Pawns, delta);
+                _history.UpdateCorrection(current, remaining, delta);
             }
 
             //Update transposition table
@@ -447,7 +447,7 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
+            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current);
 
             //consider null move pruning first
             if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
@@ -528,7 +528,7 @@ namespace Leorik.Search
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.SideToMoveScore() + _history.GetCorrection(current.SideToMove, current.Pawns);
+                int standPatScore = current.SideToMoveScore() + _history.GetCorrection(current);
 
                 if (standPatScore >= beta)
                     return beta;

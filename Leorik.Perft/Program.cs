@@ -12,6 +12,7 @@ namespace Leorik.Perft
 
         static Program()
         {
+            Network.LoadDefaultNetwork();
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
                 Positions[i] = new BoardState();
@@ -21,7 +22,6 @@ namespace Leorik.Perft
         static void Main()
         {
             Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
-            Network.LoadDefaultNetwork();
             Console.WriteLine();
             int line = 1;
             long totalNodes = 0;

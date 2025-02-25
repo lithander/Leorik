@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using static System.Formats.Asn1.AsnWriter;
@@ -24,9 +25,26 @@ namespace Leorik.Search
         private readonly Move[,] Counter = new Move[Squares, Pieces];
         private readonly Move[,] FollowUp = new Move[Squares, Pieces];
 
-        const int CORR_HASH_TABLE_SIZE = 4999; //prime!
-        private readonly long[] Correction = new long[2 * CORR_HASH_TABLE_SIZE];
-        private readonly long[] UpdateCount = new long[2 * CORR_HASH_TABLE_SIZE];
+        const int CORR_HASH_TABLE_SIZE = 19997; //prime!
+        
+        struct CorrEntry
+        {
+            public long Numerator;
+            public long Denominator;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Add(long corr, long inc)
+            {
+                Numerator += corr;
+                Denominator += inc;
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int Get() => (int)(Numerator / (Denominator + 100));
+        }
+        private readonly CorrEntry[] PawnCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
+        private readonly CorrEntry[] MinorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
+        private readonly CorrEntry[] MajorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
+        //private readonly CorrEntry[] BlackPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
+        //private readonly CorrEntry[] WhitePieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -119,21 +137,46 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int GetCorrection(Color stm, ulong pawns)
+        public int GetCorrection(BoardState board)
         {
-            int index = (int)(pawns % CORR_HASH_TABLE_SIZE) + ((stm == Color.Black) ? CORR_HASH_TABLE_SIZE : 0);
-            long a = Correction[index];
-            long b = UpdateCount[index];
-            return (int)(a / (b + 100));
+            int stm = (board.SideToMove == Color.Black) ? 1 : 0;
+
+            int index = CorrectionIndex(board.Pawns) + stm;
+            int result = PawnCorrection[index].Get();
+
+            //Score of Leorik-3.0.12 vs Leorik-3.0.11v16: 1783 - 1573 - 6644  [0.510] 10000
+            //...      Leorik-3.0.12 playing White: 1115 - 564 - 3321  [0.555] 5000
+            //...      Leorik-3.0.12 playing Black: 668 - 1009 - 3323  [0.466] 5000
+            //...      White vs Black: 2124 - 1232 - 6644  [0.545] 10000
+            //Elo difference: 7.3 +/- 3.9, LOS: 100.0 %, DrawRatio: 66.4 %
+
+            index = CorrectionIndex(board.Knights | board.Bishops) + stm;
+            result += MinorPieceCorrection[index].Get();
+
+            index = CorrectionIndex(board.Queens | board.Rooks) + stm;
+            result += MajorPieceCorrection[index].Get();
+
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateCorrection(Color stm, int depth, ulong pawns, int delta)
+        public void UpdateCorrection(BoardState board, int depth, int delta)
         {
-            int index = (int)(pawns % CORR_HASH_TABLE_SIZE) + ((stm == Color.Black) ? CORR_HASH_TABLE_SIZE : 0);
             long inc = depth * depth;
-            Correction[index] += inc * Math.Clamp(delta, -100, +100);
-            UpdateCount[index] += inc;
+            long corr = inc * Math.Clamp(delta, -100, +100);
+            int stm = (board.SideToMove == Color.Black) ? 1 : 0;
+
+            int index = CorrectionIndex(board.Pawns) + stm;
+            PawnCorrection[index].Add(corr, inc);
+            
+            index = CorrectionIndex(board.Knights | board.Bishops) + stm;
+            MinorPieceCorrection[index].Add(corr, inc);
+
+            index = CorrectionIndex(board.Queens | board.Rooks) + stm;
+            MajorPieceCorrection[index].Add(corr, inc);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int CorrectionIndex(ulong bits) => (int)(bits % CORR_HASH_TABLE_SIZE) * 2;
     }
 }
