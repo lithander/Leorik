@@ -4,6 +4,7 @@
 //#define DENSE_SUBSETS
 //#define CLASSIC
 //#define ZERO
+//#define OBSTRUCTION_DIFFERENCE
 
 using System.Buffers.Binary;
 using System.Numerics;
@@ -15,7 +16,7 @@ namespace Leorik.Core
 {
     public static class Bitboard
     {
-        public enum SliderGeneration { Classic, ClassicZero, KiSS, PEXT, SparseSubsets, DenseSubsets }
+        public enum SliderGeneration { Classic, ClassicZero, KiSS, PEXT, SparseSubsets, DenseSubsets, ObstructionDifference }
 #if PEXT
         public static readonly SliderGeneration SliderMode = Bmi2.X64.IsSupported ? SliderGeneration.PEXT : SliderGeneration.Classic;
 #elif KISS
@@ -28,6 +29,8 @@ namespace Leorik.Core
         public const SliderGeneration SliderMode = SliderGeneration.Classic;
 #elif ZERO
         public const SliderGeneration SliderMode = SliderGeneration.ClassicZero;
+#elif OBSTRUCTION_DIFFERENCE
+        public const SliderGeneration SliderMode = SliderGeneration.ObstructionDifference;
 #endif
 
 
@@ -51,6 +54,8 @@ namespace Leorik.Core
             return Classic.BishopAttacks(occupation, square);
 #elif ZERO
             return ClassicZero.BishopAttacks(occupation, square);
+#elif OBSTRUCTION_DIFFERENCE
+            return ObstructionDifference.BishopAttacks(occupation, square);
 #endif
         }
 
@@ -72,6 +77,8 @@ namespace Leorik.Core
             return Classic.RookAttacks(occupation, square);
 #elif ZERO
             return ClassicZero.RookAttacks(occupation, square);
+#elif OBSTRUCTION_DIFFERENCE
+            return ObstructionDifference.RookAttacks(occupation, square);
 #endif
         }
 
