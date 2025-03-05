@@ -420,91 +420,82 @@ namespace Leorik.Search
         /// <returns>Evaluated score for the best move</returns>
         private int EvaluateRootBNS(int depth)
         {
-            NodesVisited++;
-            BoardState root = Positions[0];
-            BoardState next = Positions[1];
-            MoveGen moveGen = new(Moves, 0);
-
-            // Set initial bounds based on the allowed score range.
-            int lowerBound = MIN_ALPHA;
-            int upperBound = MAX_BETA;
-            Move bestMove = default;
-            int bestScore = lowerBound;
-
-            // Iteratively narrow the range. (The stopping condition here is when the interval is narrow enough.)
-            while (upperBound - lowerBound > 1 && !_killSwitch.Get())
-            {
-                int test = (lowerBound + upperBound) / 2;
-                int successCount = 0;
-                Move candidateMove = default;
-                int candidateScore = lowerBound;
-
-                // Evaluate each root move with a null-window search [test, test+1].
-                for (int i = 0; i < RootMoves.Length; i++)
-                {
-                    Move move = RootMoves[i];
-                    if (!next.Play(root, ref move))
-                        continue;
-                    int score = EvaluateNext(0, depth, test, test + 1, moveGen);
-                    if (score >= test + 1)
-                    {
-                        successCount++;
-                        candidateMove = move;
-                        candidateScore = score;
-                    }
-                }
-
-                if (successCount == 1)
-                {
-                    // Exactly one move exceeds the test threshold: we choose it.
-                    bestMove = candidateMove;
-                    bestScore = candidateScore;
-                    break;
-                }
-                else if (successCount == 0)
-                {
-                    // No move succeeded – all moves score below the test value.
-                    upperBound = test;
-                }
-                else
-                {
-                    // More than one move succeeded – raise the lower bound.
-                    lowerBound = test + 1;
-                }
-            }
-
-            // If no unique candidate was found, do a full window search among all root moves.
-            if (bestMove == default)
-            {
-                bestScore = lowerBound;
-                for (int i = 0; i < RootMoves.Length; i++)
-                {
-                    Move move = RootMoves[i];
-                    if (!next.Play(root, ref move))
-                        continue;
-                    int score = EvaluateNext(0, depth, lowerBound, upperBound, moveGen);
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestMove = move;
-                    }
-                }
-            }
-
-            // Promote best move to the front.
-            for (int i = 0; i < RootMoves.Length; i++)
-            {
-                if (RootMoves[i] == bestMove)
-                {
-                    if (i != 0)
-                    {
-                        (RootMoves[0], RootMoves[i]) = (RootMoves[i], RootMoves[0]);
-                    }
-                    break;
-                }
-            }
-            ExtendPV(0, depth, bestMove);
-            return bestScore;
+        	NodesVisited++;
+        	BoardState root = Positions[0];
+        	BoardState next = Positions[1];
+        	MoveGen moveGen = new(Moves, 0);
+        	// Set initial bounds based on the allowed score range.
+        	int lowerBound = MIN_ALPHA;
+        	int upperBound = MAX_BETA;
+        	Move bestMove = default;
+        	int bestScore = lowerBound;
+        	// Iteratively narrow the range.
+        	while (upperBound - lowerBound > 1 && !_killSwitch.Get())
+        	{
+        		int test = (lowerBound + upperBound) / 2;
+        		int successCount = 0;
+        		Move candidateMove = default;
+        		int candidateScore = lowerBound;
+        		// Evaluate each root move with a null-window search [test, test+1],
+        		// incorporating PVS enhancements: rook bonus offsets and null-move reduction.
+        		for (int i = 0; i < RootMoves.Length; i++)
+        		{
+        			Move move = RootMoves[i];
+        			if (!next.Play(root, ref move)) continue;
+        			int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
+        			int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
+        			// For non-first moves, perform a reduced-depth preliminary test.
+        			if (i > 0 && EvaluateNext(0, depth - R, test - bonus, test + 1 - bonus, moveGen) + bonus <= test) continue;
+        			int score = EvaluateNext(0, depth, test - bonus, test + 1 - bonus, moveGen) + bonus;
+        			if (score >= test + 1)
+        			{
+        				successCount++;
+        				candidateMove = move;
+        				candidateScore = score;
+        			}
+        		}
+          
+        		if (successCount == 1)
+        		{
+        			// Exactly one move exceeds the test threshold: choose it.
+        			bestMove = candidateMove;
+        			bestScore = candidateScore;
+        			break;
+        		}
+        		else if (successCount == 0)
+        		{
+        			// No move succeeded – all moves score below the test value.
+        			upperBound = test;
+        		}
+        		else
+        		{
+        			// More than one move succeeded – raise the lower bound.
+        			lowerBound = test + 1;
+        		}
+        	}
+         
+        	// Instead of performing a full-window fallback search, pick the first move as the fallback.
+        	if (bestMove == default)
+        	{
+        		bestMove = RootMoves[0];
+        		bestScore = lowerBound;
+        	}
+         
+        	// Promote best move to the front.
+        	for (int i = 0; i < RootMoves.Length; i++)
+        	{
+        		if (RootMoves[i] == bestMove)
+        		{
+        			if (i != 0)
+        			{
+        				(RootMoves[0], RootMoves[i]) = (RootMoves[i], RootMoves[0]);
+        			}
+        			break;
+        		}
+        	}
+         
+        	ExtendPV(0, depth, bestMove);
+        	return bestScore;
         }
 
         // --- Remainder of search methods (Evaluate, EvaluateQuiet, etc.) remain unchanged ---
