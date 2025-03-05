@@ -27,7 +27,7 @@ namespace Leorik.Search
         public int Depth { get; private set; }
         public int Score { get; private set; }
         public bool Aborted { get; private set; }
-        public Span PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
+        public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
         public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves)
         {
@@ -74,11 +74,11 @@ namespace Leorik.Search
             return depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get();
         }
 
-        private static Span GetFirstPVfromBuffer(Move[] pv, int depth)
+        private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
         {
             //return moves until the first is 'default' move but not more than 'depth' number of moves
             int end = Array.IndexOf(pv, default, 0, depth);
-            return new Span(pv, 0, end >= 0 ? end : depth);
+            return new Span<Move>(pv, 0, end >= 0 ? end : depth);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,7 +114,7 @@ namespace Leorik.Search
         /// otherwise we fall back to the standard aspiration–window search.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SearchDeeper(Func? killSwitch = null)
+        public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Depth++;
             _killSwitch = new KillSwitch(killSwitch);
