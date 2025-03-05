@@ -208,8 +208,6 @@ namespace Leorik.Search
             public PlayState(int next)
             {
                 Next = next;
-                PlayedMoves = 0;
-                Stage = Stage.Best;
             }
         }
 
