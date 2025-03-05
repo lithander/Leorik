@@ -417,86 +417,103 @@ namespace Leorik.Search
         /// <param name="depth">Search depth</param>
         /// <returns>Evaluated score for the best move</returns>
     private int EvaluateRootBNS(int depth)
+{
+    NodesVisited++;
+    BoardState root = Positions[0];
+    BoardState next = Positions[1];
+    MoveGen moveGen = new(Moves, 0);
+    int alpha = MIN_ALPHA;
+    int beta = MAX_BETA;
+    int subtreeCount = RootMoves.Length;
+    int bestScore = MIN_ALPHA;
+    Move bestMove = null;
+
+    do
     {
-    	NodesVisited++;
-    	BoardState root = Positions[0];
-    	BoardState next = Positions[1];
-    	MoveGen moveGen = new(Moves, 0);
-    	int subtreeCount = RootMoves.Length;
-    	int alpha = MIN_ALPHA;
-    	int beta = MAX_BETA;
-    	Move bestMove =
-    		default;
-    	int bestScore = alpha;
-    	// BNS loop: keep narrowing the range until the window is small or a unique best move is found.
-    	do {
-    		// NextGuess formula: test = α + (β - α) * (subtreeCount - 1) / subtreeCount
-    		int test = alpha + ((beta - alpha) * (subtreeCount - 1)) / subtreeCount;
-    		int betterCount = 0;
-    		Move candidateMove =
-    			default;
-    		int candidateScore = alpha;
-    		// Evaluate each child (root move) with a null-window search.
-    		for (int i = 0; i < subtreeCount; i++)
-    		{
-    			Move move = RootMoves[i];
-    			if (!next.Play(root, ref move)) continue;
-    			// Incorporate your enhancements:
-    			//  - "Rook randomness": apply an offset bonus (if not checkmate)
-    			//  - "Null-move reduction": reduce depth (R) if move is quiet
-    			int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
-    			int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
-    			// For moves beyond the first, do a reduced-depth preliminary test.
-    			if (i > 0 && EvaluateNext(0, depth - R, test - bonus, test + 1 - bonus, moveGen) + bonus <= test) continue;
-    			// Full null-window search with the current test threshold.
-    			int score = EvaluateNext(0, depth, test - bonus, test + 1 - bonus, moveGen) + bonus;
-    			// Count moves that meet or exceed the test value.
-    			if (score >= test)
-    			{
-    				betterCount++;
-    				candidateMove = move;
-    				candidateScore = score;
-    			}
-    		}
-    		// If exactly one move exceeds the threshold, pick it.
-    		if (betterCount == 1)
-    		{
-    			bestMove = candidateMove;
-    			bestScore = candidateScore;
-    			break;
-    		}
-    		// If no move succeeded, lower the upper bound.
-    		else if (betterCount == 0)
-    		{
-    			beta = test;
-    		}
-    		// If more than one move succeeded, raise the lower bound.
-    		else
-    		{
-    			alpha = test + 1;
-    		}
-    	}
-    	while ((beta - alpha >= 2) && !_killSwitch.Get());
-    	// Fallback: if no candidate was selected, use the first move.
-    	if (bestMove ==
-    		default)
-    	{
-    		bestMove = RootMoves[0];
-    		bestScore = alpha;
-    	}
-    	// Promote the best move to the front.
-    	for (int i = 0; i < RootMoves.Length; i++)
-    	{
-    		if (RootMoves[i] == bestMove)
-    		{
-    			if (i != 0)
-    				(RootMoves[0], RootMoves[i]) = (RootMoves[i], RootMoves[0]);
-    			break;
-    		}
-    	}
-    	ExtendPV(0, depth, bestMove);
-    	return bestScore;
-    }
+        int test = NextGuess(alpha, beta, subtreeCount);
+        int betterCount = 0;
+        Move currentBestMove = null;
+        int currentBestScore = MIN_ALPHA;
+
+        for (int i = 0; i < RootMoves.Length; i++)
+        {
+            Move move = RootMoves[i];
+            if (!next.Play(root, ref move))
+                continue;
+
+            int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
+            int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
+
+            // Reduced search for moves after the first
+            if (i > 0)
+            {
+                int reducedTest = test;
+                int reducedX = reducedTest - bonus;
+                int reducedDepth = depth - R;
+                int reducedScore = EvaluateNext(0, reducedDepth, reducedX - 1, reducedX, moveGen);
+                if (reducedScore < reducedX)
+                {
+                    next.Unplay(root, ref move);
+                    continue;
+                }
+            }
+
+            int X = test - bonus;
+            int childScore = EvaluateNext(0, depth, X - 1, X, moveGen);
+            int currentScore = childScore + bonus;
+
+            if (currentScore >= test)
+            {
+                betterCount++;
+                if (currentScore > currentBestScore)
+                {
+                    currentBestScore = currentScore;
+                    currentBestMove = move;
+                    ExtendPV(0, depth, move);
+                }
+            }
+
+            next.Unplay(root, ref move);
+        }
+
+        if (betterCount > 0)
+        {
+            alpha = test;
+            bestScore = currentBestScore;
+            bestMove = currentBestMove;
+
+            // Promote the best move to the front
+            if (bestMove != null)
+            {
+                int bestIndex = Array.IndexOf(RootMoves, bestMove);
+                if (bestIndex > 0)
+                {
+                    for (int j = bestIndex; j > 0; j--)
+                    {
+                        RootMoves[j] = RootMoves[j - 1];
+                    }
+                    RootMoves[0] = bestMove;
+                }
+            }
+        }
+        else
+        {
+            beta = test;
+        }
+
+    } while (beta - alpha >= 2 && betterCount != 1);
+
+    // Checkmate or stalemate detection
+    if (bestScore <= MIN_ALPHA)
+        return root.InCheck() ? MatedScore(0) : 0;
+
+    return bestScore;
+}
+
+private int NextGuess(int alpha, int beta, int subtreeCount)
+{
+    return alpha + (beta - alpha) * (subtreeCount - 1) / subtreeCount;
+}
 
         // --- Remainder of search methods (Evaluate, EvaluateQuiet, etc.) remain unchanged ---
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
