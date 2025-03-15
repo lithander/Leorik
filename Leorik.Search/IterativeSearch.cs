@@ -11,6 +11,7 @@ namespace Leorik.Search
         private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
+        private const float HISTORY_SCALE = 0.2f;
 
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
@@ -197,8 +198,7 @@ namespace Leorik.Search
                 return score;
 
             //Update correction history!
-
-            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current);
+            int staticEval = _history.GetAdjustedStaticEval(current);
             int delta = score - staticEval;
             if ((bm.CapturedPiece() == Piece.None) && //Best move either does not exist or is not a capture
                 !IsCheckmate(score) &&                //checkmate scores are excluded!
@@ -269,7 +269,7 @@ namespace Leorik.Search
                         state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
                         break;
                     case Stage.SortedQuiets:
-                        int historyThreshold = state.PlayedMoves >> 2;
+                        float historyThreshold = HISTORY_SCALE * state.PlayedMoves;
                         if (PickBestHistory(state.Next, moveGen.Next) < historyThreshold)
                             state.Stage = Stage.Quiets;
                         break;
@@ -447,7 +447,7 @@ namespace Leorik.Search
             BoardState current = Positions[ply];
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
-            int staticEval = current.SideToMoveScore() + _history.GetCorrection(current);
+            int staticEval = _history.GetAdjustedStaticEval(current);
 
             //consider null move pruning first
             if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
@@ -478,14 +478,14 @@ namespace Leorik.Search
                 _history.Played(ply, remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (remaining > 1 && playState.Stage > Stage.Best)
+                if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
                 {
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = 0;
-                    if (!inCheck && playState.Stage >= Stage.Quiets && !next.InCheck())
+                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
                         R += 2;
                     //when not in check moves with a negative SEE score are reduced further
-                    if (!inCheck && _see.IsBad(current, ref move))
+                    if (_see.IsBad(current, ref move))
                         R += 2;
 
                     //early out if reduced search doesn't beat alpha
@@ -528,7 +528,7 @@ namespace Leorik.Search
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = current.SideToMoveScore() + _history.GetCorrection(current);
+                int standPatScore = _history.GetAdjustedStaticEval(current);
 
                 if (standPatScore >= beta)
                     return beta;

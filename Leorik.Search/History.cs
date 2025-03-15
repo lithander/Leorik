@@ -1,8 +1,6 @@
 ﻿using Leorik.Core;
-using System;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using static System.Formats.Asn1.AsnWriter;
+
 
 namespace Leorik.Search
 {
@@ -43,8 +41,6 @@ namespace Leorik.Search
         private readonly CorrEntry[] PawnCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
         private readonly CorrEntry[] MinorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
         private readonly CorrEntry[] MajorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
-        //private readonly CorrEntry[] BlackPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
-        //private readonly CorrEntry[] WhitePieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -137,18 +133,17 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int GetCorrection(BoardState board)
+        private int CorrectionIndex(ulong bits) => (int)(bits % CORR_HASH_TABLE_SIZE) * 2;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetAdjustedStaticEval(BoardState board)
         {
             int stm = (board.SideToMove == Color.Black) ? 1 : 0;
 
-            int index = CorrectionIndex(board.Pawns) + stm;
-            int result = PawnCorrection[index].Get();
+            int result = board.SideToMoveScore();
 
-            //Score of Leorik-3.0.12 vs Leorik-3.0.11v16: 1783 - 1573 - 6644  [0.510] 10000
-            //...      Leorik-3.0.12 playing White: 1115 - 564 - 3321  [0.555] 5000
-            //...      Leorik-3.0.12 playing Black: 668 - 1009 - 3323  [0.466] 5000
-            //...      White vs Black: 2124 - 1232 - 6644  [0.545] 10000
-            //Elo difference: 7.3 +/- 3.9, LOS: 100.0 %, DrawRatio: 66.4 %
+            int index = CorrectionIndex(board.Pawns) + stm;
+            result += PawnCorrection[index].Get();
 
             index = CorrectionIndex(board.Knights | board.Bishops) + stm;
             result += MinorPieceCorrection[index].Get();
@@ -175,8 +170,5 @@ namespace Leorik.Search
             index = CorrectionIndex(board.Queens | board.Rooks) + stm;
             MajorPieceCorrection[index].Add(corr, inc);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int CorrectionIndex(ulong bits) => (int)(bits % CORR_HASH_TABLE_SIZE) * 2;
     }
 }
