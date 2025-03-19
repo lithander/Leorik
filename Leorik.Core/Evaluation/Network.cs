@@ -4,14 +4,6 @@ namespace Leorik.Core
 {
     public class Network
     {
-        // current arch: (768->768)x2->1, ClippedReLU
-        // perspective
-        //const int ArchId = 1;
-        //using Activation = activation::ClippedReLU<255>;
-        //const uint Layer1Size = 768;
-        //const int Scale = 400;
-        //const int Q = 255 * 64;
-
         public static Network Default { get; private set; }
 
         public static void InitEmptyNetwork(int layer1Size)
@@ -43,6 +35,10 @@ namespace Leorik.Core
             return true;
         }
 
+        public const int Scale = 400;
+        public const short QA = 255;
+        public const short QB = 64;
+        public const short Q = 255 * 64;
         public const int InputSize = 768;
 
         public int Layer1Size;
