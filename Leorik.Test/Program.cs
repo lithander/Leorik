@@ -10,6 +10,11 @@ namespace Leorik.Test
         const int MATE_COUNT = 999;
         const bool DETAILS = true;
 
+        static Program()
+        {
+            Network.LoadDefaultNetwork();
+        }
+
         static void Main()
         {
             Console.WriteLine("Leorik Tests v15");
@@ -25,34 +30,45 @@ namespace Leorik.Test
             //CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
             //RunSeeTests();
 
-            Console.WriteLine("Depth:");
-            if (!int.TryParse(Console.ReadLine(), out int depth))
-                depth = 15;
+            int depth = Parse("Depth", 15);
+            int count = Parse("Number of positions", WAC_COUNT);
+            //Search.Options.Threads = Parse("Threads", 1);
+            //Search.Options.Temperature = Parse("Temperature", 0);
 
-            Console.WriteLine("Number of positions:");
-            if (!int.TryParse(Console.ReadLine(), out int count))
-                count = WAC_COUNT;
+            //int hashSize = Parse("Hashsize in MB", Transpositions.DEFAULT_SIZE_MB);
+            //if (hashSize != Transpositions.DEFAULT_SIZE_MB)
+            //    Transpositions.Resize(hashSize);
 
-            Console.WriteLine("HashSize in MB:");
-            if (int.TryParse(Console.ReadLine(), out int hashSize))
-                Transpositions.Resize(hashSize);
-
-            Console.WriteLine("Threads:");
-            if (!int.TryParse(Console.ReadLine(), out int threads))
-                threads = 1;
-
-            Console.WriteLine("Temperature:");
-            if (!int.TryParse(Console.ReadLine(), out int temp))
-                temp = 0;
-
-            CompareBestMove(File.OpenText("wac.epd"), depth, count, threads, temp, ParallelSearch, DETAILS);
-            //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, IterativeSearch, "", DETAILS);
+            Console.WriteLine("Leorik");
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.Iterative, DETAILS);
+            Console.WriteLine("BNS");
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.BestNodeSearch, DETAILS);
+            Console.WriteLine("MvvLva");
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.MvvLva, DETAILS);
+            Console.WriteLine("AlphaBeta");
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.AlphaBeta, DETAILS);
+            Console.WriteLine("NegaMax");
+            CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.NegaMax, DETAILS);
+                        
+            //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, Search.Iterative, DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
             //RunMateTests();
 
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
+        }
+        
+        private static int Parse(string label, int defaultValue)
+        {
+            Console.Write($"{label}: ");
+            if (int.TryParse(Console.ReadLine(), out int result))
+            {
+                Console.WriteLine();
+                return result;
+            }
+            Console.WriteLine(defaultValue);
+            return defaultValue;
         }
 
         private static void RunWacTestsTime()
@@ -66,15 +82,15 @@ namespace Leorik.Test
         {
             for (int depth = 14; depth <= 20; depth += 2)
             {
-                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, 1, -1, ParallelSearch, DETAILS);
+                CompareBestMove(File.OpenText("wac.epd"), depth, WAC_COUNT, Search.Iterative, DETAILS);
             }
         }
 
-        private delegate Span<Move> SearchDelegate(BoardState state, int depth, int threads, int temperature);
+        private delegate Span<Move> SearchDelegate(BoardState state, int depth);
 
-        private static void CompareBestMove(StreamReader file, int depth, int maxCount, int threads, int temp, SearchDelegate search, bool logDetails)
+        private static void CompareBestMove(StreamReader file, int depth, int maxCount, SearchDelegate search, bool logDetails)
         {
-            Console.WriteLine($"Searching {maxCount} positions on {threads} thread(s) to depth {depth}...");
+            Console.WriteLine($"Searching {maxCount} positions to depth {depth}...");
             double freq = Stopwatch.Frequency;
             long totalTime = 0;
             long totalNodes = 0;
@@ -86,13 +102,13 @@ namespace Leorik.Test
                 //Transpositions.Clear();
                 Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
-                Span<Move> pv = search(board, depth, threads, temp);
+                Span<Move> pv = search(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
 
                 count++;
                 totalTime += dt;
-                totalNodes += NodesVisited;
+                totalNodes += Search.NodesVisited;
                 string pvString = string.Join(' ', pv.ToArray());
                 bool foundBestMove = bestMoves.TryGetValue(pv[0], out int score);
                 if (foundBestMove)
@@ -103,7 +119,7 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count*100})");
                 }
                 else
@@ -112,7 +128,7 @@ namespace Leorik.Test
 
             double nps = totalNodes / (totalTime / freq);
             Console.WriteLine();
-            Console.WriteLine($"{threads} thread(s) searched {count} positions to depth {depth}.");
+            Console.WriteLine($"Searched {count} positions to depth {depth}.");
             Console.WriteLine($"{totalNodes} nodes visited. Took {totalTime / freq:0.###} seconds!");
             Console.WriteLine($"{(int)(nps / 1000)}K NPS.");
             Console.WriteLine($"Best move found in {foundBest} / {count} positions! Score: {totalScore}/{count * 100}");
@@ -159,7 +175,7 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Score:+0.00;-0.00}, {NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, {(int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count * 100})");
                 }
                 else
@@ -373,54 +389,5 @@ namespace Leorik.Test
                 Console.ForegroundColor = ConsoleColor.Gray;
         }
 
-
-        /*********************/
-        /***    Search     ***/
-        /*********************/
-
-        private const int MAX_PLY = 99;
-        private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
-        private static BoardState[] Positions;
-        private static Move[] Moves;
-
-        public static long NodesVisited { get; private set; }
-        public static int Score { get; private set; }
-
-        static Program()
-        {
-            Network.LoadDefaultNetwork();
-            //Network.InitEmptyNetwork(256);
-
-            Positions = new BoardState[MAX_PLY];
-            for (int i = 0; i < MAX_PLY; i++)
-                Positions[i] = new BoardState();
-            Moves = new Move[MAX_PLY * MAX_MOVES];
-        }
-
-
-        /*****************************/
-        /***    Search Instance    ***/
-        /*****************************/
-
-        private static Span<Move> IterativeSearch(BoardState board, int depth)
-        {
-            var search = new IterativeSearch(board, SearchOptions.Default, null, null);
-            search.Search(depth);
-            Score = search.Score;
-            NodesVisited = search.NodesVisited;
-            return search.PrincipalVariation;
-        }
-
-        private static Span<Move> ParallelSearch(BoardState board, int depth, int threads, int temperature)
-        {
-            var settings = SearchOptions.Default;
-            settings.Threads = threads;
-            settings.Temperature = temperature;
-            ISearch search = threads > 1 ? new ParallelSearch(board, settings, null, null) : new IterativeSearch(board, settings, null, null);
-            search.Search(depth);
-            Score = search.Score;
-            NodesVisited = search.NodesVisited;
-            return search.PrincipalVariation;
-        }
     }
 }
