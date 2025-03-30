@@ -11,6 +11,7 @@ namespace Leorik.Search
         private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
+        private const int BAD_QUIET_THRESHOLD = 100;
         private const float HISTORY_SCALE = 0.2f;
 
         private readonly BoardState[] Positions;
@@ -480,12 +481,15 @@ namespace Leorik.Search
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
                 if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
                 {
-                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     int R = 0;
+                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
                     if (playState.Stage >= Stage.Quiets && !next.InCheck())
-                        R += 2;
-                    //when not in check moves with a negative SEE score are reduced further
-                    if (_see.IsBad(current, ref move))
+                    {
+                        int nextStaticEval = -_history.GetAdjustedStaticEval(next);
+                        R += (nextStaticEval < staticEval - BAD_QUIET_THRESHOLD) ? 4 : 2;
+                    }
+                    //if it's not already a bad quiet move we may reduce because of bad SEE
+                    if(R < 4 && _see.IsBad(current, ref move))
                         R += 2;
 
                     //early out if reduced search doesn't beat alpha
