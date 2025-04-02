@@ -38,7 +38,6 @@ namespace Leorik.Core
         public const int Scale = 400;
         public const short QA = 255;
         public const short QB = 64;
-        public const short Q = 255 * 64;
         public const int InputSize = 768;
 
         public int Layer1Size;

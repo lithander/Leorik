@@ -140,7 +140,7 @@ namespace Leorik.Core
 
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
             Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(featureWeights.AsSpan(offset, Network.Default.Layer1Size));
-            for (int i = 0; i < accuVectors.Length; i++)                                                                              
+            for (int i = 0; i < accuVectors.Length; i++)
                 accuVectors[i] += weightsVectors[i];
         }
 
@@ -158,81 +158,48 @@ namespace Leorik.Core
         private int Evaluate(Color stm)
         {
             int output = (stm == Color.Black)
-                ? ForwardSCReLU(Black, White, Network.Default.OutputWeights)
-                : ForwardSCReLU(White, Black, Network.Default.OutputWeights);
-            return (output + Network.Default.OutputBias) * Network.Scale / Network.Q;
+                ? EvaluateHiddenLayer(Black, White, Network.Default.OutputWeights)
+                : EvaluateHiddenLayer(White, Black, Network.Default.OutputWeights);
+
+            //during SCReLU values end up multiplied with QA * QA * QB
+            //but OutputBias is quantized by only QA * QB
+            output /= Network.QA;
+            output += Network.Default.OutputBias;
+            //Now scale and convert back to float!
+            return (output * Network.Scale) / (Network.QA * Network.QB);
         }
 
-        private int ForwardCReLU(short[] us, short[] them, short[] weights)
+        private int EvaluateHiddenLayer(short[] us, short[] them, short[] weights)
         {
-            int sum = ForwardCReLU(us, weights.AsSpan())
-                    + ForwardCReLU(them, weights.AsSpan(Network.Default.Layer1Size));
+            int sum = ApplySCReLU(us, weights.AsSpan())
+                    + ApplySCReLU(them, weights.AsSpan(Network.Default.Layer1Size));
             return sum;
         }
 
-        private int ForwardCReLU(short[] accu, Span<short> weights)
+        private int ApplySCReLU(short[] accu, Span<short> weights)
         {
-            //for (int i = 0; i < Layer1Size; ++i)
-            //    sum += ClippedReLU(accu[i]) * weights[i];
+            //int SquaredClippedReLU(int value) => Math.Clamp(value, 0, Network.QA) * Math.Clamp(value, 0, Network.QA);
+            //int sum = 0;
+            //for (int i = 0; i < Network.Default.Layer1Size; ++i)
+            //    sum += SquaredClippedReLU(accu[i]) * weights[i];
+            //return sum;
 
             Vector256<short> ceil = Vector256.Create<short>(Network.QA);
             Vector256<short> floor = Vector256.Create<short>(0);
-
+            
             Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
             Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(weights);
-
+            
             Vector256<int> sum = Vector256<int>.Zero;
             for (int i = 0; i < accuVectors.Length; i++)
             {
                 Vector256<short> a = Vector256.Max(Vector256.Min(accuVectors[i], ceil), floor); //ClippedReLU
                 Vector256<short> w = weightsVectors[i];
-
-                //result += Vector256.Dot(a, w);
+            
                 if (Avx2.IsSupported)
                 {
-                    //Multiplies packed signed 16-bit integers in a and w, producing intermediate signed 32-bit integers. 
-                    //Horizontally add adjacent pairs of intermediate 32-bit integers.
-                    sum += Avx2.MultiplyAddAdjacent(a, w); //_mm256_madd_epi16
-                }
-                else
-                {
-                    (Vector256<int> a0, Vector256<int> a1) = Vector256.Widen(a);
-                    (Vector256<int> w0, Vector256<int> w1) = Vector256.Widen(w);
-                    sum += a0 * w0;
-                    sum += a1 * w1;
-                }
-            }
-            return Vector256.Sum(sum);
-        }
-
-        private int ForwardSCReLU(short[] us, short[] them, short[] weights)
-        {
-            int sum = ForwardSCReLU(us, weights.AsSpan())
-                    + ForwardSCReLU(them, weights.AsSpan(Network.Default.Layer1Size));
-            return sum / Network.QA;
-        }
-
-
-        private int ForwardSCReLU(short[] accu, Span<short> weights)
-        {
-            //for (int i = 0; i < Layer1Size; ++i)
-            //    sum += ClippedSCReLU(accu[i]) * weights[i];
-
-            Vector256<short> ceil = Vector256.Create<short>(Network.QA);
-            Vector256<short> floor = Vector256.Create<short>(0);
-
-            Span<Vector256<short>> accuVectors = MemoryMarshal.Cast<short, Vector256<short>>(accu);
-            Span<Vector256<short>> weightsVectors = MemoryMarshal.Cast<short, Vector256<short>>(weights);
-
-            Vector256<int> sum = Vector256<int>.Zero;
-            for (int i = 0; i < accuVectors.Length; i++)
-            {
-                Vector256<short> a = Vector256.Max(Vector256.Min(accuVectors[i], ceil), floor); //ClippedReLU
-                Vector256<short> w = weightsVectors[i];
-
-                if (Avx2.IsSupported)
-                {
-                    //instead of (a * a) * w we will compute (a * w) * a because a * w won't overflow
+                    //with a being [0..255] and w being [-127..127] (a * w) fits into short but (a * a) can overflow
+                    //so instead of (a * a) * w we will compute (a * w) * a
                     sum += Avx2.MultiplyAddAdjacent(w * a, a); //_mm256_madd_epi16
                 }
                 else
