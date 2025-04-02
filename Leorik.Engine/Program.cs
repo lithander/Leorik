@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.0.14";
+        const string NAME_VERSION = "Leorik 3.0.16";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
