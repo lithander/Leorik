@@ -27,10 +27,10 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            //CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
+            CompareBestMove(File.OpenText("arasan21.epd"), 10000, WAC_COUNT, DETAILS);
             //RunSeeTests();
 
-            int depth = Parse("Depth", 15);
+            int depth = Parse("Depth", 16);
             int count = Parse("Number of positions", WAC_COUNT);
             //Search.Options.Threads = Parse("Threads", 1);
             //Search.Options.Temperature = Parse("Temperature", 0);

@@ -7,8 +7,6 @@ namespace Leorik.Search
     public class IterativeSearch : ISearch
     {
         public const int MAX_PLY = 99;
-        private const int MIN_ALPHA = -CheckmateScore;
-        private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
         private const float HISTORY_SCALE = 0.2f;
@@ -434,7 +432,7 @@ namespace Leorik.Search
             }
 
             //checkmate or draw?
-            if (alpha <= MIN_ALPHA)
+            if (alpha <= -CheckmateScore)
                 return root.InCheck() ? MatedScore(0) : 0;
 
             return alpha;
@@ -448,6 +446,7 @@ namespace Leorik.Search
             BoardState next = Positions[ply + 1];
             bool inCheck = current.InCheck();
             int staticEval = _history.GetAdjustedStaticEval(current);
+            int bestScore = -CheckmateScore;
 
             //consider null move pruning first
             if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
@@ -472,13 +471,13 @@ namespace Leorik.Search
             {
                 //skip late quiet moves when almost in Qsearch depth
                 if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
-                    return alpha;
+                    return bestScore;
 
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(ply, remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
+                if (bestScore > -CheckmateScore && !inCheck && remaining > 1)
                 {
                     int R = 0;
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
@@ -500,6 +499,9 @@ namespace Leorik.Search
 
                 //finally a full window search without reduction
                 int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
+                if (score > bestScore)
+                    bestScore = score;
+
                 if (score <= alpha)
                     continue;
 
@@ -510,14 +512,14 @@ namespace Leorik.Search
 
                 //beta cutoff?
                 if (score >= beta)
-                    return beta;
+                    return score;
             }
 
             //checkmate or draw?
             if (playState.PlayedMoves == 0)
                 return inCheck ? MatedScore(ply) : 0;
 
-            return alpha;
+            return bestScore;
         }
 
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
@@ -530,17 +532,18 @@ namespace Leorik.Search
                 return 0;
 
             bool inCheck = current.InCheck();
+            int bestScore = _history.GetAdjustedStaticEval(current);
             //if inCheck we can't use standPat, need to escape check!
             if (!inCheck)
             {
-                int standPatScore = _history.GetAdjustedStaticEval(current);
+                if (bestScore >= beta)
+                    return bestScore;
 
-                if (standPatScore >= beta)
-                    return beta;
-
-                if (standPatScore > alpha)
-                    alpha = standPatScore;
+                if (bestScore > alpha)
+                    alpha = bestScore;
             }
+            else
+                bestScore = -CheckmateScore;
 
             if (Aborted |= ForcedCut(ply))
                 return current.SideToMoveScore();
@@ -562,15 +565,18 @@ namespace Leorik.Search
                     int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
-                        return beta;
+                        return score;
 
                     if (score > alpha)
                         alpha = score;
+
+                    if(score > bestScore)
+                        bestScore = score;
                 }
             }
 
             if (!inCheck)
-                return alpha;
+                return bestScore;
 
             //Play Quiets only when in check!
             for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
@@ -581,14 +587,17 @@ namespace Leorik.Search
                     int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
 
                     if (score >= beta)
-                        return beta;
+                        return score;
 
                     if (score > alpha)
                         alpha = score;
+
+                    if (score > bestScore)
+                        bestScore = score;
                 }
             }
 
-            return movesPlayed ? alpha : MatedScore(ply);
+            return movesPlayed ? bestScore : MatedScore(ply);
         }
     }
 }
