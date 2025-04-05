@@ -27,7 +27,7 @@ namespace Leorik.Test
                 Console.WriteLine();
             }
 
-            //CompareBestMove(File.OpenText("arasan21.epd"), 1000, WAC_COUNT, DETAILS);
+            //CompareBestMove(File.OpenText("arasan21.epd"), 10000, WAC_COUNT, DETAILS);
             //RunSeeTests();
 
             int depth = Parse("Depth", 15);
@@ -49,7 +49,7 @@ namespace Leorik.Test
             CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.AlphaBeta, DETAILS);
             Console.WriteLine("NegaMax");
             CompareBestMove(File.OpenText("wac.epd"), depth, count, Search.NegaMax, DETAILS);
-                        
+
             //CompareBestMove(File.OpenText("otsv4-mea.epd"), depth, count, Search.Iterative, DETAILS);
             //RunWacTestsDepth();
             //RunWacTestsTime();
@@ -58,7 +58,7 @@ namespace Leorik.Test
             Console.WriteLine("Press ESC key to quit");
             while (Console.ReadKey(true).Key != ConsoleKey.Escape) { }
         }
-        
+
         private static int Parse(string label, int defaultValue)
         {
             Console.Write($"{label}: ");
@@ -119,8 +119,9 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
-                    Console.WriteLine($"{totalNodes,14} nodes, { (int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count*100})");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, {(int)(1000 * dt / freq)}ms");
+                    Console.WriteLine($"{totalNodes,14} nodes, {(int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count * 100})");
+                    Console.WriteLine($"Aspi window widenings:{IterativeSearch.AspiWidenings}");
                 }
                 else
                     Console.Write('.');
@@ -148,6 +149,7 @@ namespace Leorik.Test
             {
                 Transpositions.Clear();
                 Move pvMove = default;
+                Move[] pv = new Move[0];
                 var search = new IterativeSearch(board, SearchOptions.Default, null, null);
                 long t0 = Stopwatch.GetTimestamp();
                 long tStop = t0 + (timeBudgetMs * Stopwatch.Frequency) / 1000;
@@ -158,6 +160,7 @@ namespace Leorik.Test
                     if (search.Aborted)
                         break;
                     pvMove = search.PrincipalVariation[0];
+                    pv = search.PrincipalVariation.ToArray();
                 }
                 long t1 = Stopwatch.GetTimestamp();
                 long dt = t1 - t0;
@@ -165,7 +168,7 @@ namespace Leorik.Test
                 count++;
                 totalTime += dt;
                 totalNodes += search.NodesVisited;
-                string pvString = string.Join(' ', search.PrincipalVariation.ToArray());
+                string pvString = string.Join(' ', pv);
                 bool foundBestMove = bestMoves.TryGetValue(pvMove, out int score);
                 if (foundBestMove)
                 {
@@ -175,7 +178,7 @@ namespace Leorik.Test
 
                 if (logDetails)
                 {
-                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, { (int)(1000 * dt / freq)}ms");
+                    Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, {(int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, {(int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count * 100})");
                 }
                 else
@@ -212,19 +215,19 @@ namespace Leorik.Test
 
             //Example: r1bq1rk1/pp2bppp/2n1pn2/8/2Pp4/N2P1NP1/PP3PBP/R1BQ1RK1 w - - bm Re1; c0 "Re1=100, Qe2=100, Bg5=100, Bf4=100, Nc2=96, Bd2=94, Rb1=91"; acd 25; Ae "Stockfish 2019.04.16";
             int c0Start = epd.IndexOf("c0");
-            if(c0Start != -1)
+            if (c0Start != -1)
             {
                 c0Start = epd.IndexOf('"', c0Start);
                 int c0End = epd.IndexOf('"', c0Start + 1);
-                string scoreString = epd.Substring(c0Start+1, c0End - c0Start - 1).Replace(",", string.Empty);
-                foreach(var token in scoreString.Split()) 
+                string scoreString = epd.Substring(c0Start + 1, c0End - c0Start - 1).Replace(",", string.Empty);
+                foreach (var token in scoreString.Split())
                 {
                     int split = token.IndexOf('=');
                     if (split == -1)
                         break;
 
                     string moveStr = token.Substring(0, split);
-                    string scoreStr = token.Substring(split+1);
+                    string scoreStr = token.Substring(split + 1);
                     Move bestMove = Notation.GetMove(board, moveStr);
                     int score = int.Parse(scoreStr);
                     bestMoves[bestMove] = score;
@@ -379,7 +382,7 @@ namespace Leorik.Test
                 //highlight squares if they belong to the move
                 if (move.FromSquare == index)
                     Console.BackgroundColor = ConsoleColor.DarkCyan;
-                else if(move.ToSquare == index)
+                else if (move.ToSquare == index)
                     Console.BackgroundColor = ConsoleColor.DarkRed;
             }
 
