@@ -121,7 +121,6 @@ namespace Leorik.Test
                 {
                     Console.WriteLine($"{count,4}. {(foundBestMove ? "[X]" : "[ ]")} {pvString} = {Search.Score:+0.00;-0.00}, {Search.NodesVisited} nodes, {(int)(1000 * dt / freq)}ms");
                     Console.WriteLine($"{totalNodes,14} nodes, {(int)(totalTime / freq)} seconds, {foundBest} solved. ({totalScore}/{count * 100})");
-                    Console.WriteLine($"Aspi window widenings:{IterativeSearch.AspiWidenings}");
                 }
                 else
                     Console.Write('.');

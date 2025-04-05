@@ -7,8 +7,6 @@ namespace Leorik.Search
     public class IterativeSearch : ISearch
     {
         public const int MAX_PLY = 99;
-        private const int MIN_ALPHA = -CheckmateScore;
-        private const int MAX_BETA = CheckmateScore;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
         private const float HISTORY_SCALE = 0.2f;
@@ -160,21 +158,19 @@ namespace Leorik.Search
                 return current.SideToMoveScore();
 
             //Mate distance pruning
-
-            alpha = Math.Max(alpha, MatedScore(ply));
-            beta = Math.Min(beta, MateScore(ply + 1));
-            if (alpha >= beta)
+            if (Math.Max(alpha, MatedScore(ply)) >= beta)
                 return beta;
 
-            //Drop into QSearch
+            if (Math.Min(beta, MateScore(ply + 1)) <= alpha)
+                return alpha;
 
+            //Drop into QSearch
             if (remaining <= 0)
                 return EvaluateQuiet(ply, alpha, beta, moveGen);
 
             TruncatePV(ply);
 
             //Handle draws!
-
             if (IsInsufficientMatingMaterial(current))
                 return 0;
 
@@ -182,18 +178,15 @@ namespace Leorik.Search
                 return 0; //TODO: checkmate > draw?
 
             if (IsRepetition(ply))
-                return 0; //TODO: is scoring *any* repetion as zero premature?
+                return 0; //TODO: is scoring *any* repetition as zero premature?
 
             //Transposition table lookup lookup
-
             ulong hash = current.ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
 
             //Main Search!
-
             int score = Evaluate(ply, remaining, alpha, beta, moveGen, ref bm);
-
             if (Aborted)
                 return score;
 
@@ -210,7 +203,6 @@ namespace Leorik.Search
             }
 
             //Update transposition table
-
             Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
 
             return score;
@@ -434,7 +426,7 @@ namespace Leorik.Search
             }
 
             //checkmate or draw?
-            if (alpha <= MIN_ALPHA)
+            if (alpha <= -CheckmateScore)
                 return root.InCheck() ? MatedScore(0) : 0;
 
             return alpha;
