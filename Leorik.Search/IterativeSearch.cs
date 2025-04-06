@@ -158,11 +158,10 @@ namespace Leorik.Search
                 return current.SideToMoveScore();
 
             //Mate distance pruning
-            if (Math.Max(alpha, MatedScore(ply)) >= beta)
+            alpha = Math.Max(alpha, MatedScore(ply));
+            beta = Math.Min(beta, MateScore(ply + 1));
+            if (alpha >= beta)
                 return beta;
-
-            if (Math.Min(beta, MateScore(ply + 1)) <= alpha)
-                return alpha;
 
             //Drop into QSearch
             if (remaining <= 0)
@@ -414,6 +413,7 @@ namespace Leorik.Search
                     continue;
 
                 int score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
+
                 if (score > alpha)
                 {
                     alpha = score;
@@ -422,6 +422,9 @@ namespace Leorik.Search
                     for (int j = i; j > 0; j--)
                         RootMoves[j] = RootMoves[j - 1];
                     RootMoves[0] = move;
+
+                    if (score >= beta)
+                        return beta;
                 }
             }
 
