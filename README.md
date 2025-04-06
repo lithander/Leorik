@@ -38,7 +38,7 @@ As a final step you have to register the engine with the GUI. The details depend
 Now you should be ready to select **Leorik** as a player!
 
 ## Version History
-### Leorik 3.0
+### Leorik 3.1
 [__Version 3.1__](https://github.com/lithander/Leorik/releases/tag/3.1) improves Leorik's NNUE evaluation by using a larger network (640 HL neurons) and adopting SCReLU activation. The network was trained from scratch over 19 generations. The network included with this version 640HL-S-5288M-Tmix-Q5-v19, was trained on 5.2B positions. Search improvements include the addition of Correction History, increased reduction of late quiet moves, a dynamic threshold for identifying such moves, and the introduction of RFP with dynamic margins derived from NMP statistics.
 
 ### Leorik 3.0
