@@ -10,10 +10,11 @@ namespace Leorik.Search
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
         private const float HISTORY_SCALE = 0.2f;
+        private const int NORMALIZE_TO_PAWN_VALUE = 306;
 
+        private readonly Move[] RootMoves;
         private readonly BoardState[] Positions;
         private readonly Move[] Moves;
-        public readonly Move[] RootMoves;
         private readonly Move[] PrincipalVariations;
         private readonly int[] RootMoveOffsets;
         private readonly History _history;
@@ -23,9 +24,10 @@ namespace Leorik.Search
 
         private KillSwitch _killSwitch;
 
+        private int Eval { get; set; }
+        public int Score => IsCheckmate(Eval) ? Eval : (Eval * 100) / NORMALIZE_TO_PAWN_VALUE;
         public long NodesVisited { get; private set; }
         public int Depth { get; private set; }
-        public int Score { get; private set; }
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
 
@@ -118,7 +120,7 @@ namespace Leorik.Search
             Depth++;
             _killSwitch = new KillSwitch(killSwitch);
             int score = EvaluateRoot(Depth);
-            Score = (int)Positions[0].SideToMove * score;
+            Eval = (int)Positions[0].SideToMove * score;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -368,12 +370,12 @@ namespace Leorik.Search
         private bool AllowNullMove(int ply)
         {
             //if the previous iteration found a mate we do the first few plys without null move to try and find the shortest mate or escape
-            return !IsCheckmate(Score) || (ply > Depth / 4);
+            return !IsCheckmate(Eval) || (ply > Depth / 4);
         }
 
         private int EvaluateRoot(int depth)
         {
-            int eval = (int)Positions[0].SideToMove * Score;
+            int eval = (int)Positions[0].SideToMove * Eval;
             int window = ASPIRATION_WINDOW;
             while (!Aborted)
             {
@@ -404,7 +406,7 @@ namespace Leorik.Search
                     continue;
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = IsCheckmate(Score) ? 0 : RootMoveOffsets[i];
+                int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
 
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 //...non-tactical late moves are searched at a reduced depth to make this test even faster!
