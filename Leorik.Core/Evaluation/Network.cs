@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Reflection.PortableExecutable;
+using System.Text;
 
 namespace Leorik.Core
 {
@@ -6,9 +7,9 @@ namespace Leorik.Core
     {
         public static Network Default { get; private set; }
 
-        public static void InitEmptyNetwork(int layer1Size)
+        public static void InitEmptyNetwork()
         {
-            Default = new Network(layer1Size);
+            Default = new Network(0);
         }
 
         public static void LoadDefaultNetwork(string filePath, int layer1Size)
@@ -55,24 +56,28 @@ namespace Leorik.Core
             OutputBias = 0;
         }
 
-        public Network(string filePath, int layer1Size) : this(layer1Size)
+        public Network(string filePath, int layer1Size) : this(Math.Max(16, layer1Size))
         {
             using (var stream = File.OpenRead(filePath))
             {
                 using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
                 {
-                    for (int i = 0; i < FeatureWeights.Length; i++)
-                        FeatureWeights[i] = reader.ReadInt16();
-
-                    for (int i = 0; i < FeatureBiases.Length; i++)
-                        FeatureBiases[i] = reader.ReadInt16();
-
-                    for (int i = 0; i < OutputWeights.Length; i++)
-                        OutputWeights[i] = reader.ReadInt16();
-
+                    reader.Read(FeatureWeights, InputSize, layer1Size, Layer1Size);
+                    reader.Read(FeatureBiases, 1, layer1Size, Layer1Size);
+                    reader.Read(OutputWeights, 2, layer1Size, Layer1Size);
                     OutputBias = reader.ReadInt16();
                 }
             }
+        }
+    }
+
+    public static class ReaderExtension
+    {
+        public static void Read(this BinaryReader reader, short[] target, int blockCount, int blockSize, int stride)
+        {
+            for (int i = 0; i < blockCount; i++)
+                for (int j = 0; j < blockSize; j++)
+                    target[i * stride + j] = reader.ReadInt16();
         }
     }
 }

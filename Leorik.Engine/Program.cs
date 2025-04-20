@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.2";
+        const string NAME_VERSION = "Leorik 3.1.3";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -15,7 +15,7 @@ namespace Leorik.Engine
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
             if (!Network.LoadDefaultNetwork())
-                Network.InitEmptyNetwork(1);
+                Network.InitEmptyNetwork();
 
             _engine.Init();
 
