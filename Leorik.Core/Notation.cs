@@ -4,6 +4,11 @@ namespace Leorik.Core
 {
     public static class Notation
     {
+        const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
+        const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
+        const ulong WhiteQueensideRookBit = 0x0000000000000001UL;//1UL << Notation.ToSquare("a1");
+        const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
+
         public const string STARTING_POS_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         public static string GetHex(ulong bitboard)
@@ -91,17 +96,9 @@ namespace Leorik.Core
             result.SideToMove = fields[1].Equals("w", StringComparison.CurrentCultureIgnoreCase) ? Color.White : Color.Black;
 
             //Set castling rights
-            if (fields[2].IndexOf("K", StringComparison.Ordinal) > -1)
-                result.CastleFlags |= BoardState.WhiteKingsideRookBit;
-
-            if (fields[2].IndexOf("Q", StringComparison.Ordinal) > -1)
-                result.CastleFlags |= BoardState.WhiteQueensideRookBit;
-
-            if (fields[2].IndexOf("k", StringComparison.Ordinal) > -1)
-                result.CastleFlags |= BoardState.BlackKingsideRookBit;
-
-            if (fields[2].IndexOf("q", StringComparison.Ordinal) > -1)
-                result.CastleFlags |= BoardState.BlackQueensideRookBit;
+            result.CastleFlags = ParseCastlingRights(fields[2]);
+            if ((result.Rooks & result.CastleFlags) != result.CastleFlags)
+                throw new Exception("Invalid CastleFlags, Rooks not found!");
 
             //Set en-passant square
             result.EnPassant = fields[3] == "-" ? 0 : 1UL << GetSquare(fields[3]);
@@ -113,6 +110,51 @@ namespace Leorik.Core
             result.UpdateEval();
             result.UpdateHash();
             return result;
+        }
+
+        private static ulong ParseCastlingRights(string castlingField)
+        {
+            ulong castleFlags = 0;
+            if (castlingField == "-")
+                return castleFlags;
+
+            if (castlingField.IndexOf("K", StringComparison.Ordinal) > -1)
+                castleFlags |= WhiteKingsideRookBit;
+
+            if (castlingField.IndexOf("Q", StringComparison.Ordinal) > -1)
+                castleFlags |= WhiteQueensideRookBit;
+
+            if (castlingField.IndexOf("k", StringComparison.Ordinal) > -1)
+                castleFlags |= BlackKingsideRookBit;
+
+            if (castlingField.IndexOf("q", StringComparison.Ordinal) > -1)
+                castleFlags |= BlackQueensideRookBit;
+
+            if (castleFlags != 0)
+                return castleFlags;
+
+            //We expect to be given a Shredder-FEN, supporting Chess960 castling rights.
+            //instead of KQkq, upper case (white) and lower case (black) file characters of the affected rooks
+            int length = castlingField.Length;
+            for (int i = 0; i < length; i++)
+            {
+                //Map letters [a..h] to [0..7] with ASCII('a') == 97 or ASCII('A') == 65
+                int blackFile = castlingField[i] - 'a';
+                int whiteFile = castlingField[i] - 'A';
+                if (blackFile >= 0 && blackFile <= 7)
+                {
+                    //find black rook on that file and set it's castling bit!
+                    Console.WriteLine($"Black rook on file {blackFile} can castle!");
+                    castleFlags |= 0x0100000000000000UL << blackFile;
+                }
+                else if(whiteFile >= 0 && whiteFile <= 7)
+                {
+                    //find black rook on that file and set it's castling bit!
+                    Console.WriteLine($"White rook on file {whiteFile} can castle!");
+                    castleFlags |= 0x0000000000000001UL << whiteFile;
+                }
+            }
+            return castleFlags;
         }
 
         public static string GetFen(BoardState board, int fullMoveNumber = 1)
@@ -161,13 +203,13 @@ namespace Leorik.Core
             //Castling rights
             if (board.CastleFlags == 0)
                 fen.Append('-');
-            if ((board.CastleFlags & BoardState.WhiteKingsideRookBit) > 0)
+            if ((board.CastleFlags & WhiteKingsideRookBit) > 0)
                 fen.Append('K');
-            if ((board.CastleFlags & BoardState.WhiteQueensideRookBit) > 0)
+            if ((board.CastleFlags & WhiteQueensideRookBit) > 0)
                 fen.Append('Q');
-            if ((board.CastleFlags & BoardState.BlackKingsideRookBit) > 0)
+            if ((board.CastleFlags & BlackKingsideRookBit) > 0)
                 fen.Append('k');
-            if ((board.CastleFlags & BoardState.BlackQueensideRookBit) > 0)
+            if ((board.CastleFlags & BlackQueensideRookBit) > 0)
                 fen.Append('q');
             fen.Append(' ');
 

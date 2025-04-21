@@ -21,14 +21,6 @@ namespace Leorik.Core
         public NeuralNetEval Eval;
         public byte HalfmoveClock;
 
-        public const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
-        public const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
-        public const ulong BlackCastlingBits = BlackQueensideRookBit | BlackKingsideRookBit;
-
-        public const ulong WhiteQueensideRookBit = 0x0000000000000001UL;//1UL << Notation.ToSquare("a1");
-        public const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
-        public const ulong WhiteCastlingBits = WhiteQueensideRookBit | WhiteKingsideRookBit;
-
         public BoardState() 
         {
             Eval = new NeuralNetEval();
@@ -40,31 +32,6 @@ namespace Leorik.Core
             var clone = (BoardState)this.MemberwiseClone();
             clone.Eval = new NeuralNetEval(Eval);
             return clone;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanWhiteCastleLong()
-        {
-            return (CastleFlags & WhiteQueensideRookBit) != 0 && ((Black | White) & 0x000000000000000EUL) == 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanWhiteCastleShort()
-        {
-            return (CastleFlags & WhiteKingsideRookBit) != 0 && ((Black | White) & 0x0000000000000060UL) == 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanBlackCastleLong()
-        {
-            return (CastleFlags & BlackQueensideRookBit) != 0 && ((Black | White) & 0x0E00000000000000UL) == 0;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanBlackCastleShort()
-        {
-            return (CastleFlags & BlackKingsideRookBit) != 0 && ((Black | White) & 0x6000000000000000UL) == 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -291,17 +258,17 @@ namespace Leorik.Core
                     break;
                 case Piece.King:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~BlackCastlingBits;
+                    CastleFlags &= 0x00000000000000FFUL;
                     break;
                 case Piece.CastleShort:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~BlackCastlingBits;
+                    CastleFlags &= 0x00000000000000FFUL;
                     Rooks ^= 0xA000000000000000UL;
                     Black ^= 0xA000000000000000UL;
                     break;
                 case Piece.CastleLong:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~BlackCastlingBits;
+                    CastleFlags &= 0x00000000000000FFUL;
                     Rooks ^= 0x0900000000000000UL;
                     Black ^= 0x0900000000000000UL;
                     break;
@@ -360,17 +327,17 @@ namespace Leorik.Core
                     break;
                 case Piece.King:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~WhiteCastlingBits;
+                    CastleFlags &= 0xFF00000000000000UL;
                     break;
                 case Piece.CastleShort:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~WhiteCastlingBits;
+                    CastleFlags &= 0xFF00000000000000UL;
                     Rooks ^= 0x00000000000000A0UL;
                     White ^= 0x00000000000000A0UL;
                     break;
                 case Piece.CastleLong:
                     Kings ^= bbFrom | bbTo;
-                    CastleFlags &= ~WhiteCastlingBits;
+                    CastleFlags &= 0xFF00000000000000UL;
                     Rooks ^= 0x0000000000000009UL;
                     White ^= 0x0000000000000009UL;
                     break;

@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace Leorik.Perft
@@ -128,10 +129,14 @@ namespace Leorik.Perft
                 PawnMove(Piece.BlackPawn | Piece.EnPassant, captureRight, +7);
 
             //Castling
-            if (board.CanBlackCastleLong() && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(59) /*&& !board.IsAttackedByWhite(58)*/)
+            const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
+            bool canCastle = (board.CastleFlags & BlackQueensideRookBit) != 0 && (occupied & 0x0E00000000000000UL) == 0;
+            if (canCastle && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(59) /*&& !board.IsAttackedByWhite(58)*/)
                 Add(Move.BlackCastlingLong);
 
-            if (board.CanBlackCastleShort() && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(61) /*&& !board.IsAttackedByWhite(62)*/)
+            const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
+            canCastle = (board.CastleFlags & BlackKingsideRookBit) != 0 && (occupied & 0x6000000000000000UL) == 0;
+            if (canCastle && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(61) /*&& !board.IsAttackedByWhite(62)*/)
                 Add(Move.BlackCastlingShort);
         }
 
@@ -228,10 +233,14 @@ namespace Leorik.Perft
                 PawnMove(Piece.WhitePawn | Piece.EnPassant, captureRight, -9);
 
             //Castling
-            if (board.CanWhiteCastleLong() && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(3) /*&& !board.IsAttackedByBlack(2)*/)
+            const ulong WhiteQueensideRookBit = 0x0000000000000001UL;//1UL << Notation.ToSquare("a1");
+            bool canCastle = (board.CastleFlags & WhiteQueensideRookBit) != 0 && (occupied & 0x000000000000000EUL) == 0;
+            if (canCastle && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(3) /*&& !board.IsAttackedByBlack(2)*/)
                 Add(Move.WhiteCastlingLong);
 
-            if (board.CanWhiteCastleShort() && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(5) /*&& !board.IsAttackedByBlack(6)*/)
+            const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
+            canCastle = (board.CastleFlags & WhiteKingsideRookBit) != 0 && (occupied & 0x0000000000000060UL) == 0;
+            if (canCastle && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(5) /*&& !board.IsAttackedByBlack(6)*/)
                 Add(Move.WhiteCastlingShort);
         }
 
