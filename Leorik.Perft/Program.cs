@@ -24,8 +24,8 @@ namespace Leorik.Perft
             Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
             Console.WriteLine();
             RunStandardPerft();
-            //Console.WriteLine();
-            //RunFischerPerft(1);
+            Console.WriteLine();
+            RunFischerPerft(6);
             Console.WriteLine();
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
@@ -45,7 +45,7 @@ namespace Leorik.Perft
                 Positions[0].Copy(position);
 
                 long t0 = Stopwatch.GetTimestamp();
-                long result = Perft(0, depth, new PerftMoveGen(Moves, 0));
+                long result = Perft(0, depth, new MoveGen(Moves, 0));
                 long t1 = Stopwatch.GetTimestamp();
 
                 double dt = (t1 - t0) / (double)Stopwatch.Frequency;
@@ -73,7 +73,7 @@ namespace Leorik.Perft
             refResult = long.Parse(data[2]);
         }
 
-        private static void RunFischerPerft(int depth)
+        private static void RunFischerPerft(int depth, int skip = 0)
         {
             int line = 1;
             long totalNodes = 0;
@@ -86,8 +86,15 @@ namespace Leorik.Perft
                 Parse(file, out string fen, out BoardState position, depth, out long refResult);
                 Positions[0].Copy(position);
 
+                if(skip > 0)
+                {
+                    line++;
+                    skip--;
+                    continue;
+                }
+
                 long t0 = Stopwatch.GetTimestamp();
-                long result = Perft(0, depth, new PerftMoveGen(Moves, 0));
+                long result = Perft(0, depth, new MoveGen(Moves, 0));
                 long t1 = Stopwatch.GetTimestamp();
 
                 double dt = (t1 - t0) / (double)Stopwatch.Frequency;
@@ -124,7 +131,7 @@ namespace Leorik.Perft
         //- if movegen needs to evaluate "inCheck()" info anyway and search does also eval it frequently
         //  -> make it a field of the Position set immediately after playing the move
 
-        private static long Perft(int depth, int remaining, PerftMoveGen moves)
+        private static long Perft(int depth, int remaining, MoveGen moves)
         {
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];

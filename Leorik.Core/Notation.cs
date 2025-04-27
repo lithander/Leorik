@@ -141,18 +141,11 @@ namespace Leorik.Core
                 //Map letters [a..h] to [0..7] with ASCII('a') == 97 or ASCII('A') == 65
                 int blackFile = castlingField[i] - 'a';
                 int whiteFile = castlingField[i] - 'A';
+                //only either black or white file is in range - set this rook's castling bit!
                 if (blackFile >= 0 && blackFile <= 7)
-                {
-                    //find black rook on that file and set it's castling bit!
-                    Console.WriteLine($"Black rook on file {blackFile} can castle!");
                     castleFlags |= 0x0100000000000000UL << blackFile;
-                }
                 else if(whiteFile >= 0 && whiteFile <= 7)
-                {
-                    //find black rook on that file and set it's castling bit!
-                    Console.WriteLine($"White rook on file {whiteFile} can castle!");
                     castleFlags |= 0x0000000000000001UL << whiteFile;
-                }
             }
             return castleFlags;
         }

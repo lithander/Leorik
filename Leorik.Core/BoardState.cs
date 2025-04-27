@@ -261,17 +261,18 @@ namespace Leorik.Core
                     CastleFlags &= 0x00000000000000FFUL;
                     break;
                 case Piece.CastleShort:
-                    Kings ^= bbFrom | bbTo;
+                    Kings ^= bbFrom ^ 0x04000000000000000UL;//move King to target
+                    Rooks ^= bbTo ^ 0x02000000000000000UL;//move Rooks to target
+                    Black |= 0x06000000000000000UL; //set new rook & king bits
                     CastleFlags &= 0x00000000000000FFUL;
-                    Rooks ^= 0xA000000000000000UL;
-                    Black ^= 0xA000000000000000UL;
                     break;
                 case Piece.CastleLong:
-                    Kings ^= bbFrom | bbTo;
+                    Kings ^= bbFrom ^ 0x400000000000000;//move King to target
+                    Rooks ^= bbTo ^ 0x800000000000000;//move Rooks to target
+                    Black |= 0xC00000000000000UL; //set new rook & king bits
                     CastleFlags &= 0x00000000000000FFUL;
-                    Rooks ^= 0x0900000000000000UL;
-                    Black ^= 0x0900000000000000UL;
                     break;
+
             }
         }
 
@@ -330,16 +331,16 @@ namespace Leorik.Core
                     CastleFlags &= 0xFF00000000000000UL;
                     break;
                 case Piece.CastleShort:
-                    Kings ^= bbFrom | bbTo;
+                    Kings ^= bbFrom ^ 0x40UL;//move King to target
+                    Rooks ^= bbTo ^ 0x20UL;//move Rooks to target
+                    White |= 0x60UL; //set new rook & king bits
                     CastleFlags &= 0xFF00000000000000UL;
-                    Rooks ^= 0x00000000000000A0UL;
-                    White ^= 0x00000000000000A0UL;
                     break;
                 case Piece.CastleLong:
-                    Kings ^= bbFrom | bbTo;
+                    Kings ^= bbFrom ^ 0x4UL;//move King to target
+                    Rooks ^= bbTo ^ 0x8UL;//move Rooks to target
+                    White |= 0xCUL; //set new rook & king bits
                     CastleFlags &= 0xFF00000000000000UL;
-                    Rooks ^= 0x0000000000000009UL;
-                    White ^= 0x0000000000000009UL;
                     break;
             }
         }

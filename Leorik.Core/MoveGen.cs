@@ -258,16 +258,32 @@ namespace Leorik.Core
             for (targets = twoStep & 0x000000FF00000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.BlackPawn, targets, +16);
 
-            //Castling
-            const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
-            bool canCastle = (board.CastleFlags & BlackQueensideRookBit) != 0 && (occupied & 0x0E00000000000000UL) == 0;
-            if (canCastle && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(59) /*&& !board.IsAttackedByWhite(58)*/)
-                Add(Move.BlackCastlingLong);
-
-            const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
-            canCastle = (board.CastleFlags & BlackKingsideRookBit) != 0 && (occupied & 0x6000000000000000UL) == 0;
-            if (canCastle && !board.IsAttackedByWhite(60) && !board.IsAttackedByWhite(61) /*&& !board.IsAttackedByWhite(62)*/)
-                Add(Move.BlackCastlingShort);
+            //Chess960 Castling Requirements:
+            //1.) Neither King nor Rook has moved. (CastleFlags are set)
+            //2.) All squares between the castling King's initial and final squares (inclusive), and all of the squares between the castling Rook's initial and final squares (inclusive) must be vacant except for the King and involved Rook
+            //3.) No square through which the King moves including starting and final square is under enemy attack.
+            ulong king = board.Kings & board.Black;
+            int kingSquare = Bitboard.LSB(king);
+            ulong rightSideOfKing = ~(king - 1) & 0xFF00000000000000UL;
+            ulong rightRook = rightSideOfKing & board.CastleFlags;
+            if (rightRook != 0)
+            {
+                int rightRookSquare = Bitboard.LSB(rightRook);
+                ulong vacancy = Squares(rightRookSquare, 61) | Squares(kingSquare, 62);
+                ulong others = (occupied ^ king) ^ rightRook;
+                if ((others & vacancy) == 0 && !IsAttackedByWhite(board, Squares(kingSquare, 62))) //Rule 2 && Rule 3
+                    AddCapture(Piece.BlackRook | Piece.CastleShort, kingSquare, rightRookSquare, board); //in Chess960 castling moves are sent in the form king "takes" his own rook
+            }
+            ulong leftSideOfKing = (king + king - 1) & 0xFF00000000000000UL;
+            ulong leftRook = leftSideOfKing & board.CastleFlags;
+            if (leftRook != 0)
+            {
+                int leftRookSquare = Bitboard.LSB(leftRook);
+                ulong vacancy = Squares(leftRookSquare, 59) | Squares(kingSquare, 58);
+                ulong others = (occupied ^ king) ^ leftRook;
+                if ((others & vacancy) == 0 && !IsAttackedByWhite(board, Squares(kingSquare, 58)))
+                    AddCapture(Piece.BlackRook | Piece.CastleLong, kingSquare, leftRookSquare, board);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -403,16 +419,66 @@ namespace Leorik.Core
             for (targets = twoStep & 0x00000000FF000000UL; targets != 0; targets = Bitboard.ClearLSB(targets))
                 PawnMove(Piece.WhitePawn, targets, -16);
 
-            //Castling
-            const ulong WhiteQueensideRookBit = 0x0000000000000001UL;//1UL << Notation.ToSquare("a1");
-            bool canCastle = (board.CastleFlags & WhiteQueensideRookBit) != 0 && (occupied & 0x000000000000000EUL) == 0;
-            if (canCastle && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(3) /*&& !board.IsAttackedByBlack(2)*/)
-                Add(Move.WhiteCastlingLong);
+            //Chess960 castling (CollectBlackQuiets has more comments)
+            ulong king = board.Kings & board.White;
+            int kingSquare = Bitboard.LSB(king);
+            ulong rightSideOfKing = ~(king - 1) & 0x00000000000000FF;
+            ulong rightRook = rightSideOfKing & board.CastleFlags;
+            if (rightRook != 0)
+            {
+                int rightRookSquare = Bitboard.LSB(rightRook);
+                ulong vacancy = Squares(rightRookSquare, 5) | Squares(kingSquare, 6);
+                ulong others = (occupied ^ king) ^ rightRook;
+                if ((others & vacancy) == 0 && !IsAttackedByBlack(board, Squares(kingSquare, 6)))
+                    AddCapture(Piece.WhiteRook | Piece.CastleShort, kingSquare, rightRookSquare, board);
+            }
+            ulong leftSideOfKing = (king + king - 1) & 0x00000000000000FF;
+            ulong leftRook = leftSideOfKing & board.CastleFlags;
+            if(leftRook != 0)
+            {
+                int leftRookSquare = Bitboard.LSB(leftRook);
+                ulong vacancy = Squares(leftRookSquare, 3) | Squares(kingSquare, 2);
+                ulong others = (occupied ^ king) ^ leftRook;
+                if ((others & vacancy) == 0 && !IsAttackedByBlack(board, Squares(kingSquare, 2)))
+                    AddCapture(Piece.WhiteRook | Piece.CastleLong, kingSquare, leftRookSquare, board);
+            }
+        }
 
-            const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
-            canCastle = (board.CastleFlags & WhiteKingsideRookBit) != 0 && (occupied & 0x0000000000000060UL) == 0;
-            if (canCastle && !board.IsAttackedByBlack(4) && !board.IsAttackedByBlack(5) /*&& !board.IsAttackedByBlack(6)*/)
-                Add(Move.WhiteCastlingShort);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        ulong Squares(int from, int to)
+        {
+            if (from > to)
+                (to, from) = (from, to);
+
+            ulong result = 0;
+            for(int i = from; i <= to; i++)
+                result |= 1UL << i;
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IsAttackedByWhite(BoardState board, ulong mask)
+        {
+            for (; mask != 0; mask = Bitboard.ClearLSB(mask))
+            {
+                int square = Bitboard.LSB(mask);
+                if(board.IsAttackedByWhite(square))
+                    return true;
+            }
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IsAttackedByBlack(BoardState board, ulong mask)
+        {
+            for (; mask != 0; mask = Bitboard.ClearLSB(mask))
+            {
+                int square = Bitboard.LSB(mask);
+                if (board.IsAttackedByBlack(square))
+                    return true;
+            }
+            return false;
         }
     }
 }
