@@ -25,21 +25,18 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Piece NewPiece()
         {
-            return Flags < Piece.KnightPromotion || Flags >= Piece.CastleShort
-                ? Flags & Piece.PieceMask
-                : (Piece)((int)Flags >> 3) & ~Piece.ColorMask | (Flags & Piece.ColorMask);
+            if (Flags < Piece.KnightPromotion)
+                return Flags & Piece.PieceMask;
+            else if (Flags >= Piece.CastleShort)
+                return Piece.None;
+            else
+                return (Piece)((int)Flags >> 3) & ~Piece.ColorMask | (Flags & Piece.ColorMask);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Piece CapturedPiece()
         {
             return Target;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Piece CapturedPieceType()
-        {
-            return Target & Piece.TypeMask;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

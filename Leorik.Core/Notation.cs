@@ -250,6 +250,8 @@ namespace Leorik.Core
 
         public static string GetMoveName(Move move)
         {
+            //TODO: 960 Castling!
+
             //result represents the move in the long algebraic notation (without piece names)
             string result = GetSquareName(move.FromSquare);
             result += GetSquareName(move.ToSquare);

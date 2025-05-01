@@ -90,6 +90,9 @@ namespace Leorik.Core
 
         public int Evaluate(BoardState position, Move move, int alpha, int beta)
         {
+            if (move.Flags >= Piece.CastleShort)
+                return 0;
+
             Flags = move.Flags;
             Target = move.Target;
             FromSquare = move.FromSquare;

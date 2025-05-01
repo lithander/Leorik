@@ -63,10 +63,8 @@ namespace Leorik.Core
         private void UpdateFeatures(ref Move move)
         {
             Deactivate(move.MovingPiece(), move.FromSquare);
+            Deactivate(move.CapturedPiece(), move.ToSquare);
             Activate(move.NewPiece(), move.ToSquare);
-
-            if (move.CapturedPiece() != Piece.None)
-                Deactivate(move.CapturedPiece(), move.ToSquare);
 
             switch (move.Flags)
             {
@@ -77,20 +75,20 @@ namespace Leorik.Core
                     Deactivate(Piece.BlackPawn, move.ToSquare - 8);
                     break;
                 case Piece.CastleShort | Piece.Black:
-                    Deactivate(Piece.BlackRook, 63);
                     Activate(Piece.BlackRook, 61);
+                    Activate(Piece.BlackKing, 62);
                     break;
                 case Piece.CastleLong | Piece.Black:
-                    Deactivate(Piece.BlackRook, 56);
                     Activate(Piece.BlackRook, 59);
+                    Activate(Piece.BlackKing, 58);
                     break;
                 case Piece.CastleShort | Piece.White:
-                    Deactivate(Piece.WhiteRook, 7);
                     Activate(Piece.WhiteRook, 5);
+                    Activate(Piece.WhiteKing, 6);
                     break;
                 case Piece.CastleLong | Piece.White:
-                    Deactivate(Piece.WhiteRook, 0);
                     Activate(Piece.WhiteRook, 3);
+                    Activate(Piece.WhiteKing, 2);
                     break;
             }
         }
@@ -107,16 +105,22 @@ namespace Leorik.Core
 
         private void Deactivate(Piece piece, int square)
         {
-            (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-            SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-            SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+            if (piece != Piece.None)
+            {
+                (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
+                SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
+                SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+            }
         }
 
         private void Activate(Piece piece, int square)
         {
-            (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-            AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-            AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+            if (piece != Piece.None)
+            {
+                (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
+                AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
+                AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+            }
         }
 
         private (int blackIdx, int whiteIdx) FeatureIndices(Piece piece, int square)

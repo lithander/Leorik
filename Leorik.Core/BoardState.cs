@@ -525,19 +525,19 @@ namespace Leorik.Core
                     ZobristHash ^= Zobrist.PieceSquare(Piece.BlackPawn, move.ToSquare - 8);
                     break;
                 case Piece.CastleShort | Piece.Black:
-                    ZobristHash ^= Zobrist.PieceSquare(Piece.BlackRook, 63);
+                    ZobristHash ^= Zobrist.PieceSquare(Piece.BlackKing, 62);
                     ZobristHash ^= Zobrist.PieceSquare(Piece.BlackRook, 61);
                     break;
                 case Piece.CastleLong | Piece.Black:
-                    ZobristHash ^= Zobrist.PieceSquare(Piece.BlackRook, 56);
+                    ZobristHash ^= Zobrist.PieceSquare(Piece.BlackKing, 58);
                     ZobristHash ^= Zobrist.PieceSquare(Piece.BlackRook, 59);
                     break;
                 case Piece.CastleShort | Piece.White:
-                    ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteRook, 7);
+                    ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteKing, 6);
                     ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteRook, 5);
                     break;
                 case Piece.CastleLong | Piece.White:
-                    ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteRook, 0);
+                    ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteKing, 2);
                     ZobristHash ^= Zobrist.PieceSquare(Piece.WhiteRook, 3);
                     break;
             }

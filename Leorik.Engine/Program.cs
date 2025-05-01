@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.3";
+        const string NAME_VERSION = "Leorik 3.1.3 FRC";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -41,6 +41,7 @@ namespace Leorik.Engine
                     Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
                     Console.WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
                     Console.WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
+                    Console.WriteLine($"option name UCI_Chess960 type check default false");
                     //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
                     Console.WriteLine("uciok");
                     break;
@@ -92,6 +93,8 @@ namespace Leorik.Engine
                 _engine.Options.Temperature = temperature;
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
+            else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
+                _engine.Options.Chess960 = chess960;
             else
                 Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
