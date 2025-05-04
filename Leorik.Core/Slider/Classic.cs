@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
+using static Leorik.Core.Bitboard;
 
 namespace Leorik.Core.Slider
 {
@@ -93,15 +88,6 @@ namespace Leorik.Core.Slider
             //The bits of the line that are different between the two masks are the valid targets (including the first blockers on each side)
             return (MaskLow(bbBlocker & ~bbBelow) ^ MaskHigh(bbBlocker & bbBelow)) & bbLine;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //identify the highest set bit and shift a mask so the bits below are set and the rest are zeroed
-        private static ulong MaskHigh(ulong bb) => 0x7FFFFFFFFFFFFFFFUL >> BitOperations.LeadingZeroCount(bb | 1);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //identify the lowest set bit and set all bits below while zeroing the rest
-        private static ulong MaskLow(ulong bb) => bb ^ (bb - 1);
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ulong DiagonalSubset(ulong occupation, int square)

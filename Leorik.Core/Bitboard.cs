@@ -188,5 +188,19 @@ namespace Leorik.Core
         //All bits keep their file but their rank is mirrored horizontally at the axis between 4th and 5th rank. 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong ByteSwap(ulong bb) => BinaryPrimitives.ReverseEndianness(bb);
+
+        //identify the highest set bit and shift a mask so the bits below are set and the rest are zeroed
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong MaskHigh(ulong bb) => 0x7FFFFFFFFFFFFFFFUL >> BitOperations.LeadingZeroCount(bb | 1);
+
+        //identify the lowest set bit and set all bits below while zeroing the rest
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong MaskLow(ulong bb) => bb ^ (bb - 1);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong LowestBit(ulong bb) => bb & ~(bb - 1);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong HighestBit(ulong bb) => bb == 0 ? 0 : 1UL << (63 - BitOperations.LeadingZeroCount(bb));
     }
 }
