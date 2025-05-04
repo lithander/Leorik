@@ -114,7 +114,6 @@ namespace Leorik.Search
             PrincipalVariations[IndexPV(ply)] = default;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Depth++;
@@ -420,10 +419,7 @@ namespace Leorik.Search
                 {
                     alpha = score;
                     ExtendPV(0, depth, move);
-                    //promote new best move to the front
-                    for (int j = i; j > 0; j--)
-                        RootMoves[j] = RootMoves[j - 1];
-                    RootMoves[0] = move;
+                    PromoteBestMove(i);
 
                     if (score >= beta)
                         return beta;
@@ -435,6 +431,23 @@ namespace Leorik.Search
                 return root.InCheck() ? MatedScore(0) : 0;
 
             return alpha;
+        }
+
+        private void PromoteBestMove(int i)
+        {
+            if (i <= 0) return; // already at the front
+
+            Move move = RootMoves[i];
+            int offset = RootMoveOffsets[i];
+            //move all moves down one position overwriting best move at index i
+            for (int j = i; j > 0; j--)
+            {
+                RootMoves[j] = RootMoves[j - 1];
+                RootMoveOffsets[j] = RootMoveOffsets[j - 1];
+            }
+            //put the best move at the front
+            RootMoves[0] = move;
+            RootMoveOffsets[0] = offset;
         }
 
         private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
