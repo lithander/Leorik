@@ -14,11 +14,52 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Collect(Move move)
+        public int CollectMove(Move move)
         {
             int oldNext = Next;
             if (move != default)
-                Add(move);
+                _moves[Next++] = move;
+
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int CollectAll(BoardState board)
+        {
+            int oldNext = Next;
+            if (board.SideToMove == Color.White)
+            {
+                CollectWhiteCaptures(board);
+                CollectWhiteQuiets(board);
+            }
+            else
+            {
+                CollectBlackCaptures(board);
+                CollectBlackQuiets(board);
+            }
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int CollectCaptures(BoardState board)
+        {
+            int oldNext = Next;
+            if (board.SideToMove == Color.White)
+                CollectWhiteCaptures(board);
+            else
+                CollectBlackCaptures(board);
+
+            return oldNext;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int CollectQuiets(BoardState board)
+        {
+            int oldNext = Next;
+            if (board.SideToMove == Color.White)
+                CollectWhiteQuiets(board);
+            else
+                CollectBlackQuiets(board);
 
             return oldNext;
         }
@@ -59,7 +100,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddCapture(Piece flags, int from, int to, BoardState board)
+        private void AddCapture(Piece flags, int from, int to, BoardState board)
         {
             _moves[Next++] = new Move(flags, from, to, board.GetPiece(to));
         }
@@ -82,47 +123,6 @@ namespace Leorik.Core
             _moves[Next++] = new Move(flags | Piece.RookPromotion, from, to, target);
             _moves[Next++] = new Move(flags | Piece.BishopPromotion, from, to, target);
             _moves[Next++] = new Move(flags | Piece.KnightPromotion, from, to, target);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Collect(BoardState board)
-        {
-            int oldNext = Next;
-            if (board.SideToMove == Color.White)
-            {
-                CollectWhiteCaptures(board);
-                CollectWhiteQuiets(board);
-            }
-            else
-            {
-                CollectBlackCaptures(board);
-                CollectBlackQuiets(board);
-            }
-            return oldNext;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CollectCaptures(BoardState board)
-        {
-            int oldNext = Next;
-            if (board.SideToMove == Color.White)
-                CollectWhiteCaptures(board);
-            else
-                CollectBlackCaptures(board);
-
-            return oldNext;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CollectQuiets(BoardState board)
-        {
-            int oldNext = Next;
-            if (board.SideToMove == Color.White)
-                CollectWhiteQuiets(board);
-            else
-                CollectBlackQuiets(board);
-
-            return oldNext;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -445,7 +445,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong Squares(int from, int to)
+        private ulong Squares(int from, int to)
         {
             if (from > to)
                 (to, from) = (from, to);
@@ -458,7 +458,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IsAttackedByWhite(BoardState board, ulong mask)
+        private bool IsAttackedByWhite(BoardState board, ulong mask)
         {
             for (; mask != 0; mask = Bitboard.ClearLSB(mask))
             {
@@ -470,7 +470,7 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IsAttackedByBlack(BoardState board, ulong mask)
+        private bool IsAttackedByBlack(BoardState board, ulong mask)
         {
             for (; mask != 0; mask = Bitboard.ClearLSB(mask))
             {

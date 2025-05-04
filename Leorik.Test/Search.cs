@@ -56,7 +56,7 @@ namespace Leorik.Test
             int bestScore = -Evaluation.CheckmateScore;
             int stm = (int)board.SideToMove;
             MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectAll(current); i < moveGen.Next; i++)
             {
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
@@ -81,7 +81,7 @@ namespace Leorik.Test
             int score;
             int max = -Evaluation.CheckmateScore;
             int stm = (int)current.SideToMove;
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectAll(current); i < moveGen.Next; i++)
             {
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
@@ -114,7 +114,7 @@ namespace Leorik.Test
             int beta = Evaluation.CheckmateScore;
             int stm = (int)board.SideToMove;
             MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectAll(current); i < moveGen.Next; i++)
             {
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
@@ -138,7 +138,7 @@ namespace Leorik.Test
             BoardState next = Positions[depth + 1];
             int score;
             int stm = (int)current.SideToMove;
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectAll(current); i < moveGen.Next; i++)
             {
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
@@ -174,7 +174,7 @@ namespace Leorik.Test
             int beta = Evaluation.CheckmateScore;
             int stm = (int)board.SideToMove;
             MoveGen moveGen = new MoveGen(Moves, 0);
-            for (int i = moveGen.Collect(current); i < moveGen.Next; i++)
+            for (int i = moveGen.CollectAll(current); i < moveGen.Next; i++)
             {
                 if (next.QuickPlay(current, ref Moves[i]))
                 {
@@ -274,7 +274,7 @@ namespace Leorik.Test
             int stm = (int)board.SideToMove;
 
             MoveGen moveGen = new MoveGen(Moves, 0);
-            int moveStart = moveGen.Collect(current);
+            int moveStart = moveGen.CollectAll(current);
             int moveEnd = moveGen.Next;
             int totalChildren = moveEnd - moveStart;
             if (totalChildren == 0)

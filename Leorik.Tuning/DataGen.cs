@@ -229,7 +229,7 @@ namespace Leorik.Tuning
             MoveGen moveGen = new MoveGen(move, 0);
             for (int i = 0; i < randomMoves; i++)
             {
-                moveGen.Collect(board);
+                moveGen.CollectAll(board);
                 int iMove = random.Next(moveGen.Next);
                 if (!board.Play(move[iMove]))
                     return false;

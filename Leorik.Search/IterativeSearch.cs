@@ -45,7 +45,7 @@ namespace Leorik.Search
             }
             else
             {
-                moveGen.Collect(board);
+                moveGen.CollectAll(board);
                 RootMoves = new Move[moveGen.Next];
                 Array.Copy(Moves, RootMoves, RootMoves.Length);
             }
@@ -477,7 +477,7 @@ namespace Leorik.Search
             }
 
             //init staged move generation and play all moves
-            PlayState playState = new(moveGen.Collect(bestMove));
+            PlayState playState = new(moveGen.CollectMove(bestMove));
             while (Play(ply, ref playState, ref moveGen))
             {
                 //skip late quiet moves when almost in Qsearch depth

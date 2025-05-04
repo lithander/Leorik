@@ -313,13 +313,13 @@ namespace Leorik.Core
                 {
                     //pawn capture
                     int toSquare = GetSquare(notation.Substring(2, 2));
-                    return SelectMove(board, pawn, toSquare, promotion, notation[0]);
+                    return IdentifyMove(board, pawn, toSquare, promotion, notation[0]);
                 }
                 else
                 {
                     //pawn move
                     int toSquare = GetSquare(notation);
-                    return SelectMove(board, pawn, toSquare, promotion);
+                    return IdentifyMove(board, pawn, toSquare, promotion);
                 }
             }
 
@@ -328,13 +328,13 @@ namespace Leorik.Core
             {
                 //capture
                 int toSquare = GetSquare(notation.Substring(2, 2));
-                return SelectMove(board, piece, toSquare, promotion);
+                return IdentifyMove(board, piece, toSquare, promotion);
             }
             else if (notation[2] == 'x')
             {
                 //piece capture with disambiguation
                 int toSquare = GetSquare(notation.Substring(3, 2));
-                return SelectMove(board, piece, toSquare, promotion, notation[1]);
+                return IdentifyMove(board, piece, toSquare, promotion, notation[1]);
             }
             else if (notation.Length >= 4 && notation[3] == 'x')
             {
@@ -346,13 +346,13 @@ namespace Leorik.Core
             {
                 //move
                 int toSquare = GetSquare(notation.Substring(1, 2));
-                return SelectMove(board, piece, toSquare, promotion);
+                return IdentifyMove(board, piece, toSquare, promotion);
             }
             else if (notation.Length == 4)
             {
                 //move with disambiguation
                 int toSquare = GetSquare(notation.Substring(2, 2));
-                return SelectMove(board, piece, toSquare, promotion, notation[1]);
+                return IdentifyMove(board, piece, toSquare, promotion, notation[1]);
             }
             else if(notation.Length == 5)
             {
@@ -365,11 +365,11 @@ namespace Leorik.Core
             throw new ArgumentException($"Move notation {notation} could not be parsed!");
         }
 
-        private static Move SelectMove(BoardState board, Piece moving, int toSquare, Piece promotion, char? fileOrRank = null)
+        private static Move IdentifyMove(BoardState board, Piece moving, int toSquare, Piece promotion, char? fileOrRank = null)
         {
             Move[] moves = new Move[225];
             var moveGen = new MoveGen(moves, 0);
-            moveGen.Collect(board);
+            moveGen.CollectAll(board);
             for (int i = 0; i < moveGen.Next; i++)
             {
                 Move move = moves[i];
@@ -400,7 +400,7 @@ namespace Leorik.Core
 
             Move[] moves = new Move[225];
             var moveGen = new MoveGen(moves, 0);
-            moveGen.Collect(board);
+            moveGen.CollectAll(board);
             for (int i = 0; i < moveGen.Next; i++)
             {
                 if (GetMoveName(moves[i], variant) == uciMoveNotation)
