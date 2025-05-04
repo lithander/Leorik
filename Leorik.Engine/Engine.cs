@@ -16,11 +16,12 @@ namespace Leorik.Engine
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
         public int HistoryPlys => _history.Count;
-        public BoardState Position => _board;
 
         public string GetFen() => Notation.GetFen(_board);
         public NeuralNetEval GetEval() => _board.Eval;
         public void Flip() => _board.Flip();
+        public Move GetMoveUci(string notation) => Notation.GetMoveUci(_board, notation, Options.Variant);
+
 
         public void Init()
         {
@@ -60,7 +61,7 @@ namespace Leorik.Engine
         internal void Play(string moveNotation)
         {
             Stop();
-            Move move = Notation.GetMoveUci(_board, moveNotation);
+            Move move = GetMoveUci(moveNotation);
             _board.Play(move);
             _history.Add(_board.Clone());
             //Console.WriteLine(moveNotation);
@@ -153,7 +154,7 @@ namespace Leorik.Engine
                 Collect();
             }
             //Done searching!
-            Uci.BestMove(_best);
+            Uci.BestMove(_best, Options.Variant);
             _search = null;
         }
 
@@ -183,7 +184,8 @@ namespace Leorik.Engine
                 score: (int)SideToMove * _search.Score, //the score from the engine's point of view in centipawns.
                 nodes: _search.NodesVisited,
                 timeMs: _time.Elapsed,
-                pv: GetExtendedPV()
+                pv: GetExtendedPV(),
+                variant: Options.Variant
             );
         }
 

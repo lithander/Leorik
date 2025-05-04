@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.3 FRC";
+        const string NAME_VERSION = "Leorik 3.1.3 optional-FRC";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -94,7 +94,7 @@ namespace Leorik.Engine
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
-                _engine.Options.Chess960 = chess960;
+                _engine.Options.Variant = Variant.Chess960;
             else
                 Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
@@ -192,7 +192,7 @@ namespace Leorik.Engine
                 try
                 {
                     string notation = tokens[iValue++];
-                    Move move = Notation.GetMoveUci(_engine.Position, notation);
+                    Move move = _engine.GetMoveUci(notation);
                     moves.Add(move);
                 }
                 catch

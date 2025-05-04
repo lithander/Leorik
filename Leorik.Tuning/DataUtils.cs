@@ -313,7 +313,7 @@ namespace Leorik.Tuning
             return (games, positions);
         }
 
-        public static void PgnToUci(StreamReader input, StreamWriter output)
+        public static void PgnToUci(StreamReader input, StreamWriter output, Variant variant)
         {
             //Output Format Example:
             //rnb1kbnr/pp1pppp1/7p/2q5/5P2/N1P1P3/P2P2PP/R1BQKBNR w KQkq - c9 "1/2-1/2";
@@ -336,7 +336,7 @@ namespace Leorik.Tuning
                     for (int j = 0; j <= i; j++)
                     {
                         Move move = parser.Moves[j];
-                        output.Write(Notation.GetMoveName(move));
+                        output.Write(Notation.GetMoveName(move, variant));
                         output.Write(' ');
                     }
                     output.WriteLine();

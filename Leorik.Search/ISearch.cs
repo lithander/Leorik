@@ -4,7 +4,7 @@ namespace Leorik.Search
 {
     public struct SearchOptions
     {
-        public bool Chess960;
+        public Variant Variant;
         public long MaxNodes;
         public int NullMoveCutoff;
         public int Threads;
@@ -14,7 +14,7 @@ namespace Leorik.Search
 
         public SearchOptions()
         {
-            Chess960 = false;
+            Variant = Variant.Standard;
             Threads = 1;
             MaxNodes = long.MaxValue;
             NullMoveCutoff = 600;

@@ -58,7 +58,7 @@ namespace Leorik.Tuning
             {
                 if (i > 0)
                     _stream.Write(' ');
-                _stream.Write(Notation.GetMoveName(moves[i]));
+                _stream.Write(Notation.GetMoveName(moves[i], Variant.Chess960));
                 _stream.Write(' ');
                 _stream.Write(scores[i]);
             }
@@ -113,7 +113,7 @@ namespace Leorik.Tuning
                 {
                     Move move = (Move)binReader.ReadInt32();
                     string move2 = movesAndScores[iMove * 2];
-                    Debug.Assert(move2 == Notation.GetMoveName(move));
+                    Debug.Assert(move2 == Notation.GetMoveName(move, Variant.Chess960));
 
                     short score = binReader.ReadInt16();
                     short score2 = short.Parse(movesAndScores[iMove * 2 + 1]);

@@ -4,6 +4,7 @@ namespace Leorik.Core
 {
     public readonly struct Move
     {
+        //TODO: since Chess960 this is deprecated encoding
         public readonly static Move BlackCastlingShort = new(Piece.BlackKing | Piece.CastleShort, 60, 62, Piece.None);//e8g8
         public readonly static Move BlackCastlingLong = new(Piece.BlackKing | Piece.CastleLong, 60, 58, Piece.None);//e8c8
         public readonly static Move WhiteCastlingShort = new(Piece.WhiteKing | Piece.CastleShort, 4, 6, Piece.None);//e1g1
@@ -77,7 +78,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Order(Piece piece) => (int)piece >> 2;
 
-        public override string ToString() => Notation.GetMoveName(this);
+        public override string ToString() => Notation.GetMoveName(this, Variant.Chess960);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator int(Move move)

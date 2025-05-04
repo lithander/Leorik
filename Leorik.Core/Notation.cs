@@ -1,14 +1,16 @@
-﻿using System.Text;
+﻿using static Leorik.Core.Bitboard;
+using System.Text;
 
 namespace Leorik.Core
 {
-    public static class Notation
+    public enum Variant
     {
-        const ulong BlackQueensideRookBit = 0x0100000000000000UL;//1UL << Notation.ToSquare("a8");
-        const ulong BlackKingsideRookBit = 0x8000000000000000UL;//1UL << Notation.ToSquare("h8");
-        const ulong WhiteQueensideRookBit = 0x0000000000000001UL;//1UL << Notation.ToSquare("a1");
-        const ulong WhiteKingsideRookBit = 0x0000000000000080UL;//1UL << Notation.ToSquare("h1");
+        Standard,
+        Chess960
+    }
 
+    public static class Notation
+    {       
         public const string STARTING_POS_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
         public static string GetHex(ulong bitboard)
@@ -96,7 +98,7 @@ namespace Leorik.Core
             result.SideToMove = fields[1].Equals("w", StringComparison.CurrentCultureIgnoreCase) ? Color.White : Color.Black;
 
             //Set castling rights
-            result.CastleFlags = ParseCastlingRights(fields[2]);
+            result.CastleFlags = ParseCastlingRights(fields[2], result.Rooks);
             if ((result.Rooks & result.CastleFlags) != result.CastleFlags)
                 throw new Exception("Invalid CastleFlags, Rooks not found!");
 
@@ -112,40 +114,42 @@ namespace Leorik.Core
             return result;
         }
 
-        private static ulong ParseCastlingRights(string castlingField)
+        static ulong WhiteKingsideRookBit(ulong bbRooks) => HighestBit(bbRooks & 0xFFUL);
+        static ulong WhiteQueensideRookBit(ulong bbRooks) => LowestBit(bbRooks & 0xFFUL);
+        static ulong BlackKingsideRookBit(ulong bbRooks) => HighestBit(bbRooks & 0xFF00000000000000UL);
+        static ulong BlackQueensideRookBit(ulong bbRooks) => LowestBit(bbRooks & 0xFF00000000000000UL);
+
+        private static ulong ParseCastlingRights(string castlingField, ulong bbRooks)
         {
             ulong castleFlags = 0;
             if (castlingField == "-")
                 return castleFlags;
 
-            if (castlingField.IndexOf("K", StringComparison.Ordinal) > -1)
-                castleFlags |= WhiteKingsideRookBit;
-
-            if (castlingField.IndexOf("Q", StringComparison.Ordinal) > -1)
-                castleFlags |= WhiteQueensideRookBit;
-
-            if (castlingField.IndexOf("k", StringComparison.Ordinal) > -1)
-                castleFlags |= BlackKingsideRookBit;
-
-            if (castlingField.IndexOf("q", StringComparison.Ordinal) > -1)
-                castleFlags |= BlackQueensideRookBit;
-
-            if (castleFlags != 0)
-                return castleFlags;
-
-            //We expect to be given a Shredder-FEN, supporting Chess960 castling rights.
+            //We expect to be given a Shredder-FEN or X-FEN supporting Chess960 castling rights.
             //instead of KQkq, upper case (white) and lower case (black) file characters of the affected rooks
             int length = castlingField.Length;
             for (int i = 0; i < length; i++)
             {
-                //Map letters [a..h] to [0..7] with ASCII('a') == 97 or ASCII('A') == 65
-                int blackFile = castlingField[i] - 'a';
-                int whiteFile = castlingField[i] - 'A';
-                //only either black or white file is in range - set this rook's castling bit!
-                if (blackFile >= 0 && blackFile <= 7)
-                    castleFlags |= 0x0100000000000000UL << blackFile;
-                else if(whiteFile >= 0 && whiteFile <= 7)
-                    castleFlags |= 0x0000000000000001UL << whiteFile;
+                //castling rights provided by KQkq are related to the outermost rook of the affected side
+                if (castlingField[i] == 'K')
+                    castleFlags |= WhiteKingsideRookBit(bbRooks);
+                else if (castlingField[i] == 'Q')
+                    castleFlags |= WhiteQueensideRookBit(bbRooks);
+                else if (castlingField[i] == 'k')
+                    castleFlags |= BlackKingsideRookBit(bbRooks);
+                else if (castlingField[i] == 'q')
+                    castleFlags |= BlackQueensideRookBit(bbRooks);
+                else
+                {
+                    //Map letters [a..h] to [0..7] with ASCII('a') == 97 or ASCII('A') == 65
+                    int blackFile = castlingField[i] - 'a';
+                    int whiteFile = castlingField[i] - 'A';
+                    //only either black or white file is in range - set this rook's castling bit!
+                    if (blackFile >= 0 && blackFile <= 7)
+                        castleFlags |= 0x0100000000000000UL << blackFile;
+                    else if (whiteFile >= 0 && whiteFile <= 7)
+                        castleFlags |= 0x0000000000000001UL << whiteFile;
+                }
             }
             return castleFlags;
         }
@@ -196,13 +200,13 @@ namespace Leorik.Core
             //Castling rights
             if (board.CastleFlags == 0)
                 fen.Append('-');
-            if ((board.CastleFlags & WhiteKingsideRookBit) > 0)
+            if ((board.CastleFlags & WhiteKingsideRookBit(board.Rooks) & ~MaskLow(board.Kings & board.White)) > 0)
                 fen.Append('K');
-            if ((board.CastleFlags & WhiteQueensideRookBit) > 0)
+            if ((board.CastleFlags & WhiteQueensideRookBit(board.Rooks) & MaskLow(board.Kings & board.White)) > 0)
                 fen.Append('Q');
-            if ((board.CastleFlags & BlackKingsideRookBit) > 0)
+            if ((board.CastleFlags & BlackKingsideRookBit(board.Rooks) & ~MaskLow(board.Kings & board.Black)) > 0)
                 fen.Append('k');
-            if ((board.CastleFlags & BlackQueensideRookBit) > 0)
+            if ((board.CastleFlags & BlackQueensideRookBit(board.Rooks) & MaskLow(board.Kings & board.Black)) > 0)
                 fen.Append('q');
             fen.Append(' ');
 
@@ -248,15 +252,28 @@ namespace Leorik.Core
             throw new ArgumentException($"The given square notation {squareNotation} does not map to a valid index between 0 and 63");
         }
 
-        public static string GetMoveName(Move move)
+        public static string GetMoveName(Move move, Variant variant)
         {
-            //TODO: 960 Castling!
+            if (variant == Variant.Standard && move.Flags >= Piece.CastleShort)
+            {
+                switch(move.Flags)
+                {
+                    case Piece.CastleShort | Piece.Black:
+                        return "e8g8";
+                    case Piece.CastleLong | Piece.Black:
+                        return "e8c8";
+                    case Piece.CastleShort | Piece.White:
+                        return "e1g1";
+                    case Piece.CastleLong | Piece.White:
+                        return "e1c1";
+                }
+            }
 
             //result represents the move in the long algebraic notation (without piece names)
             string result = GetSquareName(move.FromSquare);
             result += GetSquareName(move.ToSquare);
             //the presence of a 5th character should mean promotion
-            if (move.MovingPiece() != move.NewPiece())
+            if (move.IsPromotion())
                 result += char.ToLower(GetChar(move.NewPiece()));
 
             return result;
@@ -374,42 +391,20 @@ namespace Leorik.Core
             throw new ArgumentException("No move meeting all requirements could be found!");
         }
 
-        public static Move GetMoveUci(BoardState board, string uciMoveNotation)
+        public static Move GetMoveUci(BoardState board, string uciMoveNotation, Variant variant)
         {
             if (uciMoveNotation.Length < 4)
                 throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too short!");
             if (uciMoveNotation.Length > 5)
                 throw new ArgumentException($"Long algebraic notation expected. '{uciMoveNotation}' is too long!");
 
-            //expected format is the long algebraic notation without piece names
-            //https://en.wikipedia.org/wiki/Algebraic_notation_(chess)
-            //Examples: e2e4, e7e5, e1g1(white short castling), e7e8q(for promotion)
-            string from = uciMoveNotation.Substring(0, 2);
-            string to = uciMoveNotation.Substring(2, 2);
-            int fromSquare = GetSquare(from);
-            int toSquare = GetSquare(to);
-            //the presence of a 5th character should mean promotion
-            Piece promo = (uciMoveNotation.Length == 5) ? GetPiece(uciMoveNotation[4]).OfColor(board.SideToMove) : default;
-
-            return SelectMove(board, fromSquare, toSquare, promo);
-        }
-
-        private static Move SelectMove(BoardState board, int fromSquare, int toSquare, Piece promo)
-        {
             Move[] moves = new Move[225];
             var moveGen = new MoveGen(moves, 0);
             moveGen.Collect(board);
             for (int i = 0; i < moveGen.Next; i++)
             {
-                Move move = moves[i];
-                if (move.ToSquare != toSquare)
-                    continue;
-                if (move.FromSquare != fromSquare)
-                    continue;
-                if (move.MovingPiece() != move.NewPiece() && move.NewPiece() != promo)
-                    continue;
-
-                return move; //this is the move!
+                if (GetMoveName(moves[i], variant) == uciMoveNotation)
+                    return moves[i];
             }
             throw new ArgumentException("No move meeting all requirements could be found!");
         }
@@ -419,7 +414,7 @@ namespace Leorik.Core
             StringBuilder sb = new StringBuilder();
             void Add(char c, ulong bb)
             {
-                int cnt = Bitboard.PopCount(bb);
+                int cnt = PopCount(bb);
                 while (cnt-- > 0) sb.Append(c);
             }
             void AddAll(ulong color)
