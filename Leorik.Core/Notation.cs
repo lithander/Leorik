@@ -11,7 +11,12 @@ namespace Leorik.Core
 
     public static class Notation
     {       
-        public const string STARTING_POS_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        const string STARTING_POS_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+        public readonly static Move BlackCastlingShort = new(Piece.BlackKing | Piece.CastleShort, 60, 63, Piece.BlackRook);//e8g8
+        public readonly static Move BlackCastlingLong = new(Piece.BlackKing | Piece.CastleLong, 60, 56, Piece.BlackRook);//e8c8
+        public readonly static Move WhiteCastlingShort = new(Piece.WhiteKing | Piece.CastleShort, 4, 7, Piece.WhiteRook);//e1g1
+        public readonly static Move WhiteCastlingLong = new(Piece.WhiteKing | Piece.CastleLong, 4, 0, Piece.WhiteRook);//e1c1
 
         public static string GetHex(ulong bitboard)
         {
@@ -200,27 +205,39 @@ namespace Leorik.Core
             //Castling rights
             if (board.CastleFlags == 0)
                 fen.Append('-');
-            if ((board.CastleFlags & WhiteKingsideRookBit(board.Rooks) & ~MaskLow(board.Kings & board.White)) > 0)
-                fen.Append('K');
-            if ((board.CastleFlags & WhiteQueensideRookBit(board.Rooks) & MaskLow(board.Kings & board.White)) > 0)
-                fen.Append('Q');
-            if ((board.CastleFlags & BlackKingsideRookBit(board.Rooks) & ~MaskLow(board.Kings & board.Black)) > 0)
-                fen.Append('k');
-            if ((board.CastleFlags & BlackQueensideRookBit(board.Rooks) & MaskLow(board.Kings & board.Black)) > 0)
-                fen.Append('q');
+            else
+                EncodeCastlingRights(fen, board);
             fen.Append(' ');
 
             if (board.EnPassant == 0)
                 fen.Append('-');
             else
-            {
-                int square = Bitboard.LSB(board.EnPassant);
-                fen.Append(GetSquareName(square));
-            }
+                fen.Append(GetSquareName(LSB(board.EnPassant)));
+
             //Halfmove Clock & Fullmove Counter
             fen.Append($" {board.HalfmoveClock} {fullMoveNumber}");
 
             return fen.ToString();
+        }
+
+        private static void EncodeCastlingRights(StringBuilder fen, BoardState board)
+        {
+            //White Kingside
+            ulong bit = board.CastleFlags & board.White & ~MaskLow(board.Kings & board.White);
+            if (bit > 0)
+                fen.Append((bit & WhiteKingsideRookBit(board.Rooks)) > 0 ? 'K' : (char)(LSB(bit) % 8 + 'A'));
+            //White Queenside
+            bit = board.CastleFlags & board.White & MaskLow(board.Kings & board.White);
+            if (bit > 0)
+                fen.Append((bit & WhiteQueensideRookBit(board.Rooks)) > 0 ? 'Q' : (char)(LSB(bit) % 8 + 'A'));
+            //Black Kingside
+            bit = board.CastleFlags & board.Black & ~MaskLow(board.Kings & board.Black);
+            if (bit > 0)
+                fen.Append((bit & BlackKingsideRookBit(board.Rooks)) > 0 ? 'k' : (char)(LSB(bit) % 8 + 'a'));
+            //Black Queenside
+            bit = board.CastleFlags & board.Black & MaskLow(board.Kings & board.Black);
+            if (bit > 0)
+                fen.Append((bit & BlackQueensideRookBit(board.Rooks)) > 0 ? 'q' : (char)(LSB(bit) % 8 + 'a'));
         }
 
         public static string GetSquareName(int squareIndex)
@@ -288,18 +305,18 @@ namespace Leorik.Core
             if (notation == "O-O-O" || notation == "0-0-0")
             {
                 if (board.SideToMove == Color.White)
-                    return Move.WhiteCastlingLong;
+                    return WhiteCastlingLong;
                 else
-                    return Move.BlackCastlingLong;
+                    return BlackCastlingLong;
             }
 
             //kingside castling
             if (notation == "O-O" || notation == "0-0")
             {
                 if (board.SideToMove == Color.White)
-                    return Move.WhiteCastlingShort;
+                    return WhiteCastlingShort;
                 else
-                    return Move.BlackCastlingShort;
+                    return BlackCastlingShort;
             }
 
             //promotion

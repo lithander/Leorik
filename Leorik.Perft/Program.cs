@@ -17,9 +17,9 @@ namespace Leorik.Perft
         {
             Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
             //Console.WriteLine();
-            RunStandardPerft();
+            //RunStandardPerft();
             Console.WriteLine();
-            RunFischerPerft(4);
+            RunFischerPerft(5);
             Console.WriteLine();
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
@@ -77,8 +77,9 @@ namespace Leorik.Perft
                 //The parser expects a fen-string followed by a number of depth and a perft combinations
                 //Example: 4k3 / 8 / 8 / 8 / 8 / 8 / 8 / 4K2R w K - 0 1; D1 15; D2 66; 
                 Parse(file, out string fen, out BoardState position, depth, out long refResult);
-
-                if(skip > 0)
+                string myFen = Notation.GetFen(position);
+                Console.WriteLine(myFen);
+                if (skip > 0)
                 {
                     line++;
                     skip--;
@@ -86,7 +87,7 @@ namespace Leorik.Perft
                 }
 
                 long t0 = Stopwatch.GetTimestamp();
-                long result = _perft.Compute(position, depth);
+                long result = _perft.Compute(Notation.GetBoardState(myFen), depth);
                 long t1 = Stopwatch.GetTimestamp();
 
                 double dt = (t1 - t0) / (double)Stopwatch.Frequency;

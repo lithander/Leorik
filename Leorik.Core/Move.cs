@@ -4,11 +4,6 @@ namespace Leorik.Core
 {
     public readonly struct Move
     {
-        public readonly static Move BlackCastlingShort = new(Piece.BlackKing | Piece.CastleShort, 60, 62, Piece.None);//e8g8
-        public readonly static Move BlackCastlingLong = new(Piece.BlackKing | Piece.CastleLong, 60, 58, Piece.None);//e8c8
-        public readonly static Move WhiteCastlingShort = new(Piece.WhiteKing | Piece.CastleShort, 4, 6, Piece.None);//e1g1
-        public readonly static Move WhiteCastlingLong = new(Piece.WhiteKing | Piece.CastleLong, 4, 2, Piece.None);//e1c1
-
         public readonly Piece Flags;
         public readonly Piece Target;
         public readonly byte FromSquare;
