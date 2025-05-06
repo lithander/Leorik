@@ -202,5 +202,22 @@ namespace Leorik.Core
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong HighestBit(ulong bb) => bb == 0 ? 0 : 1UL << (63 - BitOperations.LeadingZeroCount(bb));
+
+        // All bits strictly left of square (0-based, a1=0, h8=63)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong LowerBits(int square) => (1UL << square) - 1;   
+
+        // All bits strictly right of square
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong HigherBits(int square) => ~LowerBits(square+1);
+        
+        // Bits between two squares (inclusive)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong BitsBetween(int square1, int square2)
+        {
+            ulong m1 = (1UL << square1);
+            ulong m2 = (1UL << square2);
+            return ((m1 - 1) ^ (m2 - 1)) | m1 | m2;
+        }
     }
 }

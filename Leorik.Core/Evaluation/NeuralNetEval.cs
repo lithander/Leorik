@@ -63,7 +63,7 @@ namespace Leorik.Core
         private void UpdateFeatures(ref Move move)
         {
             Deactivate(move.MovingPiece(), move.FromSquare);
-            Deactivate(move.CapturedPiece(), move.ToSquare);
+            Deactivate(move.Target, move.ToSquare);
             Activate(move.NewPiece(), move.ToSquare);
 
             switch (move.Flags)

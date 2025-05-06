@@ -4,7 +4,6 @@ namespace Leorik.Core
 {
     public readonly struct Move
     {
-        //TODO: since Chess960 this is deprecated encoding
         public readonly static Move BlackCastlingShort = new(Piece.BlackKing | Piece.CastleShort, 60, 62, Piece.None);//e8g8
         public readonly static Move BlackCastlingLong = new(Piece.BlackKing | Piece.CastleLong, 60, 58, Piece.None);//e8c8
         public readonly static Move WhiteCastlingShort = new(Piece.WhiteKing | Piece.CastleShort, 4, 6, Piece.None);//e1g1
@@ -37,7 +36,25 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Piece CapturedPiece()
         {
-            return Target;
+            return Flags >= Piece.CastleShort ? Piece.None : Target;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int TargetSquare()
+        {
+            switch (Flags)
+            {
+                case Piece.CastleShort | Piece.Black:
+                    return 62;
+                case Piece.CastleLong | Piece.Black:
+                    return 58;
+                case Piece.CastleShort | Piece.White:
+                    return 6;
+                case Piece.CastleLong | Piece.White:
+                    return 2;
+                default:
+                    return ToSquare;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,6 +73,12 @@ namespace Leorik.Core
         public bool IsPromotion()
         {
             return Flags >= Piece.KnightPromotion && Flags < Piece.CastleShort;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsCastling()
+        {
+            return Flags >= Piece.CastleShort;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -10,6 +10,7 @@ namespace Leorik.Engine
         Move _best = default;
         TimeControl _time = new();
         BoardState _board = Notation.GetStartingPosition();
+        BoardState _tempBoard = new();
         List<BoardState> _history = new();
 
         public SearchOptions Options = SearchOptions.Default;
@@ -191,18 +192,21 @@ namespace Leorik.Engine
 
         private List<Move> GetExtendedPV()
         {
-            var pv = _search.PrincipalVariation.ToArray();
-            List<Move> result = new(pv);
+            List<Move> result = new(_search.Depth);
+            _tempBoard.Copy(_board);
 
             //1.) play the PV as far as available
-            BoardState position = _board.Clone();
+            var pv = _search.PrincipalVariation;
             foreach (Move move in pv)
-                position.Play(move);
+            {
+                _tempBoard.Play(move);
+                result.Add(move);
+            }
 
             //2. try to extract the remaining depth from the TT
-            while (result.Count < _search.Depth && Transpositions.GetBestMove(position, out Move move))
+            while (result.Count < _search.Depth && Transpositions.GetBestMove(_tempBoard, out Move move))
             {
-                position.Play(move);
+                _tempBoard.Play(move);
                 result.Add(move);
             }
 

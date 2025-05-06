@@ -22,10 +22,10 @@ namespace Leorik.Perft
         static void Main()
         {
             Console.WriteLine($"Leorik Perft {Bitboard.SliderMode}");
-            Console.WriteLine();
+            //Console.WriteLine();
             RunStandardPerft();
             Console.WriteLine();
-            RunFischerPerft(6);
+            RunFischerPerft(4);
             Console.WriteLine();
             Console.WriteLine("Press any key to quit");//stop command prompt from closing automatically on windows
             Console.ReadKey();
@@ -136,7 +136,7 @@ namespace Leorik.Perft
             BoardState current = Positions[depth];
             BoardState next = Positions[depth + 1];
             int i = moves.Next;
-            moves.Collect(current);
+            moves.CollectAll(current);
             long sum = 0;
             for (; i < moves.Next; i++)
             {

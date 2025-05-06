@@ -513,7 +513,7 @@ namespace Leorik.Core
 
             ZobristHash ^= Zobrist.SideToMove;
             ZobristHash ^= Zobrist.PieceSquare(move.MovingPiece(), move.FromSquare);
-            ZobristHash ^= Zobrist.PieceSquare(move.CapturedPiece(), move.ToSquare);
+            ZobristHash ^= Zobrist.PieceSquare(move.Target, move.ToSquare);
             ZobristHash ^= Zobrist.PieceSquare(move.NewPiece(), move.ToSquare);
 
             switch (move.Flags)
@@ -551,7 +551,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateHalfmoveClock(BoardState from, ref Move move)
         {
-            if (move.MovingPieceType() == Piece.Pawn || move.Target != Piece.None)
+            if (move.MovingPieceType() == Piece.Pawn || move.CapturedPiece() != Piece.None)
                 HalfmoveClock = 0;
             else
                 HalfmoveClock = (byte)(from.HalfmoveClock + 1);

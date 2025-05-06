@@ -1,4 +1,5 @@
 ﻿using Leorik.Core;
+using System.Text;
 
 namespace Leorik.Engine
 {
@@ -27,7 +28,15 @@ namespace Leorik.Engine
 
         private static string Join(IEnumerable<Move> moves, Variant variant)
         {
-            return string.Join(' ', moves.Select(move => Notation.GetMoveName(move, variant)));
+            var sb = new StringBuilder(128);
+            foreach (var move in moves)
+            {
+                if (sb.Length > 0)
+                    sb.Append(' ');
+
+                sb.Append(Notation.GetMoveName(move, variant));
+            }
+            return sb.ToString();
         }
 
         private static string ScoreToString(int score)
