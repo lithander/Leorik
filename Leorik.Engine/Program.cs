@@ -71,8 +71,14 @@ namespace Leorik.Engine
                 case "fen":
                     Console.WriteLine(_engine.GetFen());
                     break;
+                case "hash":
+                    Console.WriteLine(_engine.GetZobristHash());
+                    break;
                 case "eval":
                     Console.WriteLine($"{_engine.GetEval().Score}");
+                    break;
+                case "perft":
+                    UciPerft(tokens);
                     break;
                 case "flip":
                     _engine.Flip();
@@ -81,6 +87,14 @@ namespace Leorik.Engine
                     Console.WriteLine($"Unknown command: {input}");
                     return;
             }
+        }
+
+        private static void UciPerft(string[] tokens)
+        {
+            if (int.TryParse(tokens[1], out int depth))
+                Console.WriteLine(_engine.Perft(depth));
+            else
+                Console.WriteLine($"Invalid depth: {tokens[1]}");
         }
 
         private static void UciSetOption(string[] token)

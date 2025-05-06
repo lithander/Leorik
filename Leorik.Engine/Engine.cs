@@ -12,6 +12,7 @@ namespace Leorik.Engine
         BoardState _board = Notation.GetStartingPosition();
         BoardState _tempBoard = new();
         List<BoardState> _history = new();
+        Perft.Perft _perft = new();
 
         public SearchOptions Options = SearchOptions.Default;
         public bool Running { get; private set; }
@@ -20,6 +21,7 @@ namespace Leorik.Engine
 
         public string GetFen() => Notation.GetFen(_board);
         public NeuralNetEval GetEval() => _board.Eval;
+        public ulong GetZobristHash() => _board.ZobristHash;
         public void Flip() => _board.Flip();
         public Move GetMoveUci(string notation) => Notation.GetMoveUci(_board, notation, Options.Variant);
 
@@ -96,6 +98,12 @@ namespace Leorik.Engine
                 _searching.Join();
                 _searching = null;
             }
+        }
+
+
+        public long Perft(int depth)
+        {
+            return _perft.Compute(_board, depth);
         }
 
         //*****************

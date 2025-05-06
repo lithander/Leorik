@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Leorik.Core\Leorik.Core.csproj" />
+    <ProjectReference Include="..\Leorik.Perft\Leorik.Perft.csproj" />
     <ProjectReference Include="..\Leorik.Search\Leorik.Search.csproj" />
   </ItemGroup>
 

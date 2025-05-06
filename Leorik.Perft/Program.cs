@@ -5,18 +5,12 @@ namespace Leorik.Perft
 {
     class Program
     {
-        private const int MAX_PLY = 10;
-        private const int MAX_MOVES = MAX_PLY * 225; //https://www.stmintz.com/ccc/index.php?id=425058
-        private static BoardState[] Positions;
-        private static Move[] Moves;
+        private static Perft _perft;
 
         static Program()
         {
             Network.LoadDefaultNetwork();
-            Positions = new BoardState[MAX_PLY];
-            for (int i = 0; i < MAX_PLY; i++)
-                Positions[i] = new BoardState();
-            Moves = new Move[MAX_PLY * MAX_MOVES];
+            _perft = new Perft();
         }
 
         static void Main()
@@ -42,10 +36,9 @@ namespace Leorik.Perft
                 //The parser expects a fen-string followed by a depth and a perft results at that depth
                 //Example: 4k3 / 8 / 8 / 8 / 8 / 8 / 8 / 4K2R w K - 0 1; D1 15; D2 66; 6; 764643
                 Parse(file, out BoardState position, out int depth, out long refResult);
-                Positions[0].Copy(position);
 
                 long t0 = Stopwatch.GetTimestamp();
-                long result = Perft(0, depth, new MoveGen(Moves, 0));
+                long result = _perft.Compute(position, depth);
                 long t1 = Stopwatch.GetTimestamp();
 
                 double dt = (t1 - t0) / (double)Stopwatch.Frequency;
@@ -84,7 +77,6 @@ namespace Leorik.Perft
                 //The parser expects a fen-string followed by a number of depth and a perft combinations
                 //Example: 4k3 / 8 / 8 / 8 / 8 / 8 / 8 / 4K2R w K - 0 1; D1 15; D2 66; 
                 Parse(file, out string fen, out BoardState position, depth, out long refResult);
-                Positions[0].Copy(position);
 
                 if(skip > 0)
                 {
@@ -94,7 +86,7 @@ namespace Leorik.Perft
                 }
 
                 long t0 = Stopwatch.GetTimestamp();
-                long result = Perft(0, depth, new MoveGen(Moves, 0));
+                long result = _perft.Compute(position, depth);
                 long t1 = Stopwatch.GetTimestamp();
 
                 double dt = (t1 - t0) / (double)Stopwatch.Frequency;
@@ -122,33 +114,6 @@ namespace Leorik.Perft
             if(int.Parse(depthToken.Substring(1)) != depth)
                 throw new Exception($"Depth mismatch! {depthToken} != {depth}");
             refResult = long.Parse(perftToken);
-        }
-
-        //TODO:
-        //- encode wether a move is legal or not in move.Target, play without testing legality if flag is set
-        //- use a special move-gen when in check //https://chess.stackexchange.com/questions/35199/how-can-a-check-evasion-move-generation-algorithm-be-done-efficiently
-        //- when not in check set the legal flag where appropriate //https://talkchess.com/forum3/viewtopic.php?f=7&t=80952&start=20#p937332 & https://talkchess.com/forum3/viewtopic.php?f=7&t=81265
-        //- if movegen needs to evaluate "inCheck()" info anyway and search does also eval it frequently
-        //  -> make it a field of the Position set immediately after playing the move
-
-        private static long Perft(int depth, int remaining, MoveGen moves)
-        {
-            BoardState current = Positions[depth];
-            BoardState next = Positions[depth + 1];
-            int i = moves.Next;
-            moves.CollectAll(current);
-            long sum = 0;
-            for (; i < moves.Next; i++)
-            {
-                if (next.PlayWithoutHashAndEval(current, ref Moves[i]))
-                {
-                    if (remaining > 1)
-                        sum += Perft(depth + 1, remaining - 1, moves);
-                    else
-                        sum++;
-                }
-            }
-            return sum;
         }
     }
 }
