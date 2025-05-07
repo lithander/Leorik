@@ -12,7 +12,7 @@ namespace Leorik.Engine
         BoardState _board = Notation.GetStartingPosition();
         BoardState _tempBoard = new();
         List<BoardState> _history = new();
-        Perft.Perft _perft = new();
+        Perft _perft = new();
 
         public SearchOptions Options = SearchOptions.Default;
         public bool Running { get; private set; }

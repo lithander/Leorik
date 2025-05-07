@@ -5,12 +5,12 @@ namespace Leorik.Perft
 {
     class Program
     {
-        private static Perft _perft;
+        private static Core.Perft _perft;
 
         static Program()
         {
             Network.LoadDefaultNetwork();
-            _perft = new Perft();
+            _perft = new Core.Perft();
         }
 
         static void Main()

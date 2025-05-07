@@ -1,6 +1,4 @@
-﻿using Leorik.Core;
-
-namespace Leorik.Perft
+﻿namespace Leorik.Core
 {
     public class Perft
     {
