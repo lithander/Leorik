@@ -44,7 +44,11 @@ namespace Leorik.Search
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int PieceIndex(Piece piece) => (byte)piece >> 1; //BlackPawn = 0...
+        private int PieceIndex(Move move)
+        {
+            //WhiteCastling=0, BlackCastling = 1, BlackPawn = 2, WhitePawn = 3 ... BlackKing = 12, WhiteKing = 13
+            return move.IsCastling() ? (int)(move.Flags & Piece.ColorMask) >> 1 : (byte)move.MovingPiece() >> 1;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
@@ -56,18 +60,17 @@ namespace Leorik.Search
             if (move.CapturedPiece() != Piece.None)
                 return;
 
-            int iMoving = PieceIndex(move.MovingPiece());
-            Positive[move.TargetSquare(), iMoving] += inc;
+            Positive[move.ToSquare, PieceIndex(move)] += inc;
             Killers[ply] = move;
 
             if (ply < 2)
                 return;
 
-            Move prev = Moves[ply - 2];
-            FollowUp[prev.TargetSquare(), PieceIndex(prev.MovingPiece())] = move;
+            Move prev = Moves[ply - 1];
+            Counter[prev.ToSquare, PieceIndex(prev)] = move;
 
-            prev = Moves[ply - 1];
-            Counter[prev.TargetSquare(), PieceIndex(prev.MovingPiece())] = move;
+            prev = Moves[ply - 2];
+            FollowUp[prev.ToSquare, PieceIndex(prev)] = move;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -81,16 +84,15 @@ namespace Leorik.Search
             if (move.CapturedPiece() != Piece.None)
                 return;
 
-            int iMoving = PieceIndex(move.MovingPiece());
-            All[move.TargetSquare(), iMoving] += inc;
+            All[move.ToSquare, PieceIndex(move)] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float Value(ref Move move)
         {
-            int iMoving = PieceIndex(move.MovingPiece());
-            float a = Positive[move.TargetSquare(), iMoving];
-            float b = All[move.TargetSquare(), iMoving];
+            int iMoving = PieceIndex(move);
+            float a = Positive[move.ToSquare, iMoving];
+            float b = All[move.ToSquare, iMoving];
             //local-ratio / average-ratio
             return TotalPlayed * a / (b * TotalPositive + 1);
         }
@@ -105,7 +107,7 @@ namespace Leorik.Search
         public Move GetCounter(int ply)
         {
             Move prev = Moves[ply - 1];
-            return Counter[prev.TargetSquare(), PieceIndex(prev.MovingPiece())];
+            return Counter[prev.ToSquare, PieceIndex(prev)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,7 +117,7 @@ namespace Leorik.Search
                 return default;
 
             Move prev = Moves[ply - 2];
-            return FollowUp[prev.TargetSquare(), PieceIndex(prev.MovingPiece())];
+            return FollowUp[prev.ToSquare, PieceIndex(prev)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

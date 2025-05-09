@@ -35,24 +35,6 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int TargetSquare()
-        {
-            switch (Flags)
-            {
-                case Piece.CastleShort | Piece.Black:
-                    return 62;
-                case Piece.CastleLong | Piece.Black:
-                    return 58;
-                case Piece.CastleShort | Piece.White:
-                    return 6;
-                case Piece.CastleLong | Piece.White:
-                    return 2;
-                default:
-                    return ToSquare;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Piece MovingPiece()
         {
             return Flags & Piece.PieceMask;
