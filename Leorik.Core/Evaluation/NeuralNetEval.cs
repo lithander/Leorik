@@ -45,18 +45,18 @@ namespace Leorik.Core
             Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
 
             ActivateAll(board);
-            Score = (short)Evaluate(board.SideToMove);
+            Score = (short)Evaluate(board.SideToMove, Bitboard.PopCount(board.Black | board.White));
         }
 
-        public void Update(Color sideToMove, ref Move move)
+        public void Update(Color sideToMove, int popCount, ref Move move)
         {
             UpdateFeatures(ref move);
-            Score = (short)Evaluate(sideToMove);
+            Score = (short)Evaluate(sideToMove, popCount);
         }
 
-        public void Update(Color sideToMove)
+        public void Update(Color sideToMove, int popCount)
         {
-            Score = (short)Evaluate(sideToMove);
+            Score = (short)Evaluate(sideToMove, popCount);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -159,24 +159,28 @@ namespace Leorik.Core
                 accuVectors[i] -= weightsVectors[i];
         }
 
-        private int Evaluate(Color stm)
+        private int Evaluate(Color stm, int pieceCount)
         {
+            int materialBucket = Network.Default.GetMaterialBucket(pieceCount);
+
             int output = (stm == Color.Black)
-                ? EvaluateHiddenLayer(Black, White, Network.Default.OutputWeights)
-                : EvaluateHiddenLayer(White, Black, Network.Default.OutputWeights);
+                ? EvaluateHiddenLayer(Black, White, Network.Default.OutputWeights, materialBucket)
+                : EvaluateHiddenLayer(White, Black, Network.Default.OutputWeights, materialBucket);
 
             //during SCReLU values end up multiplied with QA * QA * QB
             //but OutputBias is quantized by only QA * QB
             output /= Network.QA;
-            output += Network.Default.OutputBias;
+            output += Network.Default.OutputBiases[materialBucket];
             //Now scale and convert back to float!
             return (output * Network.Scale) / (Network.QA * Network.QB);
         }
 
-        private int EvaluateHiddenLayer(short[] us, short[] them, short[] weights)
+        private int EvaluateHiddenLayer(short[] us, short[] them, short[] weights, int bucket)
         {
-            int sum = ApplySCReLU(us, weights.AsSpan())
-                    + ApplySCReLU(them, weights.AsSpan(Network.Default.Layer1Size));
+            int length = Network.Default.Layer1Size;
+            int offset = bucket * 2 * length;
+            int sum = ApplySCReLU(us, weights.AsSpan(offset, length))
+                    + ApplySCReLU(them, weights.AsSpan(offset + length, length));
             return sum;
         }
 

@@ -141,7 +141,7 @@ namespace Leorik.Core
                     return false;
             }
             Eval.Copy(from.Eval);
-            Eval.Update(SideToMove, ref move);
+            Eval.Update(SideToMove, PopCount(White | Black), ref move);
             return true;
         }
 
@@ -161,7 +161,7 @@ namespace Leorik.Core
                     return false;
             }
             Eval.Copy(from.Eval);
-            Eval.Update(SideToMove, ref move);
+            Eval.Update(SideToMove, PopCount(Black | White), ref move); 
             UpdateHash(from, ref move);
             UpdateHalfmoveClock(from, ref move);
             return true;
@@ -183,7 +183,7 @@ namespace Leorik.Core
             SideToMove = (Color)(-(int)from.SideToMove);
             EnPassant = 0;
             Eval.Copy(from.Eval);
-            Eval.Update(SideToMove);
+            Eval.Update(SideToMove, PopCount(White | Black));
             ZobristHash = from.ZobristHash;
 
             //Update Zobrist-Hash
