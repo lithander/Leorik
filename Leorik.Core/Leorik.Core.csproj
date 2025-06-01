@@ -7,13 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="384HL-S-1KB-8MB-5061M-FRCv1.nnue">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="384HL-S-8-5061M-Tmix-Q5-FRCv1.nnue">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="640HL-S-4491M-Tmix-Q5-v18.nnue">
+    <None Update="384HL-S-1MKB-8PCB-5061M-FRCv1.nnue">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -9,18 +9,19 @@ namespace Leorik.Core
 
         public static void InitEmptyNetwork()
         {
-            Default = new Network(0, 1);
+            Default = new Network(0, 1, 1);
         }
 
-        public static void LoadDefaultNetwork(string filePath, int layer1Size, int materialBuckets)
+        public static void LoadDefaultNetwork(string filePath, int layer1Size, int inputBuckets, int outputBuckets)
         {
-            Default = new Network(filePath, layer1Size, materialBuckets);
+            Default = new Network(filePath, layer1Size, inputBuckets, outputBuckets);
         }
 
         public static bool LoadDefaultNetwork()
         {
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string[] files = Directory.GetFiles(currentDirectory, $"*HL*-S-*MB-*.nnue");
+            //Example 384HL-S-1MKB-8PCB-5061M-FRCv1.nnue
+            string[] files = Directory.GetFiles(currentDirectory, $"*HL-S-*MKB-*PCB-*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");
             if (files.Length == 0)
@@ -30,13 +31,20 @@ namespace Leorik.Core
                 return false;
             }
             string fileName = Path.GetFileName(files[0]);
-            int layer1Size = int.Parse(fileName.Substring(0, fileName.IndexOf("HL")));
-            int end = fileName.IndexOf("MB");
-            int start = fileName.LastIndexOf('-', end) + 1;
-            int materialBuckets = int.Parse(fileName.Substring(start, end - start));
             Console.WriteLine($"Loading NNUE weights from {fileName}!");
-            LoadDefaultNetwork(files[0], layer1Size, materialBuckets);
+
+            int layer1Size = Parse(fileName, "HL");
+            int inputBuckets = Parse(fileName, "MKB");
+            int outputBuckets = Parse(fileName, "PCB");
+            LoadDefaultNetwork(files[0], layer1Size, inputBuckets, outputBuckets);
             return true;
+
+            int Parse(string fileName, string label)
+            {
+                int end = fileName.IndexOf(label);
+                int start = fileName.LastIndexOf('-', end) + 1;
+                return int.Parse(fileName.Substring(start, end - start));
+            }
         }
 
         public const int Scale = 400;
@@ -45,23 +53,25 @@ namespace Leorik.Core
         public const int InputSize = 768;
 
         public int Layer1Size;
-        public int MaterialBuckets;
-        public short[] FeatureWeights; //new short[InputSize * Layer1Size];
-        public short[] FeatureBiases; //new short[Layer1Size];
-        public short[] OutputWeights; //new short[Layer1Size * 2 * MaterialBuckets];
-        public short[] OutputBiases; //new short[MaterialBuckets]
+        public int InputBuckets;
+        public int OutputBuckets;
+        public short[] FeatureWeights; //[InputSize * Layer1Size];
+        public short[] FeatureBiases; //[Layer1Size];
+        public short[] OutputWeights; //[Layer1Size * 2 * OutputBuckets];
+        public short[] OutputBiases; //[OutputBuckets]
 
-        public Network(int layer1Size, int materialBuckets)
+        public Network(int layer1Size, int inputBuckets, int outputBuckets)
         {
             Layer1Size = layer1Size;
-            MaterialBuckets = materialBuckets;
+            InputBuckets = inputBuckets;
+            OutputBuckets = outputBuckets;
             FeatureWeights = new short[InputSize * Layer1Size];
             FeatureBiases = new short[Layer1Size];
-            OutputWeights = new short[Layer1Size * 2 * MaterialBuckets];
-            OutputBiases = new short[MaterialBuckets];
+            OutputWeights = new short[Layer1Size * 2 * OutputBuckets];
+            OutputBiases = new short[OutputBuckets];
         }
 
-        public Network(string filePath, int layer1Size, int materialBuckets) : this(Math.Max(16, layer1Size), materialBuckets)
+        public Network(string filePath, int layer1Size, int inputBuckets, int outputBuckets) : this(Math.Max(16, layer1Size), inputBuckets, outputBuckets)
         {
             using (var stream = File.OpenRead(filePath))
             {
@@ -69,8 +79,8 @@ namespace Leorik.Core
                 {
                     reader.Read(FeatureWeights, InputSize, layer1Size, Layer1Size);
                     reader.Read(FeatureBiases, 1, layer1Size, Layer1Size);
-                    reader.Read(OutputWeights, 2 * MaterialBuckets, layer1Size, Layer1Size);
-                    reader.Read(OutputBiases, MaterialBuckets, 1, 1);
+                    reader.Read(OutputWeights, 2 * OutputBuckets, layer1Size, Layer1Size);
+                    reader.Read(OutputBiases, OutputBuckets, 1, 1);
                 }
             }
         }
@@ -78,7 +88,7 @@ namespace Leorik.Core
         public int GetMaterialBucket(int pieceCount)
         {
             int DivCeil(int a, int b) => (a + b - 1) / b;
-            int divisor = DivCeil(32, MaterialBuckets);
+            int divisor = DivCeil(32, OutputBuckets);
             return (pieceCount - 2) / divisor;
         }
     }

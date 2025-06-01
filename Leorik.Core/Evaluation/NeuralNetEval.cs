@@ -9,6 +9,8 @@ namespace Leorik.Core
     {
         public short[] Black;
         public short[] White;
+        public bool MirrorWhite;
+        public bool MirrorBlack;
 
         public short Score { get; private set; }
 
@@ -36,6 +38,8 @@ namespace Leorik.Core
         {
             Array.Copy(other.Black, Black, Network.Default.Layer1Size);
             Array.Copy(other.White, White, Network.Default.Layer1Size);
+            MirrorWhite = other.MirrorWhite;
+            MirrorBlack = other.MirrorBlack;
             Score = other.Score;
         }
 
@@ -44,19 +48,62 @@ namespace Leorik.Core
             Array.Copy(Network.Default.FeatureBiases, Black, Network.Default.Layer1Size);
             Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
 
-            ActivateAll(board);
+            int whiteKingSquare = Bitboard.LSB(board.White & board.Kings);
+            MirrorWhite = Bitboard.File(whiteKingSquare) >= 4;
+            int blackKingSquare = Bitboard.LSB(board.Black & board.Kings);
+            MirrorBlack = Bitboard.File(blackKingSquare) >= 4;
+
+            for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+            {
+                int square = Bitboard.LSB(bits);
+                Piece piece = board.GetPiece(square);
+                (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
+                AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
+                AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+            }
+
             Score = (short)Evaluate(board.SideToMove, Bitboard.PopCount(board.Black | board.White));
         }
 
-        public void Update(Color sideToMove, int popCount, ref Move move)
+        public void Update(NeuralNetEval eval, Move move, BoardState board)
         {
+            Copy(eval);
             UpdateFeatures(ref move);
-            Score = (short)Evaluate(sideToMove, popCount);
+            ValidateMirroring(board);
+            Score = (short)Evaluate(board.SideToMove, Bitboard.PopCount(board.White | board.Black));
         }
 
-        public void Update(Color sideToMove, int popCount)
+        private void ValidateMirroring(BoardState board)
         {
-            Score = (short)Evaluate(sideToMove, popCount);
+            int whiteKingSquare = Bitboard.LSB(board.White & board.Kings);
+            bool mirrorWhite = Bitboard.File(whiteKingSquare) >= 4;
+            if (MirrorWhite != mirrorWhite)
+            {
+                MirrorWhite = mirrorWhite;
+                Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
+                for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+                {
+                    int square = Bitboard.LSB(bits);
+                    Piece piece = board.GetPiece(square);
+                    (_, int whiteIdx) = FeatureIndices(piece, square);
+                    AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+                }
+            }
+
+            int blackKingSquare = Bitboard.LSB(board.Black & board.Kings);
+            bool mirrorBlack = Bitboard.File(blackKingSquare) >= 4;
+            if (MirrorBlack != mirrorBlack)
+            {
+                MirrorBlack = mirrorBlack;
+                Array.Copy(Network.Default.FeatureBiases, Black, Network.Default.Layer1Size);
+                for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
+                {
+                    int square = Bitboard.LSB(bits);
+                    Piece piece = board.GetPiece(square);
+                    (int blackIdx, _) = FeatureIndices(piece, square);
+                    AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -65,7 +112,7 @@ namespace Leorik.Core
             Deactivate(move.MovingPiece(), move.FromSquare);
             Deactivate(move.Target, move.ToSquare);
             Activate(move.NewPiece(), move.ToSquare);
-
+        
             switch (move.Flags)
             {
                 case Piece.EnPassant | Piece.BlackPawn:
@@ -93,16 +140,6 @@ namespace Leorik.Core
             }
         }
 
-        private void ActivateAll(BoardState board)
-        {
-            for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits);
-                Piece piece = board.GetPiece(square);
-                Activate(piece, square);
-            }
-        }
-
         private void Deactivate(Piece piece, int square)
         {
             if (piece != Piece.None)
@@ -123,6 +160,7 @@ namespace Leorik.Core
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private (int blackIdx, int whiteIdx) FeatureIndices(Piece piece, int square)
         {
             const int ColorStride = 64 * 6;
@@ -131,8 +169,11 @@ namespace Leorik.Core
             int type = ((int)(piece & Piece.TypeMask) >> 2) - 1;
             int white = ((int)(piece & Piece.ColorMask) >> 1);
 
-            int blackIdx = white * ColorStride + type * PieceStride + square ^ 0x38;
-            int whiteIdx = (white ^ 1) * ColorStride + type * PieceStride + square;
+            int blackSquare = square ^ (MirrorBlack ? 63 : 56);
+            int blackIdx = white * ColorStride + type * PieceStride + blackSquare;
+
+            int whiteSquare = square ^ (MirrorWhite ? 7 : 0);
+            int whiteIdx = (white ^ 1) * ColorStride + type * PieceStride + whiteSquare;
 
             return (blackIdx, whiteIdx);
         }
