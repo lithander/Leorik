@@ -582,5 +582,46 @@ namespace Leorik.Tuning
             t1 = Stopwatch.GetTimestamp();
             Console.WriteLine($"Writing {count} positions took {(t1 - t0) / (double)Stopwatch.Frequency:0.###} seconds!");
         }
+
+        internal static void GetMetrics(string[] inputFiles)
+        {
+            long[] kingSquares = new long[64];
+            string[] squareNames = new string[64];
+            for(int i = 0; i < 64; i++)
+                squareNames[i] = Notation.GetSquareName(i);
+
+            long[] sortedKingSquares = new long[64];
+            string[] sortedSquareNames = new string[64];
+
+            long count = 0;
+            //load input files into buffers
+            Console.WriteLine($"Loading input files into RAM...");
+            BulletFormat bullet = new BulletFormat();
+            foreach (var inputFile in inputFiles)
+            {
+                var input = File.OpenRead(inputFile);
+                var reader = new BinaryReader(input);
+                while (input.Position < input.Length)
+                {
+                    bullet.Read(reader);
+                    //bullet.Unpack(out short score, out byte wdl, out int whiteKingSquare, out int blackKingSquareBlackPov);
+                    kingSquares[bullet.Data.KingSquare]++;
+                    kingSquares[bullet.Data.OppKingSquare]++;
+                    if (count++ % 1000000 == 0)
+                        Console.Write('.');
+                }
+                {
+                    Array.Copy(kingSquares, sortedKingSquares, 64);
+                    Array.Copy(squareNames, sortedSquareNames, 64);
+                    Array.Sort(sortedKingSquares, sortedSquareNames);
+                    Console.WriteLine("King Square Metrics:");
+                    for (int i = 0; i < 64; i++)
+                    {
+                        Console.WriteLine($"{sortedSquareNames[i]} {sortedKingSquares[i]}");
+                    }
+                }
+
+            }
+        }
     }
 }

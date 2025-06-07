@@ -3,6 +3,21 @@ using Leorik.Tuning;
 using System.Diagnostics;
 
 string[] BIN_PLAYOUT_FILES = {
+    "2025-06-02T15.40.31_5K_DFRC_8R_v7",
+    "2025-05-31T11.00.07_5K_DFRC_8R_v7",
+    "2025-05-30T23.19.01_5K_DFRC_8R_v7",
+    "2025-05-30T00.25.35_5K_DFRC_8R_v7",
+    "2025-05-28T17.24.45_5K_3moves_FRC_5R_FRCv1",
+    "2025-05-27T18.07.20_5K_3moves_FRC_5R_FRCv1",
+    "2025-05-24T22.16.46_5K_3moves_FRC_5R_FRCv1",
+
+    //"2025-05-22T18.18.29_5K_3moves_FRC_5R_50T50_v7",
+    //"2025-05-21T17.39.23_5K_3moves_FRC_5R_50T50_v7",
+    //"2025-05-19T23.31.54_5K_3moves_FRC_6R_50T50_v7",
+    //"2025-05-15T15.37.54_5K_3moves_FRC_5R_v7",
+    //"2025-05-14T15.30.05_5K_3moves_FRC_5R_v7",
+    //"2025-05-14T01.19.08_5K_3moves_FRC_4R_50T50_v7",
+    //"2025-05-14T00.58.22_5K_3moves_FRC_4R_99T50_v7",
     //"2025-03-24T15.40.25_5K_8R_v18",
     //"2025-03-22T12.24.12_5K_8R_v18",
     //"2025-03-20T18.25.05_5K_9R_v17",
@@ -76,6 +91,22 @@ string[] BIN_PLAYOUT_FILES = {
 };
 
 string[] SHUFFLE_FILES = {
+    "2025-06-02T15.40.31_5K_DFRC_8R_FRCv1_Q5",
+    "2025-05-31T11.00.07_5K_DFRC_8R_FRCv1_Q5",
+    "2025-05-30T23.19.01_5K_DFRC_8R_FRCv1_Q5",
+    "2025-05-30T00.25.35_5K_DFRC_8R_FRCv1_Q5",
+    "2025-05-28T17.24.45_5K_3moves_FRC_5R_FRCv1_Q5",
+    "2025-05-27T18.07.20_5K_3moves_FRC_5R_FRCv1_Q5",
+    "2025-05-24T22.16.46_5K_3moves_FRC_5R_FRCv1_Q5",
+
+    "2025-05-22T18.18.29_5K_3moves_FRC_5R_50T50_FRCv0_Q5",
+    "2025-05-21T17.39.23_5K_3moves_FRC_5R_50T50_FRCv0_Q5",
+    "2025-05-19T23.31.54_5K_3moves_FRC_6R_50T50_FRCv0_Q5",
+    "2025-05-15T15.37.54_5K_3moves_FRC_5R_FRCv0_Q5",
+    "2025-05-14T15.30.05_5K_3moves_FRC_5R_FRCv0_Q5",
+    "2025-05-14T01.19.08_5K_3moves_FRC_4R_50T50_FRCv0_Q5",
+    "2025-05-14T00.58.22_5K_3moves_FRC_4R_99T50_FRCv0_Q5",
+
     "2025-03-24T15.40.25_5K_8R_v18_Q5",
     "2025-03-22T12.24.12_5K_8R_v18_Q5",
     "2025-03-20T18.25.05_5K_9R_v17_Q5",
@@ -135,11 +166,11 @@ string[] SHUFFLE_FILES = {
     "2025-02-06T14.53.09_5K_8R_T100_v14_Q5",
     "2025-01-26T22.10.14_5K_8R_T100_v13_Q5",
     "2025-01-22T14.46.15_5K_8R_T100_v13_Q5",
-    "2025-01-20T23.50.57_5K_8R_T100_v12_Q5",
-    "2025-01-19T19.53.07_5K_8R_T100_v12_Q5",
-    "2025-01-19T16.31.41_5K_8R_T100_v12_Q5",
-    "2025-01-17T14.58.40_5K_8R_T100_v11_Q5",
-    "2025-01-16T18.20.47_5K_8R_T100_v11_Q5",
+    //"2025-01-20T23.50.57_5K_8R_T100_v12_Q5",
+    //"2025-01-19T19.53.07_5K_8R_T100_v12_Q5",
+    //"2025-01-19T16.31.41_5K_8R_T100_v12_Q5",
+    //"2025-01-17T14.58.40_5K_8R_T100_v11_Q5",
+    //"2025-01-16T18.20.47_5K_8R_T100_v11_Q5",
     //"2025-01-13T20.21.30_5K_8R_T100_v9_Q5",
     //"2025-01-12T16.07.42_5K_8R_T100_v8_Q5",
     //"2025-01-12T04.03.08_5K_8R_T100_v7_Q5",
@@ -152,13 +183,13 @@ string[] SHUFFLE_FILES = {
 };
 
 string[] SHUFFLE_TARGETS = {
-    "FiSh_5K_Q5_v11-v18_01",
-    "FiSh_5K_Q5_v11-v18_02",
-    "FiSh_5K_Q5_v11-v18_03",
-    "FiSh_5K_Q5_v11-v18_04",
+    "FiSh_5K_Q5_v13-FRCv1_01",
+    "FiSh_5K_Q5_v13-FRCv1_02",
+    "FiSh_5K_Q5_v13-FRCv1_03",
+    "FiSh_5K_Q5_v13-FRCv1_04",
 };
 
-const string PLAYOUT_PATH = "D:/Projekte/Chess/Leorik/TD3/";
+const string PLAYOUT_PATH = "E:/";//"D:/Projekte/Chess/Leorik/TD3/";
 const string PLAYOUT_EXT = ".playout.bin";
 
 const string TD_PATH = "F:/TD3/Filtered/";
@@ -185,9 +216,19 @@ Network.LoadDefaultNetwork();
 //DataGen.RunPrompt();
 //BitboardUtils.Repl();
 //FilterPlayouts(BIN_PLAYOUT_FILES, "_Q5", FILTER_CONFIG);
-ShuffleSlices(SHUFFLE_FILES, SHUFFLE_TARGETS);
+//ShuffleSlices(SHUFFLE_FILES, SHUFFLE_TARGETS);
+GetMetrics(SHUFFLE_PATH, SHUFFLE_TARGETS);
 //PgnToUci("leorik228theta-1592568_gauntlet_30per40_7threads.pgn");
 return;
+
+void GetMetrics(string path, string[] inputFileNames)
+{
+    string[] inputFiles = new string[inputFileNames.Length];
+    for (int i = 0; i < inputFileNames.Length; i++)
+        inputFiles[i] = path + inputFileNames[i] + TD_EXT;
+
+    DataUtils.GetMetrics(inputFiles);
+}
 
 void Shuffle(string[] inputFileNames, string outputFileName)
 {
@@ -239,7 +280,7 @@ void PgnToUci(string pgnFileName)
     Console.WriteLine($"Converting PGN to 'position startpos move ...' format..");
     var output = File.CreateText(PLAYOUT_PATH + pgnFileName + ".uci");
     var input = File.OpenText(PLAYOUT_PATH + pgnFileName);
-    DataUtils.PgnToUci(input, output);
+    DataUtils.PgnToUci(input, output, Variant.Standard);
     input.Close();
 }
 
