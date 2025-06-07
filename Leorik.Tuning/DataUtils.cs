@@ -604,7 +604,6 @@ namespace Leorik.Tuning
                 while (input.Position < input.Length)
                 {
                     bullet.Read(reader);
-                    //bullet.Unpack(out short score, out byte wdl, out int whiteKingSquare, out int blackKingSquareBlackPov);
                     kingSquares[bullet.Data.KingSquare]++;
                     kingSquares[bullet.Data.OppKingSquare]++;
                     if (count++ % 1000000 == 0)

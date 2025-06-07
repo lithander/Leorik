@@ -84,35 +84,5 @@ namespace Leorik.Tuning
             Data.KingSquare = (byte)(Bitboard.LSB(board.White & board.Kings));
             Data.OppKingSquare = (byte)(Bitboard.LSB(board.Black & board.Kings) ^ 56);
         }
-
-        public BoardState Unpack(out short score, out byte wdl, out int whiteKingSquare, out int blackKingSquareBlackPov)
-        {
-            BoardState board = new BoardState();
-            //Setup BoardState
-            int i = 0;
-            for (ulong bits = Occupancy; bits != 0; bits = Bitboard.ClearLSB(bits))
-            {
-                int square = Bitboard.LSB(bits);
-                int data = GetPiece(i++);
-                //4th bit set == Black, else White
-                Piece color = (Piece)(((data & 8) >> 2) ^ 3);
-                //0 = Pawn, 1 = Knight .. 5 = King, 6 = Unmoved Rook
-                Piece type = (Piece)(((data & 7) + 1) << 2);
-                if (type > Piece.King)
-                {
-                    board.CastleFlags |= 1UL << square;
-                    board.SetBit(square, Piece.Rook | color);
-                }
-                else
-                {
-                    board.SetBit(square, type | color);
-                }
-            }
-            score = Data.Score;
-            wdl = Data.Result;
-            whiteKingSquare = Data.KingSquare;
-            blackKingSquareBlackPov = Data.OppKingSquare;
-            return board;
-        }
     }
 }
