@@ -1,10 +1,75 @@
 ﻿using System.Reflection.PortableExecutable;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Leorik.Core
 {
     public class Network
     {
+        private static Dictionary<int, int[]> InputBucketMaps = new Dictionary<int, int[]>
+        {
+            { 1, new int[] {
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+            } },
+            { 3, new int[] {
+                0, 0, 1, 1, 1, 1, 0, 0, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2, 
+                2, 2, 2, 2, 2, 2, 2, 2,
+            } },
+            { 4, new int[] {
+                0, 0, 1, 1, 1, 1, 0, 0,
+                2, 2, 2, 2, 2, 2, 2, 2,
+                3, 3, 3, 3, 3, 3, 3, 3,
+                3, 3, 3, 3, 3, 3, 3, 3,
+                3, 3, 3, 3, 3, 3, 3, 3,
+                3, 3, 3, 3, 3, 3, 3, 3,
+                3, 3, 3, 3, 3, 3, 3, 3,
+                3, 3, 3, 3, 3, 3, 3, 3,
+            } },
+            { 5, new int[] {
+                0, 0, 1, 1, 1, 1, 0, 0,
+                2, 2, 3, 3, 3, 3, 2, 2,
+                2, 2, 3, 3, 3, 3, 2, 2,
+                4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4,
+                4, 4, 4, 4, 4, 4, 4, 4,
+            } },
+            { 6, new int[] {
+                0, 0, 1, 2, 2, 1, 0, 0,
+                3, 3, 4, 4, 4, 4, 3, 3,
+                5, 5, 5, 5, 5, 5, 5, 5,
+                5, 5, 5, 5, 5, 5, 5, 5,
+                5, 5, 5, 5, 5, 5, 5, 5,
+                5, 5, 5, 5, 5, 5, 5, 5,
+                5, 5, 5, 5, 5, 5, 5, 5,
+                5, 5, 5, 5, 5, 5, 5, 5,
+            } },
+            { 7, new int[] {
+                4, 0, 1, 2, 2, 1, 0, 4,   
+                4, 3, 3, 5, 5, 3, 3, 4,   
+                4, 4, 5, 5, 5, 5, 4, 4,   
+                6, 6, 6, 6, 6, 6, 6, 6,   
+                6, 6, 6, 6, 6, 6, 6, 6,   
+                6, 6, 6, 6, 6, 6, 6, 6,   
+                6, 6, 6, 6, 6, 6, 6, 6,   
+                6, 6, 6, 6, 6, 6, 6, 6,   
+            } }
+        };
+
         public static Network Default { get; private set; }
 
         public static void InitEmptyNetwork()
@@ -12,16 +77,11 @@ namespace Leorik.Core
             Default = new Network(0, 1, 1);
         }
 
-        public static void LoadDefaultNetwork(string filePath, int layer1Size, int inputBuckets, int outputBuckets)
-        {
-            Default = new Network(filePath, layer1Size, inputBuckets, outputBuckets);
-        }
-
         public static bool LoadDefaultNetwork()
         {
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            //Example 384HL-S-1MKB-8PCB-5061M-FRCv1.nnue
-            string[] files = Directory.GetFiles(currentDirectory, $"*HL-S-*MKB-*PCB-*.nnue");
+            //Example 384HL-S-3io8-5061M-FRCv1.nnue
+            string[] files = Directory.GetFiles(currentDirectory, $"*HL-S-*io*-*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");
             if (files.Length == 0)
@@ -33,18 +93,19 @@ namespace Leorik.Core
             string fileName = Path.GetFileName(files[0]);
             Console.WriteLine($"Loading NNUE weights from {fileName}!");
 
-            int layer1Size = Parse(fileName, "HL");
-            int inputBuckets = Parse(fileName, "MKB");
-            int outputBuckets = Parse(fileName, "PCB");
-            LoadDefaultNetwork(files[0], layer1Size, inputBuckets, outputBuckets);
-            return true;
-
-            int Parse(string fileName, string label)
+            var match = Regex.Match(fileName, @"^(?<layer1Size>\d+)HL-S-(?<input>\d+)io(?<output>\d+)-.*\.nnue$");
+            if (!match.Success)
             {
-                int end = fileName.IndexOf(label);
-                int start = fileName.LastIndexOf('-', end) + 1;
-                return int.Parse(fileName.Substring(start, end - start));
+                Console.WriteLine($"Error: Unexpected filename format: {fileName}");
+                return false;
             }
+
+            int layer1Size = int.Parse(match.Groups["layer1Size"].Value);
+            int inputBuckets = int.Parse(match.Groups["input"].Value);
+            int outputBuckets = int.Parse(match.Groups["output"].Value);
+
+            Default = new Network(files[0], layer1Size, inputBuckets, outputBuckets);
+            return true;
         }
 
         public const int Scale = 400;
@@ -59,16 +120,18 @@ namespace Leorik.Core
         public short[] FeatureBiases; //[Layer1Size];
         public short[] OutputWeights; //[Layer1Size * 2 * OutputBuckets];
         public short[] OutputBiases; //[OutputBuckets]
+        public int[] InputBucketMap;
 
         public Network(int layer1Size, int inputBuckets, int outputBuckets)
         {
             Layer1Size = layer1Size;
             InputBuckets = inputBuckets;
             OutputBuckets = outputBuckets;
-            FeatureWeights = new short[InputSize * Layer1Size];
+            FeatureWeights = new short[InputBuckets * InputSize * Layer1Size];
             FeatureBiases = new short[Layer1Size];
             OutputWeights = new short[Layer1Size * 2 * OutputBuckets];
             OutputBiases = new short[OutputBuckets];
+            InputBucketMap = InputBucketMaps[inputBuckets];
         }
 
         public Network(string filePath, int layer1Size, int inputBuckets, int outputBuckets) : this(Math.Max(16, layer1Size), inputBuckets, outputBuckets)
@@ -77,10 +140,11 @@ namespace Leorik.Core
             {
                 using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
                 {
-                    reader.Read(FeatureWeights, InputSize, layer1Size, Layer1Size);
+                    reader.Read(FeatureWeights, InputBuckets * InputSize, layer1Size, Layer1Size);
                     reader.Read(FeatureBiases, 1, layer1Size, Layer1Size);
                     reader.Read(OutputWeights, 2 * OutputBuckets, layer1Size, Layer1Size);
                     reader.Read(OutputBiases, OutputBuckets, 1, 1);
+                    //Padding: Console.WriteLine(reader.ReadChars((int)(stream.Length - stream.Position)));
                 }
             }
         }

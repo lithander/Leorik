@@ -104,7 +104,7 @@ namespace Leorik.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEval()
         {
-            Eval.Update(this);
+            Eval.Reset(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

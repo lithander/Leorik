@@ -7,10 +7,13 @@ namespace Leorik.Core
 {
     public struct NeuralNetEval
     {
+        public record struct Bucket(int Index, bool Mirrored);
+
+        public Bucket BlackBucket;
+        public Bucket WhiteBucket;
+
         public short[] Black;
         public short[] White;
-        public bool MirrorWhite;
-        public bool MirrorBlack;
 
         public short Score { get; private set; }
 
@@ -31,82 +34,87 @@ namespace Leorik.Core
         {
             Black = new short[Network.Default.Layer1Size];
             White = new short[Network.Default.Layer1Size];
-            Update(board);
+            Reset(board);
         }
 
         public void Copy(NeuralNetEval other)
         {
             Array.Copy(other.Black, Black, Network.Default.Layer1Size);
             Array.Copy(other.White, White, Network.Default.Layer1Size);
-            MirrorWhite = other.MirrorWhite;
-            MirrorBlack = other.MirrorBlack;
+            WhiteBucket = other.WhiteBucket;
+            BlackBucket = other.BlackBucket;
             Score = other.Score;
         }
 
-        public void Update(BoardState board)
+        public void Reset(BoardState board)
         {
-            Array.Copy(Network.Default.FeatureBiases, Black, Network.Default.Layer1Size);
-            Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
+            ResetWhiteAccu(board);
+            ResetBlackAcuu(board);
+            UpdateEval(board);
+        }
 
-            int whiteKingSquare = Bitboard.LSB(board.White & board.Kings);
-            MirrorWhite = Bitboard.File(whiteKingSquare) >= 4;
-            int blackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-            MirrorBlack = Bitboard.File(blackKingSquare) >= 4;
+        public void Update(NeuralNetEval eval, Move move, BoardState newBoard)
+        {
+            Copy(eval);
+            UpdateFeatures(ref move);
+
+            if (WhiteKingBucket(newBoard) != WhiteBucket)
+                ResetWhiteAccu(newBoard);
+            else if (BlackKingBucket(newBoard) != BlackBucket)
+                ResetBlackAcuu(newBoard);
+
+            UpdateEval(newBoard);
+        }
+
+        private void UpdateEval(BoardState board)
+        {
+            int pieceCount = Bitboard.PopCount(board.White | board.Black);
+            int outputBucket = Network.Default.GetMaterialBucket(pieceCount);
+            Score = (short)Evaluate(board.SideToMove, outputBucket);
+        }
+
+        private void ResetWhiteAccu(BoardState board)
+        {
+            Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
+            WhiteBucket = WhiteKingBucket(board);
 
             for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
                 int square = Bitboard.LSB(bits);
                 Piece piece = board.GetPiece(square);
-                (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-                AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-                AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+                (_, int whiteIdx) = FeatureIndices(piece, square);
+                AddWeights(White, Network.Default.FeatureWeights, whiteIdx);
             }
-
-            Score = (short)Evaluate(board.SideToMove, Bitboard.PopCount(board.Black | board.White));
         }
 
-        public void Update(NeuralNetEval eval, Move move, BoardState board)
+        private void ResetBlackAcuu(BoardState board)
         {
-            Copy(eval);
-            UpdateFeatures(ref move);
-            ValidateMirroring(board);
-            Score = (short)Evaluate(board.SideToMove, Bitboard.PopCount(board.White | board.Black));
-        }
+            Array.Copy(Network.Default.FeatureBiases, Black, Network.Default.Layer1Size);
+            BlackBucket = BlackKingBucket(board);
 
-        private void ValidateMirroring(BoardState board)
-        {
-            int whiteKingSquare = Bitboard.LSB(board.White & board.Kings);
-            bool mirrorWhite = Bitboard.File(whiteKingSquare) >= 4;
-            if (MirrorWhite != mirrorWhite)
+            for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
             {
-                MirrorWhite = mirrorWhite;
-                Array.Copy(Network.Default.FeatureBiases, White, Network.Default.Layer1Size);
-                for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
-                {
-                    int square = Bitboard.LSB(bits);
-                    Piece piece = board.GetPiece(square);
-                    (_, int whiteIdx) = FeatureIndices(piece, square);
-                    AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
-                }
-            }
-
-            int blackKingSquare = Bitboard.LSB(board.Black & board.Kings);
-            bool mirrorBlack = Bitboard.File(blackKingSquare) >= 4;
-            if (MirrorBlack != mirrorBlack)
-            {
-                MirrorBlack = mirrorBlack;
-                Array.Copy(Network.Default.FeatureBiases, Black, Network.Default.Layer1Size);
-                for (ulong bits = board.White | board.Black; bits != 0; bits = Bitboard.ClearLSB(bits))
-                {
-                    int square = Bitboard.LSB(bits);
-                    Piece piece = board.GetPiece(square);
-                    (int blackIdx, _) = FeatureIndices(piece, square);
-                    AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-                }
+                int square = Bitboard.LSB(bits);
+                Piece piece = board.GetPiece(square);
+                (int blackIdx, _) = FeatureIndices(piece, square);
+                AddWeights(Black, Network.Default.FeatureWeights, blackIdx);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Bucket WhiteKingBucket(BoardState board)
+        {
+            int square = Bitboard.LSB(board.White & board.Kings);
+            return new Bucket(Network.Default.InputBucketMap[square], Bitboard.File(square) >= 4);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Bucket BlackKingBucket(BoardState board)
+        {
+            int square = Bitboard.LSB(board.Black & board.Kings) ^ 56;
+            return new Bucket(Network.Default.InputBucketMap[square], Bitboard.File(square) >= 4);
+        }
+
         private void UpdateFeatures(ref Move move)
         {
             Deactivate(move.MovingPiece(), move.FromSquare);
@@ -145,8 +153,8 @@ namespace Leorik.Core
             if (piece != Piece.None)
             {
                 (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-                SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-                SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+                SubtractWeights(Black, Network.Default.FeatureWeights, blackIdx);
+                SubtractWeights(White, Network.Default.FeatureWeights, whiteIdx);
             }
         }
 
@@ -155,8 +163,8 @@ namespace Leorik.Core
             if (piece != Piece.None)
             {
                 (int blackIdx, int whiteIdx) = FeatureIndices(piece, square);
-                AddWeights(Black, Network.Default.FeatureWeights, blackIdx * Network.Default.Layer1Size);
-                AddWeights(White, Network.Default.FeatureWeights, whiteIdx * Network.Default.Layer1Size);
+                AddWeights(Black, Network.Default.FeatureWeights, blackIdx);
+                AddWeights(White, Network.Default.FeatureWeights, whiteIdx);
             }
         }
 
@@ -165,17 +173,18 @@ namespace Leorik.Core
         {
             const int ColorStride = 64 * 6;
             const int PieceStride = 64;
+            const int BucketStride = Network.InputSize;
 
             int type = ((int)(piece & Piece.TypeMask) >> 2) - 1;
             int white = ((int)(piece & Piece.ColorMask) >> 1);
 
-            int blackSquare = square ^ (MirrorBlack ? 63 : 56);
-            int blackIdx = white * ColorStride + type * PieceStride + blackSquare;
+            int blackSquare = square ^ (BlackBucket.Mirrored ? 63 : 56);
+            int blackIdx = BlackBucket.Index * BucketStride + white * ColorStride + type * PieceStride + blackSquare;
 
-            int whiteSquare = square ^ (MirrorWhite ? 7 : 0);
-            int whiteIdx = (white ^ 1) * ColorStride + type * PieceStride + whiteSquare;
+            int whiteSquare = square ^ (WhiteBucket.Mirrored ? 7 : 0);
+            int whiteIdx = WhiteBucket.Index * BucketStride + (white ^ 1) * ColorStride + type * PieceStride + whiteSquare;
 
-            return (blackIdx, whiteIdx);
+            return (blackIdx * Network.Default.Layer1Size, whiteIdx * Network.Default.Layer1Size);
         }
 
         private void AddWeights(short[] accu, short[] featureWeights, int offset)
@@ -200,18 +209,16 @@ namespace Leorik.Core
                 accuVectors[i] -= weightsVectors[i];
         }
 
-        private int Evaluate(Color stm, int pieceCount)
+        private int Evaluate(Color stm, int outputBucket)
         {
-            int materialBucket = Network.Default.GetMaterialBucket(pieceCount);
-
             int output = (stm == Color.Black)
-                ? EvaluateHiddenLayer(Black, White, Network.Default.OutputWeights, materialBucket)
-                : EvaluateHiddenLayer(White, Black, Network.Default.OutputWeights, materialBucket);
+                ? EvaluateHiddenLayer(Black, White, Network.Default.OutputWeights, outputBucket)
+                : EvaluateHiddenLayer(White, Black, Network.Default.OutputWeights, outputBucket);
 
             //during SCReLU values end up multiplied with QA * QA * QB
             //but OutputBias is quantized by only QA * QB
             output /= Network.QA;
-            output += Network.Default.OutputBiases[materialBucket];
+            output += Network.Default.OutputBiases[outputBucket];
             //Now scale and convert back to float!
             return (output * Network.Scale) / (Network.QA * Network.QB);
         }
