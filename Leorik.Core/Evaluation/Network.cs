@@ -1,12 +1,11 @@
-﻿using System.Reflection.PortableExecutable;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Leorik.Core
 {
     public class Network
     {
-        private static Dictionary<int, int[]> InputBucketMaps = new Dictionary<int, int[]>
+        private static Dictionary<int, int[]> InputBucketMappings = new Dictionary<int, int[]>
         {
             { 1, new int[] {
                 0, 0, 0, 0, 0, 0, 0, 0,
@@ -18,26 +17,6 @@ namespace Leorik.Core
                 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0,
             } },
-            { 3, new int[] {
-                0, 0, 1, 1, 1, 1, 0, 0, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2, 
-                2, 2, 2, 2, 2, 2, 2, 2,
-            } },
-            { 4, new int[] {
-                0, 0, 1, 1, 1, 1, 0, 0,
-                2, 2, 2, 2, 2, 2, 2, 2,
-                3, 3, 3, 3, 3, 3, 3, 3,
-                3, 3, 3, 3, 3, 3, 3, 3,
-                3, 3, 3, 3, 3, 3, 3, 3,
-                3, 3, 3, 3, 3, 3, 3, 3,
-                3, 3, 3, 3, 3, 3, 3, 3,
-                3, 3, 3, 3, 3, 3, 3, 3,
-            } },
             { 5, new int[] {
                 0, 0, 1, 1, 1, 1, 0, 0,
                 2, 2, 3, 3, 3, 3, 2, 2,
@@ -48,26 +27,6 @@ namespace Leorik.Core
                 4, 4, 4, 4, 4, 4, 4, 4,
                 4, 4, 4, 4, 4, 4, 4, 4,
             } },
-            { 6, new int[] {
-                0, 0, 1, 2, 2, 1, 0, 0,
-                3, 3, 4, 4, 4, 4, 3, 3,
-                5, 5, 5, 5, 5, 5, 5, 5,
-                5, 5, 5, 5, 5, 5, 5, 5,
-                5, 5, 5, 5, 5, 5, 5, 5,
-                5, 5, 5, 5, 5, 5, 5, 5,
-                5, 5, 5, 5, 5, 5, 5, 5,
-                5, 5, 5, 5, 5, 5, 5, 5,
-            } },
-            { 7, new int[] {
-                4, 0, 1, 2, 2, 1, 0, 4,   
-                4, 3, 3, 5, 5, 3, 3, 4,   
-                4, 4, 5, 5, 5, 5, 4, 4,   
-                6, 6, 6, 6, 6, 6, 6, 6,   
-                6, 6, 6, 6, 6, 6, 6, 6,   
-                6, 6, 6, 6, 6, 6, 6, 6,   
-                6, 6, 6, 6, 6, 6, 6, 6,   
-                6, 6, 6, 6, 6, 6, 6, 6,   
-            } }
         };
 
         public static Network Default { get; private set; }
@@ -81,7 +40,7 @@ namespace Leorik.Core
         {
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
             //Example 384HL-S-3io8-5061M-FRCv1.nnue
-            string[] files = Directory.GetFiles(currentDirectory, $"*HL-S-*io*-*.nnue");
+            string[] files = Directory.GetFiles(currentDirectory, $"*HL-S-5io*-*.nnue");
             if (files.Length > 1)
                 Console.WriteLine("Warning: Multiple network files found!");
             if (files.Length == 0)
@@ -131,7 +90,7 @@ namespace Leorik.Core
             FeatureBiases = new short[Layer1Size];
             OutputWeights = new short[Layer1Size * 2 * OutputBuckets];
             OutputBiases = new short[OutputBuckets];
-            InputBucketMap = InputBucketMaps[inputBuckets];
+            InputBucketMap = InputBucketMappings[inputBuckets];
         }
 
         public Network(string filePath, int layer1Size, int inputBuckets, int outputBuckets) : this(Math.Max(16, layer1Size), inputBuckets, outputBuckets)

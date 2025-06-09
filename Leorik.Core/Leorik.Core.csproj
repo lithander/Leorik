@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="384HL-S-6io8-5061M-FRCv1.nnue">
+    <None Update="640HL-S-5io8-6116M-FRCv1.nnue">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
