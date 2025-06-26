@@ -456,5 +456,20 @@ namespace Leorik.Core
             }
             return false;
         }
+
+        public int CollectCaptures(BoardState current, Func<BoardState, Move, bool> filter)
+        {
+            int from = CollectCaptures(current);
+            for (int i = from; i < Next; i++)
+            {
+                if(!filter(current, _moves[i]))
+                {
+                    //remove bad moves
+                    _moves[i--] = _moves[--Next];
+                    _moves[Next] = default;
+                }
+            }
+            return from;
+        }
     }
 }

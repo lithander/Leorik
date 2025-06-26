@@ -9,7 +9,7 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
-        private const float HISTORY_SCALE = 0.2f;
+        private const float HISTORY_SCALE = 1.5f;
         private const int NORMALIZE_TO_PAWN_VALUE = 306;
 
         private readonly Move[] RootMoves;
@@ -208,7 +208,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { Best, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
+        enum Stage { Best, GoodCaptures, Killers, Counter, FollowUp, SortedQuiets, Quiets, BadCaptures }
 
         struct PlayState
         {
@@ -220,6 +220,9 @@ namespace Leorik.Search
                 Next = next;
             }
         }
+
+        private bool GoodCapture(BoardState current, Move move) => !BadCapture(current, move);
+        private bool BadCapture(BoardState current, Move move) => _see.IsBad(current, ref move) || (_history.AllCount(ref move) > 1000 && _history.Value(ref move) < 0.1f);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool Play(int ply, ref PlayState state, ref MoveGen moveGen)
@@ -234,12 +237,16 @@ namespace Leorik.Search
                     switch (state.Stage)
                     {
                         case Stage.Best:
-                            state.Next = moveGen.CollectCaptures(current);
-                            state.Stage = Stage.Captures;
+                            state.Next = moveGen.CollectCaptures(current, GoodCapture);
+                            state.Stage = Stage.GoodCaptures;
                             continue;
-                        case Stage.Captures:
+                        case Stage.GoodCaptures:
                             state.Next = moveGen.CollectQuiets(current);
                             state.Stage = Stage.Killers;
+                            continue;
+                        case Stage.Quiets:
+                            state.Next = moveGen.CollectCaptures(current, BadCapture);
+                            state.Stage = Stage.BadCaptures;
                             continue;
                         default:
                             return false;
@@ -248,7 +255,7 @@ namespace Leorik.Search
 
                 switch (state.Stage)
                 {
-                    case Stage.Captures:
+                    case Stage.GoodCaptures:
                         PickBestCapture(state.Next, moveGen.Next);
                         break;
                     case Stage.Killers:
@@ -481,7 +488,7 @@ namespace Leorik.Search
             while (Play(ply, ref playState, ref moveGen))
             {
                 //skip late quiet moves when almost in Qsearch depth
-                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
+                if (!inCheck && playState.Stage >= Stage.Quiets && remaining <= 2 && alpha == beta - 1)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
@@ -497,13 +504,16 @@ namespace Leorik.Search
                     if (playState.Stage >= Stage.Quiets && !next.InCheck())
                         R = 2;
 
-                    //a reduced quiet move that doesn't look promising in the static evaluation gets reduced further
-                    if (R < maxR && R > 0 && -_history.GetAdjustedStaticEval(next) < staticEval)
-                        R += 2;
+                    if (playState.Stage == Stage.Quiets)
+                    {
+                        //a reduced quiet move that doesn't look promising in the static evaluation gets reduced further
+                        if (R < maxR && R > 0 && -_history.GetAdjustedStaticEval(next) < staticEval)
+                            R += 2;
 
-                    //if it's not already a bad quiet move we may reduce because of bad SEE
-                    if (R < maxR && _see.IsBad(current, ref move))
-                        R += 2;
+                        //if it's not already a bad quiet move we may reduce because of bad SEE
+                        if (R < maxR && _see.IsBad(current, ref move))
+                            R += 2;
+                    }
 
                     //early out if reduced search doesn't beat alpha
                     if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)

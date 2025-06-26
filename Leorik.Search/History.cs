@@ -10,14 +10,14 @@ namespace Leorik.Search
         private const int Squares = 64;
         private const int Pieces = 14; //including colored 'none'
 
-        private ulong TotalPositive = 0;
-        private ulong TotalPlayed = 0;
+        private ulong[] TotalPositive = new ulong[Pieces];
+        private ulong[] TotalPlayed = new ulong[Pieces];
 
         long NullMovePassesSum = 0;
         long NullMovePassesCount = 1;
 
-        private readonly ulong[,] Positive = new ulong[Squares, Pieces];
-        private readonly ulong[,] All = new ulong[Squares, Pieces];
+        private readonly ulong[,,] Positive = new ulong[Pieces, Squares, Pieces];
+        private readonly ulong[,,] All = new ulong[Pieces, Squares, Pieces];
         private readonly Move[] Moves = new Move[MaxPly];
         private readonly Move[] Killers = new Move[MaxPly];
         private readonly Move[,] Counter = new Move[Squares, Pieces];
@@ -53,14 +53,16 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
         {
+            int iTarget = (int)move.CapturedPiece() >> 1;
             ulong inc = (ulong)(depth * depth);
-            TotalPositive += inc;
+
+            TotalPositive[iTarget] += inc;
+            Positive[iTarget, move.ToSquare, PieceIndex(move)] += inc;
 
             //no killer, followup, counter tracking for captures
             if (move.CapturedPiece() != Piece.None)
                 return;
 
-            Positive[move.ToSquare, PieceIndex(move)] += inc;
             Killers[ply] = move;
 
             if (ply < 2)
@@ -76,25 +78,31 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Played(int ply, int depth, ref Move move)
         {
-            Moves[ply] = move;
-
+            int iTarget = (int)move.CapturedPiece() >> 1;
             ulong inc = (ulong)(depth * depth);
-            TotalPlayed += inc;
 
-            if (move.CapturedPiece() != Piece.None)
-                return;
-
-            All[move.ToSquare, PieceIndex(move)] += inc;
+            TotalPlayed[iTarget] += inc;
+            All[iTarget, move.ToSquare, PieceIndex(move)] += inc;
+            Moves[ply] = move;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float Value(ref Move move)
         {
+            int iTarget = (int)move.CapturedPiece() >> 1;
             int iMoving = PieceIndex(move);
-            float a = Positive[move.ToSquare, iMoving];
-            float b = All[move.ToSquare, iMoving];
+            float a = Positive[iTarget, move.ToSquare, iMoving];
+            float b = All[iTarget, move.ToSquare, iMoving];
             //local-ratio / average-ratio
-            return TotalPlayed * a / (b * TotalPositive + 1);
+            return TotalPlayed[iTarget] * a / (b * TotalPositive[iTarget] + 1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ulong AllCount(ref Move move)
+        {
+            int iTarget = (int)move.CapturedPiece() >> 1;
+            int iMoving = PieceIndex(move);
+            return All[iTarget, move.ToSquare, iMoving];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

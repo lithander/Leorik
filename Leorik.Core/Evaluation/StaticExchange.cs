@@ -72,6 +72,16 @@ namespace Leorik.Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsGood(BoardState position, ref Move move)
+        {
+            if (Move.Order(move.CapturedPiece()) > Move.Order(move.MovingPiece()))
+                return true;
+
+            int see = Evaluate(position, move, -1, 1);
+            return position.SideToMove == Color.White ? see > 0 : see < 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EvaluateSign(BoardState position, Move move)
         {
             StaticExchange see = new();
