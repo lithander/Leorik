@@ -9,7 +9,7 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
-        private const float HISTORY_SCALE = 0.2f;
+        private const float HISTORY_SCALE = 1.5f;
         private const int NORMALIZE_TO_PAWN_VALUE = 306;
 
         private readonly Move[] RootMoves;

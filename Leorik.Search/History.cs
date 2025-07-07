@@ -1,6 +1,11 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
 
+//Score of Leorik-3.1.10 vs Leorik-3.1.9: 2948 - 2839 - 5653  [0.505] 11440
+//...      Leorik-3.1.10 playing White: 2666 - 248 - 2806  [0.711] 5720
+//...      Leorik-3.1.10 playing Black: 282 - 2591 - 2847  [0.298] 5720
+//...      White vs Black: 5257 - 530 - 5653  [0.707] 11440
+//Elo difference: 3.3 +/- 4.5, LOS: 92.4 %, DrawRatio: 49.4 %
 
 namespace Leorik.Search
 {
@@ -9,6 +14,7 @@ namespace Leorik.Search
         private const int MaxPly = 99;
         private const int Squares = 64;
         private const int Pieces = 14; //including colored 'none'
+        private const int ContDepth = 2;
 
         private ulong TotalPositive = 0;
         private ulong TotalPlayed = 0;
@@ -16,12 +22,11 @@ namespace Leorik.Search
         long NullMovePassesSum = 0;
         long NullMovePassesCount = 1;
 
-        private readonly ulong[,] Positive = new ulong[Squares, Pieces];
-        private readonly ulong[,] All = new ulong[Squares, Pieces];
+        private readonly ulong[,] Positive = new ulong[Squares, Squares];
+        private readonly ulong[,] All = new ulong[Squares, Squares];
         private readonly Move[] Moves = new Move[MaxPly];
         private readonly Move[] Killers = new Move[MaxPly];
-        private readonly Move[,] Counter = new Move[Squares, Pieces];
-        private readonly Move[,] FollowUp = new Move[Squares, Pieces];
+        private readonly Move[,,] Continuation = new Move[ContDepth, Squares, Pieces];
 
         const int CORR_HASH_TABLE_SIZE = 19997; //prime!
 
@@ -53,24 +58,20 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Good(int ply, int depth, ref Move move)
         {
-            ulong inc = (ulong)(depth * depth);
-            TotalPositive += inc;
-
             //no killer, followup, counter tracking for captures
             if (move.CapturedPiece() != Piece.None)
                 return;
 
-            Positive[move.ToSquare, PieceIndex(move)] += inc;
+            ulong inc = (ulong)(depth * depth);
+            TotalPositive += inc;
+            Positive[move.ToSquare, move.FromSquare] += inc;
             Killers[ply] = move;
 
-            if (ply < 2)
-                return;
-
-            Move prev = Moves[ply - 1];
-            Counter[prev.ToSquare, PieceIndex(prev)] = move;
-
-            prev = Moves[ply - 2];
-            FollowUp[prev.ToSquare, PieceIndex(prev)] = move;
+            for(int i = 0; i < Math.Min(ply, ContDepth); i++)
+            {
+                Move prev = Moves[ply - i - 1];
+                Continuation[i, prev.ToSquare, PieceIndex(prev)] = move;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -84,15 +85,14 @@ namespace Leorik.Search
             if (move.CapturedPiece() != Piece.None)
                 return;
 
-            All[move.ToSquare, PieceIndex(move)] += inc;
+            All[move.ToSquare, move.FromSquare] += inc;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float Value(ref Move move)
         {
-            int iMoving = PieceIndex(move);
-            float a = Positive[move.ToSquare, iMoving];
-            float b = All[move.ToSquare, iMoving];
+            float a = Positive[move.ToSquare, move.FromSquare];
+            float b = All[move.ToSquare, move.FromSquare];
             //local-ratio / average-ratio
             return TotalPlayed * a / (b * TotalPositive + 1);
         }
@@ -107,7 +107,7 @@ namespace Leorik.Search
         public Move GetCounter(int ply)
         {
             Move prev = Moves[ply - 1];
-            return Counter[prev.ToSquare, PieceIndex(prev)];
+            return Continuation[0, prev.ToSquare, PieceIndex(prev)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -117,7 +117,7 @@ namespace Leorik.Search
                 return default;
 
             Move prev = Moves[ply - 2];
-            return FollowUp[prev.ToSquare, PieceIndex(prev)];
+            return Continuation[1, prev.ToSquare, PieceIndex(prev)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
