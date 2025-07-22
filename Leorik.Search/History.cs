@@ -1,11 +1,6 @@
 ﻿using Leorik.Core;
 using System.Runtime.CompilerServices;
 
-//Score of Leorik-3.1.10 vs Leorik-3.1.9: 2948 - 2839 - 5653  [0.505] 11440
-//...      Leorik-3.1.10 playing White: 2666 - 248 - 2806  [0.711] 5720
-//...      Leorik-3.1.10 playing Black: 282 - 2591 - 2847  [0.298] 5720
-//...      White vs Black: 5257 - 530 - 5653  [0.707] 11440
-//Elo difference: 3.3 +/- 4.5, LOS: 92.4 %, DrawRatio: 49.4 %
 
 namespace Leorik.Search
 {
@@ -14,7 +9,7 @@ namespace Leorik.Search
         private const int MaxPly = 99;
         private const int Squares = 64;
         private const int Pieces = 14; //including colored 'none'
-        private const int ContDepth = 2;
+        public const int ContDepth = 3;
 
         private ulong TotalPositive = 0;
         private ulong TotalPlayed = 0;
@@ -104,20 +99,13 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Move GetCounter(int ply)
+        public Move GetContinuation(int ply, int i)
         {
-            Move prev = Moves[ply - 1];
-            return Continuation[0, prev.ToSquare, PieceIndex(prev)];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Move GetFollowUp(int ply)
-        {
-            if (ply < 2)
+            if (i >= ply)
                 return default;
 
-            Move prev = Moves[ply - 2];
-            return Continuation[1, prev.ToSquare, PieceIndex(prev)];
+            Move prev = Moves[ply - i - 1];
+            return Continuation[i, prev.ToSquare, PieceIndex(prev)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

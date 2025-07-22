@@ -286,7 +286,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Stage PickCounter(int ply, int first, int end)
         {
-            if (PickMove(first, end, _history.GetCounter(ply)))
+            if (PickMove(first, end, _history.GetContinuation(ply, 0)))
                 return Stage.FollowUp;
 
             return PickFollowUp(ply, first, end);
@@ -295,7 +295,10 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Stage PickFollowUp(int ply, int first, int end)
         {
-            if (PickMove(first, end, _history.GetFollowUp(ply)))
+            if (PickMove(first, end, _history.GetContinuation(ply, 1)))
+                return Stage.SortedQuiets;
+
+            if (PickMove(first, end, _history.GetContinuation(ply, 2)))
                 return Stage.SortedQuiets;
 
             PickBestHistory(first, end);
@@ -328,6 +331,9 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool PickMove(int first, int end, Move move)
         {
+            if(move == default)
+                return false;
+
             //find the move...
             for (int i = first + 1; i < end; i++)
             {
