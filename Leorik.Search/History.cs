@@ -23,8 +23,6 @@ namespace Leorik.Search
         private readonly Move[] Killers = new Move[MaxPly];
         private readonly Move[,,] Continuation = new Move[ContDepth, Squares, Pieces];
 
-        const int CORR_HASH_TABLE_SIZE = 19997; //prime!
-
         struct CorrEntry
         {
             public long Numerator;
@@ -38,9 +36,9 @@ namespace Leorik.Search
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Get() => (int)(Numerator / (Denominator + 100));
         }
-        private readonly CorrEntry[] PawnCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
-        private readonly CorrEntry[] MinorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
-        private readonly CorrEntry[] MajorPieceCorrection = new CorrEntry[2 * CORR_HASH_TABLE_SIZE];
+
+        const int CORR_TABLE = 19997; //prime!
+        private readonly CorrEntry[] Corrections = new CorrEntry[10 * CORR_TABLE];
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,7 +60,7 @@ namespace Leorik.Search
             Positive[move.ToSquare, move.FromSquare] += inc;
             Killers[ply] = move;
 
-            for(int i = 0; i < Math.Min(ply, ContDepth); i++)
+            for (int i = 0; i < Math.Min(ply, ContDepth); i++)
             {
                 Move prev = Moves[ply - i - 1];
                 Continuation[i, prev.ToSquare, PieceIndex(prev)] = move;
@@ -123,24 +121,24 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int CorrectionIndex(ulong bits) => (int)(bits % CORR_HASH_TABLE_SIZE) * 2;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetAdjustedStaticEval(BoardState board)
         {
             int stm = (board.SideToMove == Color.Black) ? 1 : 0;
 
-            int result = board.SideToMoveScore();
+            int eval = board.SideToMoveScore();
+            int corr = GetCorrection(board, stm);
 
-            int index = CorrectionIndex(board.Pawns) + stm;
-            result += PawnCorrection[index].Get();
+            return eval + corr;
+        }
 
-            index = CorrectionIndex(board.Knights | board.Bishops) + stm;
-            result += MinorPieceCorrection[index].Get();
-
-            index = CorrectionIndex(board.Queens | board.Rooks) + stm;
-            result += MajorPieceCorrection[index].Get();
-
+        private int GetCorrection(BoardState board, int stm)
+        {
+            //Pawns->Knights->Bishops->Rooks->Queens->Kings;
+            int result = GetCorrection(stm,  board.Pawns);
+            result += GetCorrection(stm + 2, board.Knights | board.Bishops);
+            result += GetCorrection(stm + 4, board.Queens | board.Rooks);
+            result += GetCorrection(stm + 6, board.Black & (board.Pawns | board.Kings));
+            result += GetCorrection(stm + 8, board.White & (board.Pawns | board.Kings));
             return result;
         }
 
@@ -151,14 +149,25 @@ namespace Leorik.Search
             long corr = inc * Math.Clamp(delta, -100, +100);
             int stm = (board.SideToMove == Color.Black) ? 1 : 0;
 
-            int index = CorrectionIndex(board.Pawns) + stm;
-            PawnCorrection[index].Add(corr, inc);
+            AddCorrection(stm,     corr, inc, board.Pawns);
+            AddCorrection(stm + 2, corr, inc, board.Knights | board.Bishops);
+            AddCorrection(stm + 4, corr, inc, board.Queens | board.Rooks);
+            AddCorrection(stm + 6, corr, inc, board.Black & (board.Pawns | board.Kings));
+            AddCorrection(stm + 8, corr, inc, board.White & (board.Pawns | board.Kings));
+        }
 
-            index = CorrectionIndex(board.Knights | board.Bishops) + stm;
-            MinorPieceCorrection[index].Add(corr, inc);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddCorrection(int offset, long corr, long inc, ulong bits)
+        {
+            int index = (int)(bits % CORR_TABLE) + offset * CORR_TABLE;
+            Corrections[index].Add(corr, inc);
+        }
 
-            index = CorrectionIndex(board.Queens | board.Rooks) + stm;
-            MajorPieceCorrection[index].Add(corr, inc);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int GetCorrection(int offset, ulong bits)
+        {
+            int index = (int)(bits % CORR_TABLE) + offset * CORR_TABLE;
+            return Corrections[index].Get();
         }
     }
 }
