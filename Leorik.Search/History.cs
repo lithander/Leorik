@@ -38,7 +38,7 @@ namespace Leorik.Search
         }
 
         const int CORR_TABLE = 19997; //prime!
-        private readonly CorrEntry[] Corrections = new CorrEntry[10 * CORR_TABLE];
+        private readonly CorrEntry[] Corrections = new CorrEntry[8 * CORR_TABLE];
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -137,8 +137,7 @@ namespace Leorik.Search
             int result = GetCorrection(stm,  board.Pawns);
             result += GetCorrection(stm + 2, board.Knights | board.Bishops);
             result += GetCorrection(stm + 4, board.Queens | board.Rooks);
-            result += GetCorrection(stm + 6, board.Black & (board.Pawns | board.Kings));
-            result += GetCorrection(stm + 8, board.White & (board.Pawns | board.Kings));
+            result += GetCorrection(stm + 6, board.Kings);
             return result;
         }
 
@@ -152,8 +151,7 @@ namespace Leorik.Search
             AddCorrection(stm,     corr, inc, board.Pawns);
             AddCorrection(stm + 2, corr, inc, board.Knights | board.Bishops);
             AddCorrection(stm + 4, corr, inc, board.Queens | board.Rooks);
-            AddCorrection(stm + 6, corr, inc, board.Black & (board.Pawns | board.Kings));
-            AddCorrection(stm + 8, corr, inc, board.White & (board.Pawns | board.Kings));
+            AddCorrection(stm + 6, corr, inc, board.Kings);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
