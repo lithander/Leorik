@@ -1,4 +1,6 @@
 ﻿using Leorik.Core;
+using System.Numerics;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using static Leorik.Core.Evaluation;
 
@@ -30,6 +32,22 @@ namespace Leorik.Search
         public int Depth { get; private set; }
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
+
+        public enum SearchPhase { 
+            None, 
+            RootPV,
+            RootTacticalCandidate,
+            RootQuietCandidate,
+            RootConfirmation,
+            NullMove,
+            Candidate,
+            Capture, Killer, Counter, FollowUp, SortedQuiets, Quiets,
+            PV,
+            Confirmation,
+            Quiescence
+        }
+
+        public SearchPhase[] SearchStack;
 
         public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves)
         {
@@ -65,12 +83,16 @@ namespace Leorik.Search
             RootMoveOffsets = new int[RootMoves.Length];
             for (int i = 0; i < RootMoveOffsets.Length; i++)
                 RootMoveOffsets[i] = random.Next(_options.Temperature);
+
+            SearchStack = new SearchPhase[MAX_PLY];
         }
 
         public void Search(int maxDepth)
         {
             while (Depth < maxDepth)
                 SearchDeeper();
+
+            PrintStats();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,9 +167,69 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int EvaluateNext(int ply, int remaining, int alpha, int beta, MoveGen moveGen)
+        private int EvaluateNext(int ply, SearchPhase phase, int remaining, int alpha, int beta, MoveGen moveGen)
         {
-            return -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, ref moveGen);
+            SearchStack[ply] = phase;
+            long pre = NodesVisited;
+            int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, ref moveGen);
+            long delta = NodesVisited - pre;
+            if (score <= alpha)
+                Fail(ply, delta);
+            else
+                Success(ply, delta);
+            return score;
+        }
+
+        static Dictionary<string, (int, int, long)> _stats = new Dictionary<string, (int, int, long)>();
+        static long _count = 0;
+
+        private void Success(int ply, long delta)
+        {
+            _count += delta;
+            string key = GetHash(ply, 4);
+            (int s, int f, long w) = _stats.GetValueOrDefault(key, (0, 0, 0));
+            _stats[key] = (s + 1, f, w + delta);
+        }
+
+        private void Fail(int ply, long delta)
+        {
+            _count += delta;
+            string key = GetHash(ply, 4);
+            (int s, int f, long w) = _stats.GetValueOrDefault(key, (0, 0, 0));
+            _stats[key] = (s, f + 1, w + delta);
+        }
+
+        private void PrintStats()
+        {
+            string[] lines = new string[_stats.Count];
+            float[] prio = new float[_stats.Count];
+            int i = 0;
+            foreach (var kv in _stats)
+            {
+                (int s, int f, long w) = kv.Value;
+                float pass = 100 * s / (float)(s + f);
+                float quant = 100 * w / (float)_count;
+                lines[i] = $"{kv.Key}: {s} / {s + f} Pass {pass:F2}% | Relevance: {quant:F2}%";
+                prio[i] = quant;
+                i++;
+            }
+            Array.Sort(prio, lines);
+            foreach(string line in lines)
+                Console.WriteLine(line);
+        }
+
+
+        private string GetHash(int ply, int depth)
+        {
+            string key = "";
+            for (int i = Math.Max(0, ply - depth + 1); i <= ply; i++)
+            {
+                if (key.Length > 0)
+                    key += "_";
+                key += SearchStack[i];
+            }
+            //Console.WriteLine(key);
+            return key;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -208,11 +290,11 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { Best, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
+        enum MoveType { Best, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
 
         struct PlayState
         {
-            public Stage Stage;
+            public MoveType Stage;
             public int Next;
             public byte PlayedMoves;
             public PlayState(int next)
@@ -233,13 +315,13 @@ namespace Leorik.Search
                 {
                     switch (state.Stage)
                     {
-                        case Stage.Best:
+                        case MoveType.Best:
                             state.Next = moveGen.CollectCaptures(current);
-                            state.Stage = Stage.Captures;
+                            state.Stage = MoveType.Captures;
                             continue;
-                        case Stage.Captures:
+                        case MoveType.Captures:
                             state.Next = moveGen.CollectQuiets(current);
-                            state.Stage = Stage.Killers;
+                            state.Stage = MoveType.Killers;
                             continue;
                         default:
                             return false;
@@ -248,22 +330,22 @@ namespace Leorik.Search
 
                 switch (state.Stage)
                 {
-                    case Stage.Captures:
+                    case MoveType.Captures:
                         PickBestCapture(state.Next, moveGen.Next);
                         break;
-                    case Stage.Killers:
+                    case MoveType.Killers:
                         state.Stage = PickKiller(ply, state.Next, moveGen.Next);
                         break;
-                    case Stage.Counter:
+                    case MoveType.Counter:
                         state.Stage = PickCounter(ply, state.Next, moveGen.Next);
                         break;
-                    case Stage.FollowUp:
+                    case MoveType.FollowUp:
                         state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
                         break;
-                    case Stage.SortedQuiets:
+                    case MoveType.SortedQuiets:
                         float historyThreshold = HISTORY_SCALE * state.PlayedMoves;
                         if (PickBestHistory(state.Next, moveGen.Next) < historyThreshold)
-                            state.Stage = Stage.Quiets;
+                            state.Stage = MoveType.Quiets;
                         break;
                 }
 
@@ -276,33 +358,33 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickKiller(int ply, int first, int end)
+        private MoveType PickKiller(int ply, int first, int end)
         {
             if (PickMove(first, end, _history.GetKiller(ply)))
-                return Stage.Counter;
+                return MoveType.Counter;
             return PickCounter(ply, first, end);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickCounter(int ply, int first, int end)
+        private MoveType PickCounter(int ply, int first, int end)
         {
             if (PickMove(first, end, _history.GetContinuation(ply, 0)))
-                return Stage.FollowUp;
+                return MoveType.FollowUp;
 
             return PickFollowUp(ply, first, end);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickFollowUp(int ply, int first, int end)
+        private MoveType PickFollowUp(int ply, int first, int end)
         {
             if (PickMove(first, end, _history.GetContinuation(ply, 1)))
-                return Stage.SortedQuiets;
+                return MoveType.SortedQuiets;
 
             if (PickMove(first, end, _history.GetContinuation(ply, 2)))
-                return Stage.SortedQuiets;
+                return MoveType.SortedQuiets;
 
             PickBestHistory(first, end);
-            return Stage.SortedQuiets;
+            return MoveType.SortedQuiets;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -416,10 +498,12 @@ namespace Leorik.Search
                 //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
                 //...non-tactical late moves are searched at a reduced depth to make this test even faster!
                 int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
-                if (i > 0 && EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
+                SearchPhase phase = R == 0 ? SearchPhase.RootTacticalCandidate : SearchPhase.RootQuietCandidate;
+                if (i > 0 && EvaluateNext(0, phase, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
                     continue;
 
-                int score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
+                phase = i == 0 ? SearchPhase.RootPV : SearchPhase.RootConfirmation;
+                int score = EvaluateNext(0, phase, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
 
                 if (score > alpha)
                 {
@@ -475,7 +559,7 @@ namespace Leorik.Search
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
 
-                if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, SearchPhase.NullMove, remaining - 4, beta - 1, beta, moveGen) >= beta)
                     return beta;
 
                 if (remaining >= 6)
@@ -487,20 +571,20 @@ namespace Leorik.Search
             while (Play(ply, ref playState, ref moveGen))
             {
                 //skip late quiet moves when almost in Qsearch depth
-                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
+                if (!inCheck && playState.Stage == MoveType.Quiets && remaining <= 2 && alpha == beta - 1)
                     return alpha;
 
                 ref Move move = ref Moves[playState.Next - 1];
                 _history.Played(ply, remaining, ref move);
 
                 //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
+                if (!inCheck && remaining > 1 && playState.Stage > MoveType.Best)
                 {
                     int maxR = Math.Min(4, remaining - 1);
                     int R = 0;
 
                     //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
+                    if (playState.Stage >= MoveType.Quiets && !next.InCheck())
                         R = 2;
 
                     //a reduced quiet move that doesn't look promising in the static evaluation gets reduced further
@@ -512,15 +596,18 @@ namespace Leorik.Search
                         R += 2;
 
                     //early out if reduced search doesn't beat alpha
-                    if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
+                    var canditateType = SearchPhase.Candidate + (int)playState.Stage;
+                    if (EvaluateNext(ply, canditateType, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
                         continue;
                 }
 
                 //finally a full window search without reduction
-                int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
+                var phase = playState.Stage == MoveType.Best ? SearchPhase.PV : SearchPhase.Confirmation;
+                int score = EvaluateNext(ply, phase, remaining, alpha, beta, moveGen);
                 if (score <= alpha)
                     continue;
 
+                //PrintStack(ply, "NEW BEST");
                 alpha = score;
                 bestMove = move;
                 ExtendPV(ply, remaining, bestMove);
@@ -541,7 +628,8 @@ namespace Leorik.Search
         private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
         {
             NodesVisited++;
-
+            SearchStack[ply] = SearchPhase.Quiescence;
+            //PrintStack(ply);
             BoardState current = Positions[ply];
 
             if (IsInsufficientMatingMaterial(current))

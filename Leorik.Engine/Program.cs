@@ -3,6 +3,12 @@ using Leorik.Search;
 
 namespace Leorik.Engine
 {
+
+    //Score of Leorik-3.1.11 vs Leorik-3.1.3: 1564 - 1008 - 2258  [0.558] 4830
+    //...      Leorik-3.1.11 playing White: 1355 - 112 - 948  [0.757] 2415
+    //...      Leorik-3.1.11 playing Black: 209 - 896 - 1310  [0.358] 2415
+    //...      White vs Black: 2251 - 321 - 2258  [0.700] 4830
+    //Elo difference: 40.2 +/- 7.1, LOS: 100.0 %, DrawRatio: 46.7 %
     public static class Program
     {
         const string NAME_VERSION = "Leorik 3.1.11";
