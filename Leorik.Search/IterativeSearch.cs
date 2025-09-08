@@ -16,6 +16,7 @@ namespace Leorik.Search
 
         private readonly Move[] RootMoves;
         private readonly BoardState[] Positions;
+        private readonly SearchPhase[] SearchStack;
         private readonly Move[] Moves;
         private readonly Move[] PrincipalVariations;
         private readonly int[] RootMoveOffsets;
@@ -46,8 +47,6 @@ namespace Leorik.Search
             Confirmation,
             Quiescence
         }
-
-        public SearchPhase[] SearchStack;
 
         public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves)
         {
@@ -92,7 +91,7 @@ namespace Leorik.Search
             while (Depth < maxDepth)
                 SearchDeeper();
 
-            PrintStats();
+            SearchStats.PrintStats();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -173,65 +172,10 @@ namespace Leorik.Search
             long pre = NodesVisited;
             int score = -EvaluateTT(ply + 1, remaining - 1, -beta, -alpha, ref moveGen);
             long delta = NodesVisited - pre;
-            if (score <= alpha)
-                Fail(ply, delta);
-            else
-                Success(ply, delta);
+            SearchStats.Store(SearchStack, ply, delta, score > alpha);
             return score;
         }
-
-        static Dictionary<string, (int, int, long)> _stats = new Dictionary<string, (int, int, long)>();
-        static long _count = 0;
-
-        private void Success(int ply, long delta)
-        {
-            _count += delta;
-            string key = GetHash(ply, 4);
-            (int s, int f, long w) = _stats.GetValueOrDefault(key, (0, 0, 0));
-            _stats[key] = (s + 1, f, w + delta);
-        }
-
-        private void Fail(int ply, long delta)
-        {
-            _count += delta;
-            string key = GetHash(ply, 4);
-            (int s, int f, long w) = _stats.GetValueOrDefault(key, (0, 0, 0));
-            _stats[key] = (s, f + 1, w + delta);
-        }
-
-        private void PrintStats()
-        {
-            string[] lines = new string[_stats.Count];
-            float[] prio = new float[_stats.Count];
-            int i = 0;
-            foreach (var kv in _stats)
-            {
-                (int s, int f, long w) = kv.Value;
-                float pass = 100 * s / (float)(s + f);
-                float quant = 100 * w / (float)_count;
-                lines[i] = $"{kv.Key}: {s} / {s + f} Pass {pass:F2}% | Relevance: {quant:F2}%";
-                prio[i] = quant;
-                i++;
-            }
-            Array.Sort(prio, lines);
-            foreach(string line in lines)
-                Console.WriteLine(line);
-        }
-
-
-        private string GetHash(int ply, int depth)
-        {
-            string key = "";
-            for (int i = Math.Max(0, ply - depth + 1); i <= ply; i++)
-            {
-                if (key.Length > 0)
-                    key += "_";
-                key += SearchStack[i];
-            }
-            //Console.WriteLine(key);
-            return key;
-        }
-
+                
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int EvaluateTT(int ply, int remaining, int alpha, int beta, ref MoveGen moveGen)
         {
