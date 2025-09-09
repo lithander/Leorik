@@ -90,8 +90,6 @@ namespace Leorik.Search
         {
             while (Depth < maxDepth)
                 SearchDeeper();
-
-            SearchStats.PrintStats();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

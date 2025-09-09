@@ -47,27 +47,35 @@ namespace Leorik.Search
             return newNode;
         }
 
-        public static void PrintStats()
-        {
-            PrintNodes(Nodes, 0.1f, 0);
-        }
-
-        private static void PrintNodes(List<Node> nodes, float cutoff, int depth, string key = null)
+        private static void OutputNodes(List<Node> nodes, float cutoff, int depth, Action<string> output, string key = null)
         {
             string prefix = new string(' ', depth * 2);
             nodes.Sort((a, b) => (b.Weight.CompareTo(a.Weight)));
-            foreach(Node node in nodes)
+            foreach (Node node in nodes)
             {
                 string newKey = key != null ? $"{node.Phase}_{key}" : node.Phase.ToString();
                 long visits = node.Successes + node.Failures;
                 float pass = 100 * node.Successes / (float)(visits);
                 float quant = 100 * node.Weight / (float)_count;
-                if(quant > cutoff)
+                if (quant > cutoff)
                 {
-                    Console.WriteLine($"{prefix}{newKey}: {node.Successes} / {visits} Passed {pass:F2}% | Relevance: {quant:F2}%");
-                    PrintNodes(node.Children, cutoff, depth + 1, newKey);
+                    output($"{prefix}{newKey}: {node.Successes} / {visits} Passed {pass:F2}% | Relevance: {quant:F2}%");
+                    OutputNodes(node.Children, cutoff, depth + 1, output, newKey);
                 }
             }
+        }
+
+        public static void PrintStats()
+        {
+            OutputNodes(Nodes, 0.1f, 0, Console.WriteLine);
+        }
+
+        public static void Dump()
+        {
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            string filename = $"SearchStats_{timestamp}.txt";
+            using var writer = new StreamWriter(filename);
+            OutputNodes(Nodes, 0.1f, 0, writer.WriteLine);
         }
     }
 }
