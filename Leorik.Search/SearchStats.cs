@@ -1,4 +1,6 @@
 ﻿using Leorik.Core;
+using System.Text;
+using System.Xml.Linq;
 using static Leorik.Search.IterativeSearch;
 
 namespace Leorik.Search
@@ -76,6 +78,57 @@ namespace Leorik.Search
             string filename = $"SearchStats_{timestamp}.txt";
             using var writer = new StreamWriter(filename);
             OutputNodes(Nodes, 0.1f, 0, writer.WriteLine);
+        }
+
+        public static float PredictSuccess(SearchPhase[] stack, int ply, int depth)
+        {
+            var nodes = Nodes;
+            float pass = 0;
+            int last = Math.Max(ply - depth, 0);
+            for (int i = ply; i >= last; i--)
+            {
+                Node node = FindNode(nodes, stack[i]);
+                if (node == null)
+                    break;
+
+                long visits = node.Successes + node.Failures;
+                pass = 100 * node.Successes / (float)(visits);
+                nodes = node.Children;
+            }
+            return pass;
+        }
+
+        public static void PrintStack(SearchPhase[] stack, int ply)
+        {
+            string line = "";
+            var nodes = Nodes;
+            for (int i = ply; i >= 0; i--)
+            {
+                Node node = FindNode(nodes, stack[i]);
+                string token;
+                if (node != null)
+                {
+                    long visits = node.Successes + node.Failures;
+                    float pass = 100 * node.Successes / (float)(visits);
+                    token = $"{stack[i]} {pass:F2}% #{node.Weight}";
+                    nodes = node.Children;
+                }
+                else
+                    token = stack[i].ToString();
+
+                line = line != null ? $"{token} | {line}" : token;
+            }
+            Console.WriteLine(line);
+        }
+
+        private static Node FindNode(List<Node> nodes, SearchPhase searchPhase)
+        {
+            foreach (Node node in nodes)
+            {
+                if (node.Phase == searchPhase)
+                    return node;
+            }
+            return null;
         }
     }
 }
