@@ -9,7 +9,7 @@ namespace Leorik.Search
         private const int MaxPly = 99;
         private const int Squares = 64;
         private const int Pieces = 14; //including colored 'none'
-        public const int ContDepth = 3;
+        public const int ContDepth = 4;
 
         private ulong TotalPositive = 0;
         private ulong TotalPlayed = 0;
