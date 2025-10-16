@@ -208,7 +208,7 @@ namespace Leorik.Search
             return score;
         }
 
-        enum Stage { Best, Captures, Killers, Counter, FollowUp, SortedQuiets, Quiets }
+        enum Stage { Best, Captures, Killers, Continuation, SortedQuiets, Quiets }
 
         struct PlayState
         {
@@ -252,18 +252,13 @@ namespace Leorik.Search
                         PickBestCapture(state.Next, moveGen.Next);
                         break;
                     case Stage.Killers:
-                        state.Stage = PickKiller(ply, state.Next, moveGen.Next);
+                        PickKiller(ref state, ply, moveGen.Next);
                         break;
-                    case Stage.Counter:
-                        state.Stage = PickCounter(ply, state.Next, moveGen.Next);
-                        break;
-                    case Stage.FollowUp:
-                        state.Stage = PickFollowUp(ply, state.Next, moveGen.Next);
+                    case Stage.Continuation:
+                        PickContinuation(ref state, ply, moveGen.Next);
                         break;
                     case Stage.SortedQuiets:
-                        float historyThreshold = HISTORY_SCALE * state.PlayedMoves;
-                        if (PickBestHistory(state.Next, moveGen.Next) < historyThreshold)
-                            state.Stage = Stage.Quiets;
+                        PickBestHistory(ref state, moveGen.Next);
                         break;
                 }
 
@@ -276,33 +271,24 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickKiller(int ply, int first, int end)
+        private void PickKiller(ref PlayState state, int ply, int end)
         {
-            if (PickMove(first, end, _history.GetKiller(ply)))
-                return Stage.Counter;
-            return PickCounter(ply, first, end);
+            state.Stage = Stage.Continuation;
+
+            if (PickMove(state.Next, end, _history.GetKiller(ply)))
+                return;
+
+            PickContinuation(ref state, ply, end);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickCounter(int ply, int first, int end)
+        private void PickContinuation(ref PlayState state, int ply, int end)
         {
-            if (PickMove(first, end, _history.GetContinuation(ply, 0)))
-                return Stage.FollowUp;
+            for (int i = 0; i < History.ContDepth; i++)
+                if (PickMove(state.Next, end, _history.GetContinuation(ply, i)))
+                    return;
 
-            return PickFollowUp(ply, first, end);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Stage PickFollowUp(int ply, int first, int end)
-        {
-            if (PickMove(first, end, _history.GetContinuation(ply, 1)))
-                return Stage.SortedQuiets;
-
-            if (PickMove(first, end, _history.GetContinuation(ply, 2)))
-                return Stage.SortedQuiets;
-
-            PickBestHistory(first, end);
-            return Stage.SortedQuiets;
+            PickBestHistory(ref state, end);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,7 +317,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool PickMove(int first, int end, Move move)
         {
-            if(move == default)
+            if (move == default)
                 return false;
 
             //find the move...
@@ -348,11 +334,12 @@ namespace Leorik.Search
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private float PickBestHistory(int first, int end)
+        private void PickBestHistory(ref PlayState state, int end)
         {
             //find the best move...
+            int first = state.Next;
             int best = first;
-            float bestScore = _history.Value(ref Moves[first]);
+            float bestScore = _history.Value(ref Moves[best]);
             for (int i = first + 1; i < end; i++)
             {
                 float score = _history.Value(ref Moves[i]);
@@ -367,7 +354,9 @@ namespace Leorik.Search
             {
                 (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
             }
-            return bestScore;
+
+            float threshold = HISTORY_SCALE * state.PlayedMoves;
+            state.Stage = bestScore > threshold ? Stage.SortedQuiets : Stage.Quiets;
         }
 
 
