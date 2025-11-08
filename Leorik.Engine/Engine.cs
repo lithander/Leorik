@@ -172,7 +172,7 @@ namespace Leorik.Engine
                 return false;
 
             //otherwise it's only time that can stop us!
-            return _time.CanSearchDeeper(_search.Depth);
+            return _time.CanSearchDeeper(_search.Depth, _search.Stability);
         }
 
         private void Collect()

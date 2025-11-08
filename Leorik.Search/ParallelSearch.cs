@@ -11,6 +11,7 @@ namespace Leorik.Search
         public bool Aborted => _worker[_best].Aborted;
         public int Depth => _worker[_best].Depth;
         public int Score => _worker[_best].Score;
+        public float Stability => _worker[_best].Stability;
 
         public long NodesVisited
         {

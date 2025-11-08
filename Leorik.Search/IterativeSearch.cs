@@ -22,11 +22,14 @@ namespace Leorik.Search
         private readonly ulong[] _legacy; //hashes of positons that we need to eval as repetitions
         private readonly SearchOptions _options;
 
+        private long _bestMoveNodes;
+        private long _totalNodes;
         private KillSwitch _killSwitch;
 
         private int Eval { get; set; }
         public int Score => IsCheckmate(Eval) ? Eval : (Eval * 100) / NORMALIZE_TO_PAWN_VALUE;
         public long NodesVisited { get; private set; }
+        public float Stability { get; private set; }
         public int Depth { get; private set; }
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
@@ -117,9 +120,32 @@ namespace Leorik.Search
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Depth++;
+
+            _bestMoveNodes = 0;
+            _totalNodes = 1;
             _killSwitch = new KillSwitch(killSwitch);
-            int score = EvaluateRoot(Depth);
-            Eval = (int)Positions[0].SideToMove * score;
+
+            int stm = (int)Positions[0].SideToMove;
+            int eval = stm * Eval;
+            int window = ASPIRATION_WINDOW;
+            while (!Aborted)
+            {
+                //set aspiration window
+                int alpha = eval - window;
+                int beta = eval + window;
+                
+                eval = EvaluateRoot(Depth, alpha, beta);
+                
+                //result within aspiration window?
+                if (eval > alpha && eval < beta)
+                {
+                    Eval = stm * eval;
+                    Stability = _bestMoveNodes / (float)_totalNodes;
+                    return;
+                }
+
+                window *= 2;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -180,7 +206,7 @@ namespace Leorik.Search
             if (IsRepetition(ply))
                 return 0; //TODO: is scoring *any* repetition as zero premature?
 
-            //Transposition table lookup lookup
+            //Transposition table lookup
             ulong hash = current.ZobristHash;
             if (Transpositions.GetScore(hash, remaining, ply, alpha, beta, out Move bm, out int ttScore))
                 return ttScore;
@@ -367,23 +393,6 @@ namespace Leorik.Search
             return !IsCheckmate(Eval) || (ply > Depth / 4);
         }
 
-        private int EvaluateRoot(int depth)
-        {
-            int eval = (int)Positions[0].SideToMove * Eval;
-            int window = ASPIRATION_WINDOW;
-            while (!Aborted)
-            {
-                int alpha = eval - window;
-                int beta = eval + window;
-                eval = EvaluateRoot(depth, alpha, beta);
-                if (eval > alpha && eval < beta)
-                    break;
-
-                window *= 2;
-            }
-            return eval;
-        }
-
         private int EvaluateRoot(int depth, int alpha, int beta)
         {
             NodesVisited++;
@@ -398,20 +407,21 @@ namespace Leorik.Search
                 Move move = RootMoves[i];
                 if (!next.Play(root, ref move))
                     continue;
+                                
+                long preNodes = NodesVisited;
 
                 //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
                 int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
-
-                //moves after the PV move are unlikely to raise alpha! searching with a null-sized window around alpha first...
-                //...non-tactical late moves are searched at a reduced depth to make this test even faster!
+                //moves after the PV move are searched with a null-sized window and if non-tactical with reduced depth
                 int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
-                if (i > 0 && EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus <= alpha)
-                    continue;
+                bool fullSearch = i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha;
+                int score = fullSearch ? EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus : alpha;
 
-                int score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
+                _totalNodes += NodesVisited - preNodes;
 
                 if (score > alpha)
                 {
+                    _bestMoveNodes = NodesVisited - preNodes;
                     alpha = score;
                     ExtendPV(0, depth, move);
                     PromoteBestMove(i);

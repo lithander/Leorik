@@ -9,7 +9,6 @@ namespace Leorik.Engine
         const int MAX_TIME = int.MaxValue / 3; //large but not too large to cause overflow issues
         const float PLAY_ON_INC = 0.5f;
         const float PLAY_ON_RESERVE = 0.85f;
-        const float ABORT_RATIO = 0.5f;
 
         private int _moveTime;
         private int _moveTimeLimit;
@@ -66,14 +65,16 @@ namespace Leorik.Engine
             _moveTimeLimit = Math.Min(time, timeRemaining - reserve);
         }
 
-        public bool CanSearchDeeper(int depth)
+        public bool CanSearchDeeper(int depth, float stability)
         {
             if (depth >= _maxDepth)
                 return false;
 
             _moveTimeLimit -= BASE_MARGIN;
 
-            if (Elapsed > _moveTime * ABORT_RATIO)
+            //high stability means we're confident we already have the best move
+            float stopRatio = 1 / (1 + 2 * stability);
+            if (Elapsed > stopRatio * _moveTime)
                 return false;
 
             //all conditions fulfilled

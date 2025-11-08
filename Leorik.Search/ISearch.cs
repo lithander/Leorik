@@ -26,6 +26,7 @@ namespace Leorik.Search
     {
         bool Aborted { get; }
         int Depth { get; }
+        float Stability { get; }
         int Score { get; }
         long NodesVisited { get; }
         Span<Move> PrincipalVariation { get; }
