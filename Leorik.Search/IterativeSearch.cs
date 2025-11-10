@@ -390,14 +390,6 @@ namespace Leorik.Search
             state.Stage = bestScore > threshold ? Stage.SortedQuiets : Stage.Quiets;
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool AllowNullMove(int ply)
-        {
-            //if the previous iteration found a mate we do the first few plys without null move to try and find the shortest mate or escape
-            return !IsCheckmate(Eval) || (ply > Depth / 4);
-        }
-
         private int EvaluateRoot(int depth, int alpha, int beta)
         {
             NodesVisited++;
@@ -419,9 +411,10 @@ namespace Leorik.Search
                 int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
                 //moves after the PV move are searched with a null-sized window and if non-tactical with reduced depth
                 int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
-                //full search only for the first move or if the reduced zero window search indicates it could be better than alpha
-                bool fullSearch = i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha;
-                int score = fullSearch ? EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus : alpha;
+                int score = alpha;
+                //full search only for the best root move or if the zero window search indicates it could be better than alpha
+                if (i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
+                    score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
 
                 _totalNodes += NodesVisited - preNodes;
 
@@ -471,7 +464,7 @@ namespace Leorik.Search
             int staticEval = _history.GetAdjustedStaticEval(current);
 
             //consider null move pruning first
-            if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame() && AllowNullMove(ply))
+            if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame())
             {
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
                 if (remaining < 6 && _history.IsExpectedFailHigh(staticEval, beta))

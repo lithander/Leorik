@@ -18,13 +18,11 @@ namespace Leorik.Engine
         public bool Running { get; private set; }
         public Color SideToMove => _board.SideToMove;
         public int HistoryPlys => _history.Count;
-
         public string GetFen() => Notation.GetFen(_board);
         public NeuralNetEval GetEval() => _board.Eval;
         public ulong GetZobristHash() => _board.ZobristHash;
         public void Flip() => _board.Flip();
         public Move GetMoveUci(string notation) => Notation.GetMoveUci(_board, notation, Options.Variant);
-
 
         public void Init()
         {
