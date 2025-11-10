@@ -128,7 +128,8 @@ namespace Leorik.Search
             int eval = board.SideToMoveScore();
             int corr = GetCorrection(board, stm);
 
-            return eval + corr;
+            const int range = Evaluation.CheckmateBase - 1;
+            return Math.Clamp(eval + corr, -range, range);
         }
 
         private int GetCorrection(BoardState board, int stm)

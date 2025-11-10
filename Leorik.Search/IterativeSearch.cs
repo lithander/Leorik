@@ -132,7 +132,12 @@ namespace Leorik.Search
             {
                 //set aspiration window
                 int alpha = eval - window;
+                if (IsCheckmate(alpha))
+                    alpha = -CheckmateScore;
+
                 int beta = eval + window;
+                if (IsCheckmate(beta))
+                    beta = CheckmateScore;
                 
                 eval = EvaluateRoot(Depth, alpha, beta);
                 
@@ -414,6 +419,7 @@ namespace Leorik.Search
                 int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
                 //moves after the PV move are searched with a null-sized window and if non-tactical with reduced depth
                 int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
+                //full search only for the first move or if the reduced zero window search indicates it could be better than alpha
                 bool fullSearch = i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha;
                 int score = fullSearch ? EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus : alpha;
 
