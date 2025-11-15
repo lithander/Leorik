@@ -466,17 +466,19 @@ namespace Leorik.Search
             //consider null move pruning first
             if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame())
             {
+                int R = 2 + 2 * (remaining / 4);
+
                 //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                if (remaining < 6 && _history.IsExpectedFailHigh(staticEval, beta))
+                if (remaining <= R + 1 && _history.IsExpectedFailHigh(staticEval, beta))
                     return beta;
 
                 //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
                 next.PlayNullMove(current);
 
-                if (EvaluateNext(ply, remaining - 4, beta - 1, beta, moveGen) >= beta)
+                if (EvaluateNext(ply, remaining - R, beta - 1, beta, moveGen) >= beta)
                     return beta;
 
-                if (remaining >= 6)
+                if (remaining > R + 1)
                     _history.NullMovePass(staticEval, beta);
             }
 
