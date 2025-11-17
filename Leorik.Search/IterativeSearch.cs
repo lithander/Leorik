@@ -76,47 +76,6 @@ namespace Leorik.Search
                 SearchDeeper();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ForcedCut(int depth)
-        {
-            return depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get();
-        }
-
-        private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
-        {
-            //return moves until the first is 'default' move but not more than 'depth' number of moves
-            int end = Array.IndexOf(pv, default, 0, depth);
-            return new Span<Move>(pv, 0, end >= 0 ? end : depth);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int IndexPV(int ply)
-        {
-            //Detailed Description:
-            //https://github.com/lithander/Leorik/blob/b3236087fbc87e1915725c23ff349e46dfedd0f2/Leorik.Search/IterativeSearchNext.cs
-            return Depth * ply - (ply * ply - ply) / 2;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExtendPV(int ply, int remaining, Move move)
-        {
-            int index = IndexPV(ply);
-            PrincipalVariations[index] = move;
-            int stride = Depth - ply;
-            int from = index + stride - 1;
-            for (int i = 1; i < remaining; i++)
-                PrincipalVariations[index + i] = PrincipalVariations[from + i];
-
-            for (int i = remaining; i < stride; i++)
-                PrincipalVariations[index + i] = default;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void TruncatePV(int ply)
-        {
-            PrincipalVariations[IndexPV(ply)] = default;
-        }
-
         public void SearchDeeper(Func<bool>? killSwitch = null)
         {
             Depth++;
@@ -153,26 +112,51 @@ namespace Leorik.Search
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void PickBestCapture(int first, int end)
+        private int EvaluateRoot(int depth, int alpha, int beta)
         {
-            //find the best move...
-            int best = first;
-            int bestScore = Moves[first].MvvLvaScore();
-            for (int i = first + 1; i < end; i++)
+            NodesVisited++;
+
+            BoardState root = Positions[0];
+            BoardState next = Positions[1];
+            MoveGen moveGen = new(Moves, 0);
+
+            //init staged move generation and play all moves
+            for (int i = 0; i < RootMoves.Length; i++)
             {
-                int score = Moves[i].MvvLvaScore();
-                if (score >= bestScore)
+                Move move = RootMoves[i];
+                if (!next.Play(root, ref move))
+                    continue;
+
+                long preNodes = NodesVisited;
+
+                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
+                int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
+                //moves after the PV move are searched with a null-sized window and if non-tactical with reduced depth
+                int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
+                int score = alpha;
+                //full search only for the best root move or if the zero window search indicates it could be better than alpha
+                if (i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
+                    score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
+
+                _totalNodes += NodesVisited - preNodes;
+
+                if (score > alpha)
                 {
-                    best = i;
-                    bestScore = score;
+                    _bestMoveNodes = NodesVisited - preNodes;
+                    alpha = score;
+                    ExtendPV(0, depth, move);
+                    PromoteBestMove(i);
+
+                    if (score >= beta)
+                        return beta;
                 }
             }
-            //...swap best with first
-            if (best != first)
-            {
-                (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
-            }
+
+            //checkmate or draw?
+            if (alpha <= -CheckmateScore)
+                return root.InCheck() ? MatedScore(0) : 0;
+
+            return alpha;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -237,6 +221,160 @@ namespace Leorik.Search
             Transpositions.Store(hash, remaining, ply, alpha, beta, score, bm);
 
             return score;
+        }
+
+        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
+        {
+            NodesVisited++;
+
+            BoardState current = Positions[ply];
+            BoardState next = Positions[ply + 1];
+            bool inCheck = current.InCheck();
+            int staticEval = _history.GetAdjustedStaticEval(current);
+
+            //consider null move pruning first
+            if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame())
+            {
+                int R = 2 + 2 * (remaining / 4);
+                //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
+                if (remaining <= R + 1 && _history.IsExpectedFailHigh(staticEval, beta))
+                    return beta;
+
+                //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
+                next.PlayNullMove(current);
+
+                if (EvaluateNext(ply, remaining - R, beta - 1, beta, moveGen) >= beta)
+                    return beta;
+
+                if (remaining > R + 1)
+                    _history.NullMovePass(staticEval, beta);
+            }
+
+            //init staged move generation and play all moves
+            PlayState playState = new(moveGen.CollectMove(bestMove));
+            while (Play(ply, ref playState, ref moveGen))
+            {
+                //skip late quiet moves when almost in Qsearch depth
+                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
+                    return alpha;
+
+                ref Move move = ref Moves[playState.Next - 1];
+                _history.Played(ply, remaining, ref move);
+
+                //moves after the PV are searched with a null-window around alpha expecting the move to fail low
+                if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
+                {
+                    int maxR = Math.Min(4, remaining - 1);
+                    int R = 0;
+
+                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
+                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
+                        R = 2;
+
+                    //a reduced quiet move that doesn't look promising in the static evaluation gets reduced further
+                    if (R < maxR && R > 0 && -_history.GetAdjustedStaticEval(next) < staticEval)
+                        R += 2;
+
+                    //if it's not already a bad quiet move we may reduce because of bad SEE
+                    if (R < maxR && _see.IsBad(current, ref move))
+                        R += 2;
+
+                    //early out if reduced search doesn't beat alpha
+                    if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
+                        continue;
+                }
+
+                //finally a full window search without reduction
+                int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
+                if (score <= alpha)
+                    continue;
+
+                alpha = score;
+                bestMove = move;
+                ExtendPV(ply, remaining, bestMove);
+                _history.Good(ply, remaining, ref bestMove);
+
+                //beta cutoff?
+                if (score >= beta)
+                    return beta;
+            }
+
+            //checkmate or draw?
+            if (playState.PlayedMoves == 0)
+                return inCheck ? MatedScore(ply) : 0;
+
+            return alpha;
+        }
+
+        private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
+        {
+            NodesVisited++;
+
+            BoardState current = Positions[ply];
+
+            if (IsInsufficientMatingMaterial(current))
+                return 0;
+
+            bool inCheck = current.InCheck();
+            //if inCheck we can't use standPat, need to escape check!
+            if (!inCheck)
+            {
+                int standPatScore = _history.GetAdjustedStaticEval(current);
+
+                if (standPatScore >= beta)
+                    return beta;
+
+                if (standPatScore > alpha)
+                    alpha = standPatScore;
+            }
+
+            if (Aborted |= ForcedCut(ply))
+                return current.SideToMoveScore();
+
+            //To quiesce a position play all the Captures!
+            BoardState next = Positions[ply + 1];
+            bool movesPlayed = false;
+            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
+            {
+                PickBestCapture(i, moveGen.Next);
+
+                //skip playing bad captures when not in check
+                if (!inCheck && _see.IsBad(current, ref Moves[i]))
+                    continue;
+
+                if (next.QuickPlay(current, ref Moves[i]))
+                {
+                    movesPlayed = true;
+                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+
+            if (!inCheck)
+                return alpha;
+
+            //Play Quiets only when in check!
+            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
+            {
+                if (next.QuickPlay(current, ref Moves[i]))
+                {
+                    movesPlayed = true;
+                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
+
+                    if (score >= beta)
+                        return beta;
+
+                    if (score > alpha)
+                        alpha = score;
+                }
+            }
+
+            return movesPlayed ? alpha : MatedScore(ply);
         }
 
         enum Stage { Best, Captures, Killers, Continuation, SortedQuiets, Quiets }
@@ -390,51 +528,67 @@ namespace Leorik.Search
             state.Stage = bestScore > threshold ? Stage.SortedQuiets : Stage.Quiets;
         }
 
-        private int EvaluateRoot(int depth, int alpha, int beta)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PickBestCapture(int first, int end)
         {
-            NodesVisited++;
-
-            BoardState root = Positions[0];
-            BoardState next = Positions[1];
-            MoveGen moveGen = new(Moves, 0);
-
-            //init staged move generation and play all moves
-            for (int i = 0; i < RootMoves.Length; i++)
+            //find the best move...
+            int best = first;
+            int bestScore = Moves[first].MvvLvaScore();
+            for (int i = first + 1; i < end; i++)
             {
-                Move move = RootMoves[i];
-                if (!next.Play(root, ref move))
-                    continue;
-                                
-                long preNodes = NodesVisited;
-
-                //Scoring Root Moves with a random bonus: https://www.chessprogramming.org/Ronald_de_Man
-                int bonus = IsCheckmate(Eval) ? 0 : RootMoveOffsets[i];
-                //moves after the PV move are searched with a null-sized window and if non-tactical with reduced depth
-                int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
-                int score = alpha;
-                //full search only for the best root move or if the zero window search indicates it could be better than alpha
-                if (i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
-                    score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
-
-                _totalNodes += NodesVisited - preNodes;
-
-                if (score > alpha)
+                int score = Moves[i].MvvLvaScore();
+                if (score >= bestScore)
                 {
-                    _bestMoveNodes = NodesVisited - preNodes;
-                    alpha = score;
-                    ExtendPV(0, depth, move);
-                    PromoteBestMove(i);
-
-                    if (score >= beta)
-                        return beta;
+                    best = i;
+                    bestScore = score;
                 }
             }
+            //...swap best with first
+            if (best != first)
+            {
+                (Moves[first], Moves[best]) = (Moves[best], Moves[first]);
+            }
+        }
 
-            //checkmate or draw?
-            if (alpha <= -CheckmateScore)
-                return root.InCheck() ? MatedScore(0) : 0;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ForcedCut(int depth)
+        {
+            return depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get();
+        }
 
-            return alpha;
+        private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
+        {
+            //return moves until the first is 'default' move but not more than 'depth' number of moves
+            int end = Array.IndexOf(pv, default, 0, depth);
+            return new Span<Move>(pv, 0, end >= 0 ? end : depth);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int IndexPV(int ply)
+        {
+            //Detailed Description:
+            //https://github.com/lithander/Leorik/blob/b3236087fbc87e1915725c23ff349e46dfedd0f2/Leorik.Search/IterativeSearchNext.cs
+            return Depth * ply - (ply * ply - ply) / 2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ExtendPV(int ply, int remaining, Move move)
+        {
+            int index = IndexPV(ply);
+            PrincipalVariations[index] = move;
+            int stride = Depth - ply;
+            int from = index + stride - 1;
+            for (int i = 1; i < remaining; i++)
+                PrincipalVariations[index + i] = PrincipalVariations[from + i];
+
+            for (int i = remaining; i < stride; i++)
+                PrincipalVariations[index + i] = default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void TruncatePV(int ply)
+        {
+            PrincipalVariations[IndexPV(ply)] = default;
         }
 
         private void PromoteBestMove(int i)
@@ -452,161 +606,6 @@ namespace Leorik.Search
             //put the best move at the front
             RootMoves[0] = move;
             RootMoveOffsets[0] = offset;
-        }
-
-        private int Evaluate(int ply, int remaining, int alpha, int beta, MoveGen moveGen, ref Move bestMove)
-        {
-            NodesVisited++;
-
-            BoardState current = Positions[ply];
-            BoardState next = Positions[ply + 1];
-            bool inCheck = current.InCheck();
-            int staticEval = _history.GetAdjustedStaticEval(current);
-
-            //consider null move pruning first
-            if (!inCheck && staticEval > beta && beta <= alpha + 1 && !current.IsEndgame())
-            {
-                int R = 2 + 2 * (remaining / 4);
-
-                //if remaining is [1..5] a nullmove reduction of 4 will mean it goes directly into Qsearch. Skip the effort for obvious situations...
-                if (remaining <= R + 1 && _history.IsExpectedFailHigh(staticEval, beta))
-                    return beta;
-
-                //if stm can skip a move and the position is still "too good" we can assume that this position, after making a move, would also fail high
-                next.PlayNullMove(current);
-
-                if (EvaluateNext(ply, remaining - R, beta - 1, beta, moveGen) >= beta)
-                    return beta;
-
-                if (remaining > R + 1)
-                    _history.NullMovePass(staticEval, beta);
-            }
-
-            //init staged move generation and play all moves
-            PlayState playState = new(moveGen.CollectMove(bestMove));
-            while (Play(ply, ref playState, ref moveGen))
-            {
-                //skip late quiet moves when almost in Qsearch depth
-                if (!inCheck && playState.Stage == Stage.Quiets && remaining <= 2 && alpha == beta - 1)
-                    return alpha;
-
-                ref Move move = ref Moves[playState.Next - 1];
-                _history.Played(ply, remaining, ref move);
-
-                //moves after the PV are searched with a null-window around alpha expecting the move to fail low
-                if (!inCheck && remaining > 1 && playState.Stage > Stage.Best)
-                {
-                    int maxR = Math.Min(4, remaining - 1);
-                    int R = 0;
-
-                    //non-tactical late moves are searched at a reduced depth to make this test even faster!
-                    if (playState.Stage >= Stage.Quiets && !next.InCheck())
-                        R = 2;
-
-                    //a reduced quiet move that doesn't look promising in the static evaluation gets reduced further
-                    if (R < maxR && R > 0 && -_history.GetAdjustedStaticEval(next) < staticEval)
-                        R += 2;
-
-                    //if it's not already a bad quiet move we may reduce because of bad SEE
-                    if (R < maxR && _see.IsBad(current, ref move))
-                        R += 2;
-
-                    //early out if reduced search doesn't beat alpha
-                    if (EvaluateNext(ply, remaining - R, alpha, alpha + 1, moveGen) <= alpha)
-                        continue;
-                }
-
-                //finally a full window search without reduction
-                int score = EvaluateNext(ply, remaining, alpha, beta, moveGen);
-                if (score <= alpha)
-                    continue;
-
-                alpha = score;
-                bestMove = move;
-                ExtendPV(ply, remaining, bestMove);
-                _history.Good(ply, remaining, ref bestMove);
-
-                //beta cutoff?
-                if (score >= beta)
-                    return beta;
-            }
-
-            //checkmate or draw?
-            if (playState.PlayedMoves == 0)
-                return inCheck ? MatedScore(ply) : 0;
-
-            return alpha;
-        }
-
-        private int EvaluateQuiet(int ply, int alpha, int beta, MoveGen moveGen)
-        {
-            NodesVisited++;
-
-            BoardState current = Positions[ply];
-
-            if (IsInsufficientMatingMaterial(current))
-                return 0;
-
-            bool inCheck = current.InCheck();
-            //if inCheck we can't use standPat, need to escape check!
-            if (!inCheck)
-            {
-                int standPatScore = _history.GetAdjustedStaticEval(current);
-
-                if (standPatScore >= beta)
-                    return beta;
-
-                if (standPatScore > alpha)
-                    alpha = standPatScore;
-            }
-
-            if (Aborted |= ForcedCut(ply))
-                return current.SideToMoveScore();
-
-            //To quiesce a position play all the Captures!
-            BoardState next = Positions[ply + 1];
-            bool movesPlayed = false;
-            for (int i = moveGen.CollectCaptures(current); i < moveGen.Next; i++)
-            {
-                PickBestCapture(i, moveGen.Next);
-
-                //skip playing bad captures when not in check
-                if (!inCheck && _see.IsBad(current, ref Moves[i]))
-                    continue;
-
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    movesPlayed = true;
-                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-
-            if (!inCheck)
-                return alpha;
-
-            //Play Quiets only when in check!
-            for (int i = moveGen.CollectQuiets(current); i < moveGen.Next; i++)
-            {
-                if (next.QuickPlay(current, ref Moves[i]))
-                {
-                    movesPlayed = true;
-                    int score = -EvaluateQuiet(ply + 1, -beta, -alpha, moveGen);
-
-                    if (score >= beta)
-                        return beta;
-
-                    if (score > alpha)
-                        alpha = score;
-                }
-            }
-
-            return movesPlayed ? alpha : MatedScore(ply);
         }
     }
 }
