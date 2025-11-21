@@ -5,7 +5,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.16";
+        const string NAME_VERSION = "Leorik 3.1.17";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -108,7 +108,7 @@ namespace Leorik.Engine
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
-                _engine.Options.Variant = Variant.Chess960;
+                _engine.Options.Variant = chess960 ? Variant.Chess960 : Variant.Standard;
             else
                 Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
