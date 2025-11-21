@@ -1,5 +1,6 @@
 ﻿using Leorik.Core;
 using Leorik.Search;
+using static System.Console;
 
 namespace Leorik.Engine
 {
@@ -13,7 +14,7 @@ namespace Leorik.Engine
         private static async Task Main()
         {
             //GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            Console.WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
+            WriteLine($"{NAME_VERSION} {Bitboard.SliderMode}");
             if (!Network.LoadDefaultNetwork())
                 Network.InitEmptyNetwork();
 
@@ -36,17 +37,13 @@ namespace Leorik.Engine
             switch (tokens[0])
             {
                 case "uci":
-                    Console.WriteLine($"id name {NAME_VERSION}");
-                    Console.WriteLine($"id author {AUTHOR}");
-                    Console.WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
-                    Console.WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
-                    Console.WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
-                    Console.WriteLine($"option name UCI_Chess960 type check default false");
-                    //Console.WriteLine($"option name NullMoveCutoff type spin default {SearchOptions.Default.NullMoveCutoff} min 0 max 5000");
-                    Console.WriteLine("uciok");
+                    WriteLine($"id name {NAME_VERSION}");
+                    WriteLine($"id author {AUTHOR}");
+                    UciOptionList();
+                    WriteLine("uciok");
                     break;
                 case "isready":
-                    Console.WriteLine("readyok");
+                    WriteLine("readyok");
                     break;
                 case "position":
                     UciPosition(tokens);
@@ -69,13 +66,13 @@ namespace Leorik.Engine
                     break;
                 //inofficial commands
                 case "fen":
-                    Console.WriteLine(_engine.GetFen());
+                    WriteLine(_engine.GetFen());
                     break;
                 case "hash":
-                    Console.WriteLine(_engine.GetZobristHash());
+                    WriteLine(_engine.GetZobristHash());
                     break;
                 case "eval":
-                    Console.WriteLine($"{_engine.GetEval().Score}");
+                    WriteLine($"{_engine.GetEval().Score}");
                     break;
                 case "perft":
                     UciPerft(tokens);
@@ -84,17 +81,18 @@ namespace Leorik.Engine
                     _engine.Flip();
                     break;
                 default:
-                    Console.WriteLine($"Unknown command: {input}");
+                    WriteLine($"Unknown command: {input}");
                     return;
             }
         }
 
-        private static void UciPerft(string[] tokens)
+        private static void UciOptionList()
         {
-            if (int.TryParse(tokens[1], out int depth))
-                Console.WriteLine(_engine.Perft(depth));
-            else
-                Console.WriteLine($"Invalid depth: {tokens[1]}");
+            WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
+            WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
+            WriteLine($"option name Clear Hash type button");
+            WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
+            WriteLine($"option name UCI_Chess960 type check default false");
         }
 
         private static void UciSetOption(string[] token)
@@ -103,6 +101,8 @@ namespace Leorik.Engine
                 Transpositions.Resize(hashSizeMBytes);
             else if (token[1] == "name" && token[2] == "Threads" && token[3] == "value" && int.TryParse(token[4], out int threads))
                 _engine.Options.Threads = threads;
+            else if (token[1] == "name" && token[2] == "Clear" && token[3] == "Hash")
+                Transpositions.Clear();
             else if (token[1] == "name" && token[2] == "Temperature" && token[3] == "value" && int.TryParse(token[4], out int temperature))
                 _engine.Options.Temperature = temperature;
             else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
@@ -110,7 +110,17 @@ namespace Leorik.Engine
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
                 _engine.Options.Variant = chess960 ? Variant.Chess960 : Variant.Standard;
             else
-                Console.WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
+                WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
+        }
+
+        private static void UciPerft(string[] tokens)
+        {
+            if(tokens.Length < 2)
+                WriteLine("Usage: perft <depth>");
+            else if (int.TryParse(tokens[1], out int depth))
+                WriteLine(_engine.Perft(depth));
+            else
+                WriteLine($"Invalid depth: {tokens[1]}");
         }
 
         private static void UciPosition(string[] tokens)
@@ -127,7 +137,7 @@ namespace Leorik.Engine
             }
             else
             {
-                Console.WriteLine($"Unknown parameter: {tokens[1]}");
+                WriteLine($"Unknown parameter: {tokens[1]}");
                 return;
             }
 
