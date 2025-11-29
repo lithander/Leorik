@@ -72,12 +72,11 @@ namespace Leorik.Search
         {
             Moves[ply] = move;
 
-            ulong inc = (ulong)(depth * depth);
-            TotalPlayed += inc;
-
             if (move.CapturedPiece() != Piece.None)
                 return;
 
+            ulong inc = (ulong)(depth * depth);
+            TotalPlayed += inc;
             All[move.ToSquare, move.FromSquare] += inc;
         }
 

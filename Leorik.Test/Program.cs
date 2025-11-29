@@ -99,8 +99,8 @@ namespace Leorik.Test
             int totalScore = 0;
             while (count < maxCount && !file.EndOfStream && ParseEpd(file.ReadLine(), out BoardState board, out Dictionary<Move, int> bestMoves) > 0)
             {
-                //Transpositions.Clear();
-                Transpositions.IncreaseAge();
+                Transpositions.Clear();
+                //Transpositions.IncreaseAge();
                 long t0 = Stopwatch.GetTimestamp();
                 Span<Move> pv = search(board, depth);
                 long t1 = Stopwatch.GetTimestamp();
