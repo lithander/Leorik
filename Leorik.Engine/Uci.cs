@@ -18,12 +18,12 @@ namespace Leorik.Engine
             Write($"bestmove {Notation.GetMoveName(move, variant)}");
         }
 
-        public static void Info(int depth, int score, long nodes, int timeMs, List<Move> pv, Variant variant)
+        public static void Info(int depth, int score, long nodes, int timeMs, int multiPV, List<Move> pv, Variant variant)
         {
             double tS = Math.Max(1, timeMs) / 1000.0;
             int nps = (int)(nodes / tS);
 
-            Write($"info depth {depth} score {ScoreToString(score)} nodes {nodes} nps {nps} time {timeMs} pv {Join(pv, variant)}");
+            Write($"info depth {depth} multipv {multiPV} score {ScoreToString(score)} nodes {nodes} nps {nps} time {timeMs} pv {Join(pv, variant)}");
         }
 
         private static string Join(IEnumerable<Move> moves, Variant variant)

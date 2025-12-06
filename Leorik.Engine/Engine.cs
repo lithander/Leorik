@@ -132,10 +132,6 @@ namespace Leorik.Engine
             else
                 _search = new IterativeSearch(_board, options, SelectMoveHistory(_history), searchMoves);
 
-            _time.StartInterval();
-            _search.SearchDeeper(() => false);
-            Collect();
-
             //start the search thread
             _searching = new Thread(Search) { Priority = ThreadPriority.Highest };
             _searching.Start();
@@ -143,52 +139,43 @@ namespace Leorik.Engine
 
         private void Search()
         {
-            if (_search == null)
-                return;
+            int multiPV = Math.Min(Options.MultiPV, _search.SearchMoves.Length);
+            float bestMoveStability = 0.0f;
 
-            while (CanSearchDeeper())
+            while (!_search.Aborted && _time.CanSearchDeeper(_search.Depth, bestMoveStability))
             {
                 _time.StartInterval();
-                _search.SearchDeeper(_time.CheckTimeBudget);
 
-                //aborted?
-                if (_search.Aborted)
-                    break;
+                for(int pvIndex = 0; pvIndex < multiPV; pvIndex++)
+                {
+                    _search.SearchDeeper(_time.CheckTimeBudget, pvIndex);
 
-                //collect PV
-                Collect();
+                    //aborted?
+                    if (_search.Aborted)
+                        break;
+
+                    if (_search.PrincipalVariation.Length > 0 && pvIndex == 0)
+                    {
+                        _best = _search.PrincipalVariation[0];
+                        bestMoveStability = _search.Stability;
+                    }
+
+                    LogUciInfo(pvIndex + 1);
+                }
             }
             //Done searching!
             Uci.BestMove(_best, Options.Variant);
             _search = null;
         }
 
-        private bool CanSearchDeeper()
+        private void LogUciInfo(int multiPV)
         {
-            //max depth reached or game over?
-            if (_search == null)
-                return false;
-
-            //otherwise it's only time that can stop us!
-            return _time.CanSearchDeeper(_search.Depth, _search.Stability);
-        }
-
-        private void Collect()
-        {
-            if (_search == null)
-                return;
-
-            if (_search.Aborted)
-                return;
-
-            if (_search.PrincipalVariation.Length > 0)
-                _best = _search.PrincipalVariation[0];
-
             Uci.Info(
                 depth: _search.Depth,
                 score: (int)SideToMove * _search.Score, //the score from the engine's point of view in centipawns.
                 nodes: _search.NodesVisited,
                 timeMs: _time.Elapsed,
+                multiPV: multiPV,
                 pv: GetExtendedPV(),
                 variant: Options.Variant
             );

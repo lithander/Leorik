@@ -33,6 +33,8 @@ namespace Leorik.Search
         public int Depth { get; private set; }
         public bool Aborted { get; private set; }
         public Span<Move> PrincipalVariation => GetFirstPVfromBuffer(PrincipalVariations, Depth);
+        public Span<Move> SearchMoves => new Span<Move>(RootMoves);
+
 
         public IterativeSearch(BoardState board, SearchOptions options, ulong[]? history, Move[]? moves)
         {
@@ -76,9 +78,10 @@ namespace Leorik.Search
                 SearchDeeper();
         }
 
-        public void SearchDeeper(Func<bool>? killSwitch = null)
+        public void SearchDeeper(Func<bool>? killSwitch = null, int firstMove = 0)
         {
-            Depth++;
+            if(firstMove == 0)
+                Depth++;
 
             _bestMoveNodes = 0;
             _totalNodes = 1;
@@ -92,13 +95,13 @@ namespace Leorik.Search
                 //set aspiration window
                 int alpha = eval - window;
                 if (IsCheckmate(alpha))
-                    alpha = -CheckmateScore;
+                    alpha = -10000;
 
                 int beta = eval + window;
                 if (IsCheckmate(beta))
-                    beta = CheckmateScore;
+                    beta = 10000;
                 
-                eval = EvaluateRoot(Depth, alpha, beta);
+                eval = EvaluateRoot(Depth, alpha, beta, firstMove);
                 
                 //result within aspiration window?
                 if (eval > alpha && eval < beta)
@@ -112,7 +115,7 @@ namespace Leorik.Search
             }
         }
 
-        private int EvaluateRoot(int depth, int alpha, int beta)
+        private int EvaluateRoot(int depth, int alpha, int beta, int firstMove)
         {
             NodesVisited++;
 
@@ -121,7 +124,7 @@ namespace Leorik.Search
             MoveGen moveGen = new(Moves, 0);
 
             //init staged move generation and play all moves
-            for (int i = 0; i < RootMoves.Length; i++)
+            for (int i = firstMove; i < RootMoves.Length; i++)
             {
                 Move move = RootMoves[i];
                 if (!next.Play(root, ref move))
@@ -145,7 +148,7 @@ namespace Leorik.Search
                     _bestMoveNodes = NodesVisited - preNodes;
                     alpha = score;
                     ExtendPV(0, depth, move);
-                    PromoteBestMove(i);
+                    PromoteBestMove(i, firstMove);
 
                     if (score >= beta)
                         return beta;
@@ -591,21 +594,21 @@ namespace Leorik.Search
             PrincipalVariations[IndexPV(ply)] = default;
         }
 
-        private void PromoteBestMove(int i)
+        private void PromoteBestMove(int from, int to)
         {
-            if (i <= 0) return; // already at the front
+            if (from <= to) return; // already at the front
 
-            Move move = RootMoves[i];
-            int offset = RootMoveOffsets[i];
+            Move move = RootMoves[from];
+            int offset = RootMoveOffsets[from];
             //move all moves down one position overwriting best move at index i
-            for (int j = i; j > 0; j--)
+            for (int j = from; j > to; j--)
             {
                 RootMoves[j] = RootMoves[j - 1];
                 RootMoveOffsets[j] = RootMoveOffsets[j - 1];
             }
             //put the best move at the front
-            RootMoves[0] = move;
-            RootMoveOffsets[0] = offset;
+            RootMoves[to] = move;
+            RootMoveOffsets[to] = offset;
         }
     }
 }

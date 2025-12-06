@@ -8,6 +8,7 @@ namespace Leorik.Search
         int _best = 0;
 
         public Span<Move> PrincipalVariation => _worker[_best].PrincipalVariation;
+        public Span<Move> SearchMoves => _worker[_best].SearchMoves;
         public bool Aborted => _worker[_best].Aborted;
         public int Depth => _worker[_best].Depth;
         public int Score => _worker[_best].Score;
@@ -34,12 +35,12 @@ namespace Leorik.Search
             }
         }
 
-        public void SearchDeeper(Func<bool>? killSwitch = null)
+        public void SearchDeeper(Func<bool>? killSwitch = null, int firstMove = 0)
         {
             // Using a lambda expression.
             Parallel.For(0, _worker.Count, i =>
             {
-                _worker[i].SearchDeeper(killSwitch);
+                _worker[i].SearchDeeper(killSwitch, firstMove);
                 _best = i;
             });
         }

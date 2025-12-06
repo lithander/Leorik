@@ -6,6 +6,7 @@ namespace Leorik.Search
     {
         public Variant Variant;
         public long MaxNodes;
+        public int MultiPV;
         public int NullMoveCutoff;
         public int Threads;
         public int Temperature;
@@ -16,6 +17,7 @@ namespace Leorik.Search
         {
             Variant = Variant.Standard;
             Threads = 1;
+            MultiPV = 1;
             MaxNodes = long.MaxValue;
             NullMoveCutoff = 600;
             Seed = -1;
@@ -26,11 +28,12 @@ namespace Leorik.Search
     {
         bool Aborted { get; }
         int Depth { get; }
+        Span<Move> SearchMoves { get; }
         float Stability { get; }
         int Score { get; }
         long NodesVisited { get; }
         Span<Move> PrincipalVariation { get; }
-        void SearchDeeper(Func<bool> checkTimeBudget);
+        void SearchDeeper(Func<bool> checkTimeBudget, int firstMove);
         void Search(int depth);
     }
 }

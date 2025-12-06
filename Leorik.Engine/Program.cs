@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.17";
+        const string NAME_VERSION = "Leorik 3.1.18";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -89,10 +89,11 @@ namespace Leorik.Engine
         private static void UciOptionList()
         {
             WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
-            WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 8");
+            WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 32");
             WriteLine($"option name Clear Hash type button");
             WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
             WriteLine($"option name UCI_Chess960 type check default false");
+            WriteLine($"option name MultiPV type spin default 1 min 1 max 256");
         }
 
         private static void UciSetOption(string[] token)
@@ -109,6 +110,8 @@ namespace Leorik.Engine
                 _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
                 _engine.Options.Variant = chess960 ? Variant.Chess960 : Variant.Standard;
+            else if (token[1] == "name" && token[2] == "MultiPV" && token[3] == "value" && int.TryParse(token[4], out int multipv))
+                _engine.Options.MultiPV = multipv;
             else
                 WriteLine($"Unknown UCI option: {String.Join(' ', token[2..])}");
         }
