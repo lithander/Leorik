@@ -7,7 +7,6 @@ namespace Leorik.Search
         public Variant Variant;
         public long MaxNodes;
         public int MultiPV;
-        public int NullMoveCutoff;
         public int Threads;
         public int Temperature;
         public int Seed;
@@ -19,7 +18,6 @@ namespace Leorik.Search
             Threads = 1;
             MultiPV = 1;
             MaxNodes = long.MaxValue;
-            NullMoveCutoff = 600;
             Seed = -1;
         }
     }

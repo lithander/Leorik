@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.18";
+        const string NAME_VERSION = "Leorik 3.1.19";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -80,6 +80,9 @@ namespace Leorik.Engine
                 case "flip":
                     _engine.Flip();
                     break;
+                case "moves":
+                    WriteLine(Uci.Join(_engine.GetLegalMoves(), _engine.Options.Variant));
+                    break;
                 default:
                     WriteLine($"Unknown command: {input}");
                     return;
@@ -106,8 +109,6 @@ namespace Leorik.Engine
                 Transpositions.Clear();
             else if (token[1] == "name" && token[2] == "Temperature" && token[3] == "value" && int.TryParse(token[4], out int temperature))
                 _engine.Options.Temperature = temperature;
-            else if (token[1] == "name" && token[2] == "NullMoveCutoff" && token[3] == "value" && int.TryParse(token[4], out int nullMoveCutoff))
-                _engine.Options.NullMoveCutoff = nullMoveCutoff;
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
                 _engine.Options.Variant = chess960 ? Variant.Chess960 : Variant.Standard;
             else if (token[1] == "name" && token[2] == "MultiPV" && token[3] == "value" && int.TryParse(token[4], out int multipv))
@@ -210,21 +211,21 @@ namespace Leorik.Engine
         {
             int iParam = Array.IndexOf(tokens, "searchmoves");
             if (iParam < 0) 
-                return Array.Empty<Move>();
+                return null;
 
             List<Move> moves = new List<Move>();
             int iValue = iParam + 1;
             while(iValue < tokens.Length)
             {
+                string notation = tokens[iValue++];
                 try
                 {
-                    string notation = tokens[iValue++];
                     Move move = _engine.GetMoveUci(notation);
                     moves.Add(move);
                 }
                 catch
                 {
-                    return moves.ToArray();
+                    WriteLine($"Invalid Move: {notation} is not viable in this position!");
                 }
             }
             return moves.ToArray();
