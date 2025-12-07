@@ -26,7 +26,7 @@ namespace Leorik.Engine
             Write($"info depth {depth} multipv {multiPV} score {ScoreToString(score)} nodes {nodes} nps {nps} time {timeMs} pv {Join(pv, variant)}");
         }
 
-        private static string Join(IEnumerable<Move> moves, Variant variant)
+        public static string Join(IEnumerable<Move> moves, Variant variant)
         {
             var sb = new StringBuilder(128);
             foreach (var move in moves)

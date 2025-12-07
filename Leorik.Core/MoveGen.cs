@@ -4,6 +4,28 @@ namespace Leorik.Core
 {
     public struct MoveGen
     {
+        //*** STATIC ***
+
+        private static readonly Move[] _moveBuffer = new Move[256];
+
+        public static Move[] GetLegalMoves(BoardState board)
+        {
+            MoveGen moveGen = new MoveGen(_moveBuffer, 0);
+            moveGen.CollectAll(board);
+            BoardState tempBoard = new BoardState();
+            int to = 0;
+            for(int i = 0; i < moveGen.Next; i++)
+            {
+                if(tempBoard.Play(board, ref _moveBuffer[i]))
+                    _moveBuffer[to++] = _moveBuffer[i];
+            }
+            Move[] result = new Move[to];
+            Array.Copy(_moveBuffer, result, result.Length);
+            return result;
+        }
+
+        //**************
+
         private readonly Move[] _moves;
         public int Next;
 

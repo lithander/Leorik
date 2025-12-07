@@ -23,6 +23,7 @@ namespace Leorik.Engine
         public ulong GetZobristHash() => _board.ZobristHash;
         public void Flip() => _board.Flip();
         public Move GetMoveUci(string notation) => Notation.GetMoveUci(_board, notation, Options.Variant);
+        public IEnumerable<Move> GetLegalMoves() => MoveGen.GetLegalMoves(_board);
 
         public void Init()
         {
@@ -142,11 +143,10 @@ namespace Leorik.Engine
             int multiPV = Math.Min(Options.MultiPV, _search.SearchMoves.Length);
             float bestMoveStability = 0.0f;
 
-            while (!_search.Aborted && _time.CanSearchDeeper(_search.Depth, bestMoveStability))
+            do
             {
                 _time.StartInterval();
-
-                for(int pvIndex = 0; pvIndex < multiPV; pvIndex++)
+                for (int pvIndex = 0; pvIndex < multiPV; pvIndex++)
                 {
                     _search.SearchDeeper(_time.CheckTimeBudget, pvIndex);
 
@@ -163,6 +163,8 @@ namespace Leorik.Engine
                     LogUciInfo(pvIndex + 1);
                 }
             }
+            while (!_search.Aborted && _time.CanSearchDeeper(_search.Depth, bestMoveStability));
+
             //Done searching!
             Uci.BestMove(_best, Options.Variant);
             _search = null;

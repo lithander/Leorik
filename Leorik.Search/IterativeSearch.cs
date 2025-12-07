@@ -9,6 +9,7 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
+        private const int ASPIRATION_BOUNDS = 10000;
         private const float HISTORY_SCALE = 1.5f;
         private const int NORMALIZE_TO_PAWN_VALUE = 306;
 
@@ -42,23 +43,12 @@ namespace Leorik.Search
             _history = new History();
             _legacy = history ?? Array.Empty<ulong>();
 
+            //Setup Arrays
+            RootMoves = moves ?? MoveGen.GetLegalMoves(board);
             Moves = new Move[MAX_PLY * MAX_MOVES];
-            MoveGen moveGen = new(Moves, 0);
-            if (moves?.Length > 0)
-            {
-                RootMoves = moves;
-            }
-            else
-            {
-                moveGen.CollectAll(board);
-                RootMoves = new Move[moveGen.Next];
-                Array.Copy(Moves, RootMoves, RootMoves.Length);
-            }
-
             //PV-length = depth + (depth - 1) + (depth - 2) + ... + 1
             const int d = MAX_PLY + 1;
             PrincipalVariations = new Move[(d * d + d) / 2];
-
             //Initialize BoardState Stack
             Positions = new BoardState[MAX_PLY];
             for (int i = 0; i < MAX_PLY; i++)
@@ -93,13 +83,8 @@ namespace Leorik.Search
             while (!Aborted)
             {
                 //set aspiration window
-                int alpha = eval - window;
-                if (IsCheckmate(alpha))
-                    alpha = -10000;
-
-                int beta = eval + window;
-                if (IsCheckmate(beta))
-                    beta = 10000;
+                int alpha = (Depth == 1 || eval - window < CheckmateBase) ? -ASPIRATION_BOUNDS : eval - window;
+                int beta  = (Depth == 1 || eval + window > CheckmateBase) ? +ASPIRATION_BOUNDS : eval + window;
                 
                 eval = EvaluateRoot(Depth, alpha, beta, firstMove);
                 
@@ -556,7 +541,7 @@ namespace Leorik.Search
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ForcedCut(int depth)
         {
-            return depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get();
+            return Depth > 1 && (depth >= MAX_PLY - 1 || NodesVisited >= _options.MaxNodes || _killSwitch.Get());
         }
 
         private static Span<Move> GetFirstPVfromBuffer(Move[] pv, int depth)
