@@ -67,6 +67,9 @@ namespace Leorik.Engine
 
         public bool CanSearchDeeper(int depth, float stability)
         {
+            if (depth == 0)
+                return true;
+
             if (depth >= _maxDepth)
                 return false;
 
