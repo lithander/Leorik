@@ -7,7 +7,6 @@ namespace Leorik.Engine
     {
         ISearch _search = null;
         Thread _searching = null;
-        Move _best = default;
         TimeControl _time = new();
         BoardState _board = Notation.GetStartingPosition();
         BoardState _tempBoard = new();
@@ -72,17 +71,17 @@ namespace Leorik.Engine
         //*** Search ***
         //**************
 
-        internal void Go(int maxDepth, int maxTime, long maxNodes, Move[] searchMoves)
+        internal void Go(int maxDepth, int maxTime, long maxNodes, Move[] searchMoves, bool pondering)
         {
             Stop();
-            _time.Go(maxDepth, maxTime);
+            _time.Go(maxDepth, maxTime, pondering);
             StartSearch(maxNodes, searchMoves);
         }
 
-        internal void Go(int maxTime, int increment, int movesToGo, int maxDepth, long maxNodes, Move[] searchMoves)
+        internal void Go(int maxTime, int increment, int movesToGo, int maxDepth, long maxNodes, Move[] searchMoves, bool pondering)
         {
             Stop();
-            _time.Go(maxDepth, maxTime, increment, movesToGo);
+            _time.Go(maxDepth, maxTime, increment, movesToGo, pondering);
             StartSearch(maxNodes, searchMoves);
         }
 
@@ -97,6 +96,11 @@ namespace Leorik.Engine
             }
         }
 
+        public void Ponderhit()
+        {
+            //this will start the clock!
+            _time.Ponderhit();
+        }
 
         public long Perft(int depth)
         {
@@ -142,10 +146,11 @@ namespace Leorik.Engine
         {
             int multiPV = Math.Min(Options.MultiPV, _search.SearchMoves.Length);
             float bestMoveStability = 0.0f;
+            Move best = default;
+            Move ponder = default;
 
             do
             {
-                _time.StartInterval();
                 for (int pvIndex = 0; pvIndex < multiPV; pvIndex++)
                 {
                     _search.SearchDeeper(_time.CheckTimeBudget, pvIndex);
@@ -154,19 +159,26 @@ namespace Leorik.Engine
                     if (_search.Aborted)
                         break;
 
-                    if (_search.PrincipalVariation.Length > 0 && pvIndex == 0)
+
+                    if (pvIndex == 0)
                     {
-                        _best = _search.PrincipalVariation[0];
+                        var pv = _search.PrincipalVariation;
+                        best = pv.Length > 0 ? pv[0] : default;
+                        ponder = pv.Length > 1 ? pv[1] : default;
                         bestMoveStability = _search.Stability;
                     }
 
                     LogUciInfo(pvIndex + 1);
                 }
             }
-            while (!_search.Aborted && _time.CanSearchDeeper(_search.Depth, bestMoveStability));
+            while (!_search.Aborted && _time.CanSearchDeeper(_search.Depth, multiPV, bestMoveStability));
+
+            //wait until pondering is over
+            while (_time.IsPondering)
+                Thread.Sleep(1);
 
             //Done searching!
-            Uci.BestMove(_best, Options.Variant);
+            Uci.BestMove(best, ponder, Options.Variant);
             _search = null;
         }
 

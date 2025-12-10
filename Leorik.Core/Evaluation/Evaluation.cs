@@ -7,6 +7,7 @@ namespace Leorik.Core
     {
         public const int CheckmateBase = 9000;
         public const int CheckmateScore = 9999;
+        public const int ScoreBounds = 10000;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetMateDistance(int score)

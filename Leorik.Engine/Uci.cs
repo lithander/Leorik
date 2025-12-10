@@ -13,9 +13,12 @@ namespace Leorik.Engine
                 Console.WriteLine(message);
         }
 
-        public static void BestMove(Move move, Variant variant)
+        public static void BestMove(Move move, Move ponder, Variant variant)
         {
-            Write($"bestmove {Notation.GetMoveName(move, variant)}");
+            if(ponder == default)
+                Write($"bestmove {Notation.GetMoveName(move, variant)}");
+            else 
+                Write($"bestmove {Notation.GetMoveName(move, variant)} ponder {Notation.GetMoveName(ponder, variant)}");
         }
 
         public static void Info(int depth, int score, long nodes, int timeMs, int multiPV, List<Move> pv, Variant variant)

@@ -10,16 +10,15 @@ namespace Leorik.Engine
         const float PLAY_ON_INC = 0.5f;
         const float PLAY_ON_RESERVE = 0.85f;
 
+        private bool _pondering = false;
         private int _moveTime;
         private int _moveTimeLimit;
         private int _maxDepth;
-
         private long _t0 = -1;
-        private long _tN = -1;
 
         private long Now => Stopwatch.GetTimestamp();
         public int Elapsed => MilliSeconds(Now - _t0);
-        public int ElapsedInterval => MilliSeconds(Now - _tN);
+        public bool IsPondering => _pondering;
 
         private int MilliSeconds(long ticks)
         {
@@ -27,34 +26,33 @@ namespace Leorik.Engine
             return (int)(1000 * dt);
         }
 
-        private void Reset()
-        {
-            _moveTimeLimit = MAX_TIME;
-            _t0 = Now;
-            _tN = _t0;
-        }
-
-        public void StartInterval()
-        {
-            _tN = Now;
-        }
-
         public void Stop()
         {
             //this will cause CanSearchDeeper() and CheckTimeBudget() to evaluate to 'false'
+            _pondering = false;
             _moveTimeLimit = 0;
         }
 
-        internal void Go(int maxDepth, int timePerMove)
+        public void Ponderhit()
         {
-            Reset();
+            //now the clock's running!
+            _pondering = false;
+            _t0 = Now;
+            _moveTime /= 2;
+        }
+
+        internal void Go(int maxDepth, int timePerMove, bool pondering)
+        {
+            _pondering = pondering;
+            _t0 = Now;
             _maxDepth = maxDepth;
             _moveTimeLimit = _moveTime = Math.Min(timePerMove, MAX_TIME);
         }
 
-        internal void Go(int maxDepth, int time, int increment, int movesToGo)
+        internal void Go(int maxDepth, int time, int increment, int movesToGo, bool pondering)
         {
-            Reset();
+            _pondering = pondering;
+            _t0 = Now;
             _maxDepth = maxDepth;
             int futureMoves = movesToGo - 1;
             int timeRemaining = Math.Min(time, MAX_TIME) + futureMoves * increment;
@@ -65,12 +63,15 @@ namespace Leorik.Engine
             _moveTimeLimit = Math.Min(time, timeRemaining - reserve);
         }
 
-        public bool CanSearchDeeper(int depth, float stability)
+        public bool CanSearchDeeper(int depth, int multiPV, float stability)
         {
+            _moveTimeLimit -= BASE_MARGIN * multiPV;
+
             if (depth >= _maxDepth)
                 return false;
 
-            _moveTimeLimit -= BASE_MARGIN;
+            if (_pondering)
+                return true; //clock's not running
 
             //high stability means we're confident we already have the best move
             float stopRatio = 1 / (1 + 2 * stability);
@@ -84,7 +85,10 @@ namespace Leorik.Engine
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CheckTimeBudget()
         {
-            return Elapsed > _moveTimeLimit;
+            if (_pondering)
+                return false; //no need to ever abort during pondering!
+            else
+                return Elapsed > _moveTimeLimit;
         }
     }
 }

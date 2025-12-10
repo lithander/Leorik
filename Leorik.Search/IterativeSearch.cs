@@ -9,7 +9,6 @@ namespace Leorik.Search
         public const int MAX_PLY = 99;
         private const int MAX_MOVES = 225; //https://www.stmintz.com/ccc/index.php?id=425058
         private const int ASPIRATION_WINDOW = 40;
-        private const int ASPIRATION_BOUNDS = 10000;
         private const float HISTORY_SCALE = 1.5f;
         private const int NORMALIZE_TO_PAWN_VALUE = 306;
 
@@ -83,9 +82,14 @@ namespace Leorik.Search
             while (!Aborted)
             {
                 //set aspiration window
-                int alpha = (Depth == 1 || eval - window < CheckmateBase) ? -ASPIRATION_BOUNDS : eval - window;
-                int beta  = (Depth == 1 || eval + window > CheckmateBase) ? +ASPIRATION_BOUNDS : eval + window;
-                
+                int alpha = eval - window;
+                if (Depth == 1 || IsCheckmate(alpha))
+                    alpha = -ScoreBounds;
+
+                int beta = eval + window;
+                if (Depth == 1 || IsCheckmate(beta))
+                    beta = +ScoreBounds;
+
                 eval = EvaluateRoot(Depth, alpha, beta, firstMove);
                 
                 //result within aspiration window?
@@ -123,7 +127,7 @@ namespace Leorik.Search
                 int R = (move.CapturedPiece() != Piece.None || next.InCheck()) ? 0 : 2;
                 int score = alpha;
                 //full search only for the best root move or if the zero window search indicates it could be better than alpha
-                if (i == 0 || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
+                if (i == firstMove || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
                     score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
 
                 _totalNodes += NodesVisited - preNodes;

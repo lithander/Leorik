@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.1.19";
+        const string NAME_VERSION = "Leorik 3.1.20";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -58,6 +58,9 @@ namespace Leorik.Engine
                 case "stop":
                     _engine.Stop();
                     break;
+                case "ponderhit":
+                    _engine.Ponderhit();
+                    break;
                 case "quit":
                     _engine.Quit();
                     break;
@@ -93,10 +96,11 @@ namespace Leorik.Engine
         {
             WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
             WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 32");
-            WriteLine($"option name Clear Hash type button");
             WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
-            WriteLine($"option name UCI_Chess960 type check default false");
-            WriteLine($"option name MultiPV type spin default 1 min 1 max 256");
+            WriteLine("option name Clear Hash type button");
+            WriteLine("option name UCI_Chess960 type check default false");
+            WriteLine("option name Ponder type check default false");
+            WriteLine("option name MultiPV type spin default 1 min 1 max 256");
         }
 
         private static void UciSetOption(string[] token)
@@ -111,6 +115,8 @@ namespace Leorik.Engine
                 _engine.Options.Temperature = temperature;
             else if (token[1] == "name" && token[2] == "UCI_Chess960" && token[3] == "value" && bool.TryParse(token[4], out bool chess960))
                 _engine.Options.Variant = chess960 ? Variant.Chess960 : Variant.Standard;
+            else if (token[1] == "name" && token[2] == "Ponder" && token[3] == "value" && bool.TryParse(token[4], out bool ponder))
+                _engine.Options.Ponder = ponder;
             else if (token[1] == "name" && token[2] == "MultiPV" && token[3] == "value" && int.TryParse(token[4], out int multipv))
                 _engine.Options.MultiPV = multipv;
             else
@@ -160,6 +166,7 @@ namespace Leorik.Engine
             //40 Moves in 5 Minutes, 1 second increment per Move =  go wtime 300000 btime 300000 movestogo 40 winc 1000 binc 1000 movestogo 40
             //5 Minutes total, no increment (sudden death) = go wtime 300000 btime 300000
 
+            bool pondering = Array.IndexOf(tokens, "ponder") >= 0;
             TryParse(tokens, "depth", out int maxDepth, IterativeSearch.MAX_PLY);
             TryParse(tokens, "movetime", out int maxTime, int.MaxValue);
             TryParse(tokens, "nodes", out long maxNodes, long.MaxValue);
@@ -169,17 +176,17 @@ namespace Leorik.Engine
             if (_engine.SideToMove == Color.White && TryParse(tokens, "wtime", out int whiteTime))
             {
                 TryParse(tokens, "winc", out int whiteIncrement);
-                _engine.Go(whiteTime, whiteIncrement, movesToGo, maxDepth, maxNodes, searchMoves);
+                _engine.Go(whiteTime, whiteIncrement, movesToGo, maxDepth, maxNodes, searchMoves, pondering);
             }
             else if (_engine.SideToMove == Color.Black && TryParse(tokens, "btime", out int blackTime))
             {
                 TryParse(tokens, "binc", out int blackIncrement);
-                _engine.Go(blackTime, blackIncrement, movesToGo, maxDepth, maxNodes, searchMoves);
+                _engine.Go(blackTime, blackIncrement, movesToGo, maxDepth, maxNodes, searchMoves, pondering);
             }
             else
             {
                 //Searching infinite within optional constraints
-                _engine.Go(maxDepth, maxTime, maxNodes, searchMoves);
+                _engine.Go(maxDepth, maxTime, maxNodes, searchMoves, pondering);
             }
         }
 

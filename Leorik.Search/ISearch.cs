@@ -10,6 +10,7 @@ namespace Leorik.Search
         public int Threads;
         public int Temperature;
         public int Seed;
+        public bool Ponder;
         public readonly static SearchOptions Default = new();
 
         public SearchOptions()
