@@ -6,7 +6,7 @@ namespace Leorik.Engine
 {
     public static class Program
     {
-        const string NAME_VERSION = "Leorik 3.2";
+        const string NAME_VERSION = "Leorik 3.2.1";
         const string AUTHOR = "Thomas Jahn";
 
         static readonly Engine _engine = new();
@@ -96,7 +96,7 @@ namespace Leorik.Engine
         {
             WriteLine($"option name Hash type spin default {Transpositions.DEFAULT_SIZE_MB} min 1 max 2047");//consider gcAllowVeryLargeObjects if larger TT is needed
             WriteLine($"option name Threads type spin default {SearchOptions.Default.Threads} min 1 max 32");
-            WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 1000");
+            WriteLine($"option name Temperature type spin default {SearchOptions.Default.Temperature} min 0 max 990");
             WriteLine("option name Clear Hash type button");
             WriteLine("option name UCI_Chess960 type check default false");
             WriteLine("option name Ponder type check default false");

@@ -127,7 +127,11 @@ namespace Leorik.Search
                 int score = alpha;
                 //full search only for the best root move or if the zero window search indicates it could be better than alpha
                 if (i == firstMove || EvaluateNext(0, depth - R, alpha - bonus, alpha + 1 - bonus, moveGen) + bonus > alpha)
-                    score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen) + bonus;
+                {
+                    score = EvaluateNext(0, depth, alpha - bonus, beta - bonus, moveGen);
+                    if (!IsCheckmate(score))
+                        score += bonus;
+                }
 
                 _totalNodes += NodesVisited - preNodes;
 
