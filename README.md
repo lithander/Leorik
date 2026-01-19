@@ -42,6 +42,13 @@ It plays Standard and Chess960/Fischer Random at superhuman strength.
 * Pondering - think on opponent's time
 
 ## Version History
+
+### Leorik 3.2
+
+[__Version 3.2__](https://github.com/lithander/Leorik/releases/tag/3.2) now also plays Fisher Random chess. It supports UCI features like MultiPV and Pondering and gains strength from a more sophisticated NNUE architecture and a few search improvements. Built with .Net 10.
+The new NNUE architecture uses horizontal mirroring, 5 input and 8 output buckets. The same network supports both FRC and standard chess and was trained on over 6 billion labeled positions.
+Search improvements include dynamic NMP reductions, better time control that takes the stability of the search into account and Razoring with adaptive margins based on live statistics.
+
 ### Leorik 3.1
 
 [__Version 3.1__](https://github.com/lithander/Leorik/releases/tag/3.1) improves Leorik's NNUE evaluation by increasing the hidden layer size to 640 neurons and adopting SCReLU activation. The network was trained from zero over 19 generations and the final network 640HL-S-5288M-Tmix-Q5-v19 was trained on 5.2B positions. Search improvements include the addition of Correction History, increased reduction of late quiet moves, a dynamic threshold for identifying such moves, and the introduction of RFP with dynamic margins derived from NMP statistics.
