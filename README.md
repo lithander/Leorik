@@ -4,7 +4,7 @@
 </p>
 
 Unshackled from the constraints of minimalism and simplicity **Leorik** is the successor to my bare-bones chess engine [MinimalChess](https://github.com/lithander/MinimalChessEngine).
-It plays Standard and Chess960/Fischer Random at superhuman strength.
+It plays Standard chess and Chess960 at superhuman strength.
 
 ## Features
 * Pseudo-legal move generator, bitboards and copy/make.
@@ -45,15 +45,17 @@ It plays Standard and Chess960/Fischer Random at superhuman strength.
 
 ### Leorik 3.2
 
-[__Version 3.2__](https://github.com/lithander/Leorik/releases/tag/3.2) now also plays Fisher Random chess. It supports UCI features like MultiPV and Pondering and gains strength from a more sophisticated NNUE architecture and a few search improvements. Built with .Net 10.
+[__Version 3.2__](https://github.com/lithander/Leorik/releases/tag/3.2) now also plays Chess960 variant. It supports UCI features like MultiPV and Pondering and gains strength from a more sophisticated NNUE architecture and a few search improvements. Built with .Net 10.
 The new NNUE architecture uses horizontal mirroring, 5 input and 8 output buckets. The same network supports both FRC and standard chess and was trained on over 6 billion labeled positions.
 Search improvements include dynamic NMP reductions, better time control that takes the stability of the search into account and Razoring with adaptive margins based on live statistics.
+
+[3496 Elo](https://computerchess.org.uk/404/cgi/engine_details.cgi?eng=Leorik%203.2%2064-bit#Leorik_3_2_64-bit) CCRL Blitz and [3400 Elo](https://computerchess.org.uk/4040/cgi/engine_details.cgi?eng=Leorik%203.2%2064-bit#Leorik_3_2_64-bit) CCRL 40/15 rating.
 
 ### Leorik 3.1
 
 [__Version 3.1__](https://github.com/lithander/Leorik/releases/tag/3.1) improves Leorik's NNUE evaluation by increasing the hidden layer size to 640 neurons and adopting SCReLU activation. The network was trained from zero over 19 generations and the final network 640HL-S-5288M-Tmix-Q5-v19 was trained on 5.2B positions. Search improvements include the addition of Correction History, increased reduction of late quiet moves, a dynamic threshold for identifying such moves, and the introduction of RFP with dynamic margins derived from NMP statistics.
 
-[3432 Elo](https://computerchess.org.uk/ccrl/404/cgi/engine_details.cgi?eng=Leorik%203.1%2064-bit) CCRL Blitz and [3370 Elo](https://computerchess.org.uk/ccrl/4040/cgi/engine_details.cgi?eng=Leorik%203.1%2064-bit) CCRL 40/15 rating.
+[3430 Elo](https://computerchess.org.uk/ccrl/404/cgi/engine_details.cgi?eng=Leorik%203.1%2064-bit) CCRL Blitz and [3370 Elo](https://computerchess.org.uk/ccrl/4040/cgi/engine_details.cgi?eng=Leorik%203.1%2064-bit) CCRL 40/15 rating.
 
 ### Leorik 3.0
 [__Version 3.0__](https://github.com/lithander/Leorik/releases/tag/3.0) introduces NNUE based evaluation that completely replaces the handcrafted one. The network architecture uses 768 inputs and one hidden layer of 256 neurons. It was trained using [Bullet](https://github.com/jw1912/bullet) on 622M labeled positions extracted from selfplay games. Despite the modest complexity of the NNUE architecture it has contributed most of the Elo gains over Version 2.5. The rest (~50 Elo) is from the adoption of Aspiration Windows and a revamped Staged Move Generation that replaces the 2nd Killer with Counter and FollowUp moves if available.
